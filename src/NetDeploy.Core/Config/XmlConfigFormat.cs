@@ -55,8 +55,8 @@ internal sealed class XmlConfigFormat : IConfigFormat
                 existing.ReplaceWith(XElement.Parse(value));
         }
 
-        var declaration = document.Declaration is null ? "" : document.Declaration + Environment.NewLine;
-        return declaration + document.ToString(SaveOptions.DisableFormatting);
+        // The line break after the declaration is kept as whitespace in the document, so none is added here.
+        return document.Declaration + document.ToString(SaveOptions.DisableFormatting);
     }
 
     public string Display(string value) => ValueAttribute(XElement.Parse(value))?.Value ?? "";

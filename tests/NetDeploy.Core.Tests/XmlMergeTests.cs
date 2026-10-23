@@ -46,7 +46,7 @@ public class XmlMergeTests
         Assert.Equal(MergeChoice.KeepCurrent, plan.Rows.Single(r => r.Path == "connectionStrings:Orders").Choice);
 
         var merged = plan.BuildResult();
-        Assert.StartsWith("<?xml", merged);
+        Assert.Matches(@"^<\?xml[^>]*\?>\r?\n<configuration>", merged);
         Assert.Contains("<!-- keep this comment -->", merged);
         Assert.Contains("""value="Live" """, merged);
         Assert.Contains("""key="Retries" """, merged);
