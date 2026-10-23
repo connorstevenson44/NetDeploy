@@ -1,6 +1,8 @@
 using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using NetDeploy.App.ViewModels;
 using NetDeploy.Core;
@@ -37,9 +39,6 @@ public class MainWindowTests
             viewModel = new MainViewModel(new AutoAnswerUser());
             var window = new MainWindow(viewModel);
             window.Show();
-            viewModel.Load(SamplePath);
-            viewModel.Parameters.Single(p => p.Name == "InstallDir").Value = Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "missing");
-            viewModel.Parameters.Single(p => p.Name == "DbConnection").Value = "asd";
 
             // Run the dispatcher normally and stop it once the dry run and the layout after it are done.
             Exception? failure = null;
@@ -47,9 +46,13 @@ public class MainWindowTests
             {
                 try
                 {
+                    await SaveScreenshotAsync(window, "1-empty");
+                    viewModel.Load(SamplePath);
+                    viewModel.Parameters.Single(p => p.Name == "InstallDir").Value = Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "missing");
+                    viewModel.Parameters.Single(p => p.Name == "DbConnection").Value = "asd";
                     await viewModel.DryRunCommand.ExecuteAsync(null);
-                    // ContextIdle runs after layout and the queued log scrolls. ApplicationIdle never comes on a CI desktop.
-                    await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+                    await SaveScreenshotAsync(window, "2-dry-run");
+                    await SaveDialogScreenshotsAsync();
                 }
                 catch (Exception ex)
                 {
@@ -71,6 +74,51 @@ public class MainWindowTests
             Assert.Contains(viewModel.Log, entry => entry.Message.Contains("Dry run finished"));
             Assert.DoesNotContain(viewModel.Steps, step => step.State == StepState.Failed);
         }, onTimeout: () => $"Status: {viewModel?.Status}");
+    }
+
+    /// <summary>Saves what the dialogs look like, so a design change can be reviewed from CI.</summary>
+    private static async Task SaveDialogScreenshotsAsync()
+    {
+        var inputs = new InputsWindow("Install service OrdersService", new Dictionary<string, InputField>
+        {
+            ["Account"] = new() { Label = "Service account", Default = @"NT SERVICE\OrdersService" },
+            ["Password"] = new() { Label = "Password", Type = InputType.Secret },
+            ["Environment"] = new() { Label = "Environment", Type = InputType.Choice, Options = ["Production", "Staging"] },
+            ["LogFolder"] = new() { Label = "Log folder", Type = InputType.Folder, Default = @"D:\Logs\Orders" },
+            ["Archive"] = new() { Label = "Archive old orders", Type = InputType.YesNo },
+        });
+        inputs.Show();
+        await SaveScreenshotAsync(inputs, "3-inputs");
+        inputs.Close();
+
+        const string server = """{ "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" }, "Logging": { "LogLevel": { "Default": "Warning" } }, "Cleanup": { "KeepDays": 14 }, "Legacy": { "Mode": "on" } }""";
+        var incoming = File.ReadAllText(Path.Combine(SamplePath, "app", "appsettings.json"));
+        var format = ConfigFormats.For("appsettings.json");
+        var plan = ConfigMerger.Plan(server.Replace("14", "30"), server, incoming, format, new MergeOptions([], KeepRemoved: false));
+        var merge = new MergeWindow(new MergeViewModel(@"C:\Services\OrdersService\appsettings.json", plan, isReadOnly: false));
+        merge.Show();
+        await SaveScreenshotAsync(merge, "4-merge");
+        merge.Close();
+    }
+
+    private static async Task SaveScreenshotAsync(Window window, string name)
+    {
+        // ContextIdle runs after layout and the queued log scrolls. ApplicationIdle never comes on a CI desktop.
+        await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+        var content = (FrameworkElement)window.Content;
+        var size = new Size(content.ActualWidth, content.ActualHeight);
+        var visual = new DrawingVisual();
+        using (var context = visual.RenderOpen())
+        {
+            context.DrawRectangle(window.Background, null, new Rect(size));
+            context.DrawRectangle(new VisualBrush(content), null, new Rect(size));
+        }
+        var bitmap = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+
+        var folder = Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "screenshots"));
+        using var file = File.Create(Path.Combine(folder.FullName, name + ".png"));
+        new PngBitmapEncoder { Frames = { BitmapFrame.Create(bitmap) } }.Save(file);
     }
 
     private static void RunOnStaThread(Action action, Func<string> onTimeout)

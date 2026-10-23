@@ -1,72 +1,148 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+                    xmlns:converters="clr-namespace:MaterialDesignThemes.Wpf.Converters;assembly=MaterialDesignThemes.Wpf"
                     xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
-                    xmlns:controls="clr-namespace:NetDeploy.App.Controls"
                     xmlns:core="clr-namespace:NetDeploy.Core;assembly=NetDeploy.Core">
-    <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    <ResourceDictionary.MergedDictionaries>
+        <!-- Material Design styles every control; Pantone 301 is the primary colour. -->
+        <materialDesign:CustomColorTheme BaseTheme="Light" PrimaryColor="#004B87" SecondaryColor="#004B87" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
+    </ResourceDictionary.MergedDictionaries>
 
-    <Style TargetType="Button">
-        <Setter Property="Padding" Value="12,4" />
-        <Setter Property="MinWidth" Value="80" />
+    <!-- Palette: Pantone 301 and white, plus tints of 301 and the few status colours the plan needs. -->
+    <SolidColorBrush x:Key="Brand" Color="#004B87" />
+    <SolidColorBrush x:Key="BrandTint" Color="#E8EFF6" />
+    <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Canvas" Color="#F4F7FA" />
+    <SolidColorBrush x:Key="Hairline" Color="#DCE4EC" />
+    <SolidColorBrush x:Key="Ink" Color="#1A2633" />
+    <SolidColorBrush x:Key="InkMuted" Color="#5B6B7C" />
+    <SolidColorBrush x:Key="InkFaint" Color="#9AA8B6" />
+    <SolidColorBrush x:Key="Success" Color="#2E7D32" />
+    <SolidColorBrush x:Key="Warning" Color="#9A5B00" />
+    <SolidColorBrush x:Key="WarningTint" Color="#FFF4E0" />
+    <SolidColorBrush x:Key="Danger" Color="#C62828" />
+    <SolidColorBrush x:Key="DangerTint" Color="#FDECEC" />
+
+    <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    <converters:BooleanToVisibilityConverter x:Key="InverseBoolToVisibility" TrueValue="Collapsed" FalseValue="Visible" />
+
+    <Style x:Key="AppWindow" TargetType="Window" BasedOn="{StaticResource MaterialDesignWindow}">
+        <Setter Property="Background" Value="{StaticResource Canvas}" />
+        <Setter Property="Foreground" Value="{StaticResource Ink}" />
+        <Setter Property="TextElement.FontSize" Value="13" />
     </Style>
-    <Style TargetType="TextBox">
-        <Setter Property="Padding" Value="4,3" />
+
+    <!-- A white panel with a soft shadow. -->
+    <Style x:Key="Panel" TargetType="materialDesign:Card">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="UniformCornerRadius" Value="8" />
+        <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp1" />
     </Style>
-    <Style TargetType="PasswordBox">
-        <Setter Property="Padding" Value="4,3" />
-    </Style>
-    <Style x:Key="SectionHeading" TargetType="TextBlock">
+
+    <Style x:Key="PanelTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="Foreground" Value="{StaticResource Ink}" />
     </Style>
+
+    <Style x:Key="Caption" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- The main action of a window: filled Pantone 301. -->
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="18,0" />
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6" />
+    </Style>
+
+    <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6" />
+    </Style>
+
+    <Style x:Key="QuietButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6" />
+    </Style>
+
+    <!-- A white outlined button for the Pantone 301 header bar. -->
+    <Style x:Key="HeaderButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderBrush" Value="#99FFFFFF" />
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6" />
+        <Setter Property="materialDesign:RippleAssist.Feedback" Value="White" />
+    </Style>
+
+    <!-- An icon followed by a label, for buttons. -->
+    <DataTemplate x:Key="IconLabel">
+        <StackPanel Orientation="Horizontal">
+            <materialDesign:PackIcon Kind="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}"
+                                     Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBlock Text="{Binding}" VerticalAlignment="Center" />
+        </StackPanel>
+    </DataTemplate>
 
     <!-- Input editors, one per InputType. The form below picks one with the field's Type. -->
     <DataTemplate x:Key="TextInput">
-        <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" materialDesign:HintAssist.Hint="{Binding Label}"
+                 Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
     </DataTemplate>
     <DataTemplate x:Key="SecretInput">
-        <PasswordBox controls:PasswordBoxAssistant.BoundPassword="{Binding Value, Mode=TwoWay}" />
+        <PasswordBox Style="{StaticResource MaterialDesignOutlinedRevealPasswordBox}" materialDesign:HintAssist.Hint="{Binding Label}"
+                     materialDesign:PasswordBoxAssist.Password="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
     </DataTemplate>
     <DataTemplate x:Key="YesNoInput">
-        <CheckBox Content="Yes" IsChecked="{Binding IsChecked}" />
+        <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" Margin="2,4,0,4" />
     </DataTemplate>
     <DataTemplate x:Key="ChoiceInput">
-        <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" />
+        <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}" materialDesign:HintAssist.Hint="{Binding Label}"
+                  ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" />
     </DataTemplate>
     <DataTemplate x:Key="PathInput">
-        <DockPanel>
-            <Button DockPanel.Dock="Right" Content="Browse..." MinWidth="0" Margin="6,0,0,0" Command="{Binding BrowseCommand}" />
-            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
-        </DockPanel>
+        <Grid>
+            <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" materialDesign:HintAssist.Hint="{Binding Label}"
+                     Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Padding="16,16,44,16" />
+            <Button Style="{StaticResource MaterialDesignIconButton}" Command="{Binding BrowseCommand}" ToolTip="Browse"
+                    HorizontalAlignment="Right" VerticalAlignment="Center" Width="36" Height="36" Margin="0,0,4,0">
+                <materialDesign:PackIcon Kind="FolderOpen" Width="20" Height="20" />
+            </Button>
+        </Grid>
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type vm:InputFieldViewModel}">
-        <StackPanel Margin="0,0,0,12">
-            <TextBlock Text="{Binding Label}" Margin="0,0,0,4" TextWrapping="Wrap" />
-            <ContentControl Content="{Binding}" Focusable="False">
-                <ContentControl.Style>
-                    <Style TargetType="ContentControl">
-                        <Setter Property="ContentTemplate" Value="{StaticResource TextInput}" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.Secret}">
-                                <Setter Property="ContentTemplate" Value="{StaticResource SecretInput}" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.YesNo}">
-                                <Setter Property="ContentTemplate" Value="{StaticResource YesNoInput}" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.Choice}">
-                                <Setter Property="ContentTemplate" Value="{StaticResource ChoiceInput}" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.Folder}">
-                                <Setter Property="ContentTemplate" Value="{StaticResource PathInput}" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.File}">
-                                <Setter Property="ContentTemplate" Value="{StaticResource PathInput}" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </ContentControl.Style>
-            </ContentControl>
-        </StackPanel>
+        <ContentControl Content="{Binding}" Focusable="False" Margin="0,0,0,14">
+            <ContentControl.Style>
+                <Style TargetType="ContentControl">
+                    <Setter Property="ContentTemplate" Value="{StaticResource TextInput}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.Secret}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource SecretInput}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.YesNo}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource YesNoInput}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.Choice}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource ChoiceInput}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.Folder}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource PathInput}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.File}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource PathInput}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ContentControl.Style>
+        </ContentControl>
     </DataTemplate>
 </ResourceDictionary>

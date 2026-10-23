@@ -1,142 +1,216 @@
 <Window x:Class="NetDeploy.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:core="clr-namespace:NetDeploy.Core;assembly=NetDeploy.Core"
-        Title="NetDeploy" Height="760" Width="1180" MinWidth="900" MinHeight="560"
+        Style="{StaticResource AppWindow}"
+        Title="NetDeploy" Height="800" Width="1240" MinWidth="960" MinHeight="600"
         WindowStartupLocation="CenterScreen" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
         Closing="OnClosing">
     <DockPanel>
-        <Border DockPanel.Dock="Top" Padding="16,12" Background="#F5F6F8" BorderBrush="#DADCE0" BorderThickness="0,0,0,1">
+        <!-- Header bar -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource Brand}" Padding="24,16">
             <DockPanel>
-                <Button DockPanel.Dock="Right" VerticalAlignment="Center" Content="Open package..." Command="{Binding OpenPackageCommand}" />
-                <StackPanel>
-                    <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding PackagePath}" Foreground="#5F6368" TextTrimming="CharacterEllipsis" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource HeaderButton}" VerticalAlignment="Center"
+                        Command="{Binding OpenPackageCommand}" Content="Open package" Tag="{x:Static materialDesign:PackIconKind.FolderOpen}"
+                        ContentTemplate="{StaticResource IconLabel}" />
+                <materialDesign:PackIcon DockPanel.Dock="Left" Kind="RocketLaunch" Width="34" Height="34" Foreground="White"
+                                         VerticalAlignment="Center" Margin="0,0,16,0" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="NETDEPLOY" Foreground="White" Opacity="0.75" FontSize="11" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Title}" Foreground="White" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding PackagePath}" Foreground="White" Opacity="0.75" FontSize="12" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <Border DockPanel.Dock="Top" Padding="16,8" Background="#FFF4CE"
-                Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}}">
+        <ProgressBar DockPanel.Dock="Top" Height="3" IsIndeterminate="{Binding IsRunning}" Background="Transparent" BorderThickness="0"
+                     Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}" />
+
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="24,8">
             <DockPanel>
-                <Button DockPanel.Dock="Right" Content="Restart as administrator" Command="{Binding RestartElevatedCommand}" />
-                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
-                           Text="This package needs administrator rights to deploy. A dry run works without them." />
+                <materialDesign:PackIcon Kind="InformationOutline" Foreground="{StaticResource Brand}" Width="16" Height="16"
+                                         VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock Text="{Binding Status}" Foreground="{StaticResource InkMuted}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
             </DockPanel>
         </Border>
 
-        <Border DockPanel.Dock="Bottom" Padding="16,6" Background="#F5F6F8" BorderBrush="#DADCE0" BorderThickness="0,1,0,0">
-            <TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis" />
-        </Border>
-
-        <Grid Margin="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" />
-                <ColumnDefinition Width="20" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <DockPanel Grid.Column="0">
-                <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Dry run" Command="{Binding DryRunCommand}" Margin="0,0,8,0" />
-                        <Button Content="Deploy" Command="{Binding DeployCommand}" FontWeight="SemiBold" Margin="0,0,8,0" />
-                        <Button Content="Cancel" Command="{Binding CancelCommand}" />
-                    </StackPanel>
-                    <Button Content="Roll back last deploy" Command="{Binding RollBackCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+        <Grid>
+            <!-- Shown until a package is open -->
+            <Border Visibility="{Binding HasPackage, Converter={StaticResource InverseBoolToVisibility}}" Margin="24"
+                    BorderBrush="{StaticResource Brand}" BorderThickness="2" CornerRadius="12" Background="{StaticResource Surface}">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420">
+                    <Border Width="88" Height="88" CornerRadius="44" Background="{StaticResource BrandTint}" HorizontalAlignment="Center">
+                        <materialDesign:PackIcon Kind="PackageVariant" Width="44" Height="44" Foreground="{StaticResource Brand}"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="Open a deploy package" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,20,0,6" />
+                    <TextBlock Text="Drop a .zip, or a folder with deploy.json, anywhere on this window." Style="{StaticResource Caption}"
+                               FontSize="13" TextAlignment="Center" />
+                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding OpenPackageCommand}" HorizontalAlignment="Center" Margin="0,20,0,0"
+                            Content="Open package" Tag="{x:Static materialDesign:PackIconKind.FolderOpen}" ContentTemplate="{StaticResource IconLabel}" />
                 </StackPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Parameters" Style="{StaticResource SectionHeading}" />
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Parameters}" IsEnabled="{Binding IsIdle}" Focusable="False" />
-                </ScrollViewer>
-            </DockPanel>
+            </Border>
 
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="2*" MinHeight="120" />
-                    <RowDefinition Height="12" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="3*" MinHeight="120" />
-                </Grid.RowDefinitions>
+            <DockPanel Visibility="{Binding HasPackage, Converter={StaticResource BoolToVisibility}}" Margin="24,20,24,20">
+                <!-- Needs administrator rights -->
+                <Border DockPanel.Dock="Top" Background="{StaticResource WarningTint}" CornerRadius="8" Padding="16,10" Margin="0,0,0,16"
+                        Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Command="{Binding RestartElevatedCommand}"
+                                Content="Restart as administrator" Tag="{x:Static materialDesign:PackIconKind.ShieldAccount}" ContentTemplate="{StaticResource IconLabel}" />
+                        <materialDesign:PackIcon Kind="ShieldAlertOutline" Foreground="{StaticResource Warning}" Width="22" Height="22"
+                                                 VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{StaticResource Ink}"
+                                   Text="This package needs administrator rights to deploy. A dry run works without them." />
+                    </DockPanel>
+                </Border>
 
-                <TextBlock Text="Steps" Style="{StaticResource SectionHeading}" />
-                <ListBox Grid.Row="1" ItemsSource="{Binding Steps}" HorizontalContentAlignment="Stretch"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="{Binding Indent}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="24" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding Glyph}" FontWeight="Bold">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#9AA0A6" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Running}">
-                                                    <Setter Property="Foreground" Value="#1A73E8" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Succeeded}">
-                                                    <Setter Property="Foreground" Value="#188038" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Failed}">
-                                                    <Setter Property="Foreground" Value="#C5221F" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="360" />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Parameters and actions -->
+                    <materialDesign:Card Style="{StaticResource Panel}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                                <TextBlock Text="Parameters" Style="{StaticResource PanelTitle}" />
+                                <TextBlock Text="Used by the steps on the right. You can change them before each run." Style="{StaticResource Caption}" Margin="0,2,0,0" />
+                            </StackPanel>
+
+                            <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+                                <UniformGrid Columns="2">
+                                    <Button Style="{StaticResource SecondaryButton}" Command="{Binding DryRunCommand}" Margin="0,0,6,0"
+                                            Content="Dry run" Tag="{x:Static materialDesign:PackIconKind.PlayOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding DeployCommand}" Margin="6,0,0,0"
+                                            Content="Deploy" Tag="{x:Static materialDesign:PackIconKind.CloudUpload}" ContentTemplate="{StaticResource IconLabel}" />
+                                </UniformGrid>
+                                <UniformGrid Columns="2" Margin="0,8,0,0">
+                                    <Button Style="{StaticResource QuietButton}" Command="{Binding CancelCommand}" Margin="0,0,6,0"
+                                            Content="Cancel" Tag="{x:Static materialDesign:PackIconKind.Cancel}" ContentTemplate="{StaticResource IconLabel}" />
+                                    <Button Style="{StaticResource QuietButton}" Command="{Binding RollBackCommand}" Margin="6,0,0,0"
+                                            Content="Roll back" Tag="{x:Static materialDesign:PackIconKind.Restore}" ContentTemplate="{StaticResource IconLabel}" />
+                                </UniformGrid>
+                            </StackPanel>
+
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,6,4,0">
+                                <ItemsControl ItemsSource="{Binding Parameters}" IsEnabled="{Binding IsIdle}" Focusable="False" />
+                            </ScrollViewer>
+                        </DockPanel>
+                    </materialDesign:Card>
+
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="5*" MinHeight="160" />
+                            <RowDefinition Height="20" />
+                            <RowDefinition Height="4*" MinHeight="140" />
+                        </Grid.RowDefinitions>
+
+                        <!-- The plan -->
+                        <materialDesign:Card Style="{StaticResource Panel}" Padding="0">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Steps" Style="{StaticResource PanelTitle}" Margin="20,18,20,8" />
+                                <ListBox ItemsSource="{Binding Steps}" HorizontalContentAlignment="Stretch" Padding="8,0,8,8"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
+                                            <Setter Property="Padding" Value="12,8" />
+                                            <Setter Property="Focusable" Value="False" />
+                                            <Setter Property="materialDesign:ListBoxItemAssist.ShowSelection" Value="False" />
                                         </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock TextWrapping="Wrap">
-                                        <Run Text="{Binding Branch, Mode=OneWay}" Foreground="#5F6368" />
-                                        <Run Text="{Binding Title, Mode=OneWay}" />
-                                    </TextBlock>
-                                    <TextBlock Text="{Binding Detail}" Foreground="#5F6368" FontSize="11" TextWrapping="Wrap">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Detail}" Value="">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="{Binding Indent}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <materialDesign:PackIcon Width="22" Height="22" Margin="0,0,14,0" VerticalAlignment="Top">
+                                                    <materialDesign:PackIcon.Style>
+                                                        <Style TargetType="materialDesign:PackIcon">
+                                                            <Setter Property="Kind" Value="CircleOutline" />
+                                                            <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Running}">
+                                                                    <Setter Property="Kind" Value="PlayCircle" />
+                                                                    <Setter Property="Foreground" Value="{StaticResource Brand}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Succeeded}">
+                                                                    <Setter Property="Kind" Value="CheckCircle" />
+                                                                    <Setter Property="Foreground" Value="{StaticResource Success}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Skipped}">
+                                                                    <Setter Property="Kind" Value="MinusCircleOutline" />
+                                                                    <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Failed}">
+                                                                    <Setter Property="Kind" Value="CloseCircle" />
+                                                                    <Setter Property="Foreground" Value="{StaticResource Danger}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </materialDesign:PackIcon.Style>
+                                                </materialDesign:PackIcon>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock TextWrapping="Wrap" FontSize="13">
+                                                        <Run Text="{Binding Branch, Mode=OneWay}" Foreground="{StaticResource Brand}" FontWeight="SemiBold" />
+                                                        <Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Ink}" />
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" Margin="0,2,0,0"
+                                                               Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </DockPanel>
+                        </materialDesign:Card>
 
-                <GridSplitter Grid.Row="2" HorizontalAlignment="Stretch" VerticalAlignment="Center" Height="4" Background="Transparent" />
-
-                <TextBlock Grid.Row="3" Text="Log" Style="{StaticResource SectionHeading}" />
-                <ListBox Grid.Row="4" x:Name="LogList" ItemsSource="{Binding Log}" FontFamily="Consolas" FontSize="12"
-                         VirtualizingPanel.IsVirtualizing="True" ScrollViewer.HorizontalScrollBarVisibility="Auto">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock>
-                                <Run Text="{Binding Time, Mode=OneWay, StringFormat=HH:mm:ss}" Foreground="#9AA0A6" />
-                                <Run Text="{Binding Message, Mode=OneWay}" />
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Warning}">
-                                                <Setter Property="Foreground" Value="#B06000" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Error}">
-                                                <Setter Property="Foreground" Value="#C5221F" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
+                        <!-- The log -->
+                        <materialDesign:Card Grid.Row="2" Style="{StaticResource Panel}" Padding="0">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Log" Style="{StaticResource PanelTitle}" Margin="20,18,20,8" />
+                                <ListBox x:Name="LogList" ItemsSource="{Binding Log}" FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                                         Padding="12,0,12,8" VirtualizingPanel.IsVirtualizing="True" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
+                                            <Setter Property="Padding" Value="8,1" />
+                                            <Setter Property="materialDesign:ListBoxItemAssist.ShowSelection" Value="False" />
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock>
+                                                <Run Text="{Binding Time, Mode=OneWay, StringFormat=HH:mm:ss}" Foreground="{StaticResource InkFaint}" />
+                                                <Run Text="  " />
+                                                <Run Text="{Binding Message, Mode=OneWay}" />
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{StaticResource Ink}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Warning}">
+                                                                <Setter Property="Foreground" Value="{StaticResource Warning}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Error}">
+                                                                <Setter Property="Foreground" Value="{StaticResource Danger}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </DockPanel>
+                        </materialDesign:Card>
+                    </Grid>
+                </Grid>
+            </DockPanel>
         </Grid>
     </DockPanel>
 </Window>
