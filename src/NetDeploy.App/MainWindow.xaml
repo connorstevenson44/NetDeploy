@@ -37,9 +37,10 @@
         </Border>
 
         <Grid>
-            <!-- Shown until a package is open -->
-            <Border Visibility="{Binding HasPackage, Converter={StaticResource InverseBoolToVisibility}}" Margin="24"
-                    BorderBrush="{StaticResource Brand}" BorderThickness="2" CornerRadius="12" Background="{StaticResource Surface}">
+            <!-- Shown until a package is open: a dashed drop zone -->
+            <Grid Visibility="{Binding HasPackage, Converter={StaticResource InverseBoolToVisibility}}" Margin="24">
+                <Rectangle RadiusX="12" RadiusY="12" Fill="{StaticResource Surface}" Stroke="{StaticResource Brand}"
+                           StrokeThickness="2" StrokeDashArray="6 4" />
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420">
                     <Border Width="88" Height="88" CornerRadius="44" Background="{StaticResource BrandTint}" HorizontalAlignment="Center">
                         <materialDesign:PackIcon Kind="PackageVariant" Width="44" Height="44" Foreground="{StaticResource Brand}"
@@ -51,7 +52,7 @@
                     <Button Style="{StaticResource PrimaryButton}" Command="{Binding OpenPackageCommand}" HorizontalAlignment="Center" Margin="0,20,0,0"
                             Content="Open package" Tag="{x:Static materialDesign:PackIconKind.FolderOpen}" ContentTemplate="{StaticResource IconLabel}" />
                 </StackPanel>
-            </Border>
+            </Grid>
 
             <DockPanel Visibility="{Binding HasPackage, Converter={StaticResource BoolToVisibility}}" Margin="24,20,24,20">
                 <!-- Needs administrator rights -->
@@ -157,10 +158,8 @@
                                                     </materialDesign:PackIcon.Style>
                                                 </materialDesign:PackIcon>
                                                 <StackPanel Grid.Column="1">
-                                                    <TextBlock TextWrapping="Wrap" FontSize="13">
-                                                        <Run Text="{Binding Branch, Mode=OneWay}" Foreground="{StaticResource Brand}" FontWeight="SemiBold" />
-                                                        <Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Ink}" />
-                                                    </TextBlock>
+                                                    <!-- Runs on one line: whitespace between them would show as a leading space. -->
+                                                    <TextBlock TextWrapping="Wrap" FontSize="13"><Run Text="{Binding Branch, Mode=OneWay}" Foreground="{StaticResource Brand}" FontWeight="SemiBold" /><Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Ink}" /></TextBlock>
                                                     <TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" Margin="0,2,0,0"
                                                                Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
                                                 </StackPanel>

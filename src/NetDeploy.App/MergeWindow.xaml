@@ -38,7 +38,7 @@
         </StackPanel>
 
         <materialDesign:Card Style="{StaticResource Panel}" Padding="0" Margin="24,12,24,20">
-            <DataGrid x:Name="RowsGrid" ItemsSource="{Binding RowsView}" AutoGenerateColumns="False"
+            <DataGrid x:Name="RowsGrid" ItemsSource="{Binding RowsView}" Background="{StaticResource Surface}" AutoGenerateColumns="False"
                       CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                       HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{StaticResource Hairline}"
                       SelectionMode="Single" IsReadOnly="{Binding IsReadOnly}" RowHeaderWidth="0">

@@ -8,7 +8,7 @@
     <StackPanel>
         <Border Background="{StaticResource Brand}" Padding="24,18">
             <DockPanel>
-                <materialDesign:PackIcon Kind="FormTextbox" Foreground="White" Width="26" Height="26" VerticalAlignment="Center" Margin="0,0,14,0" />
+                <materialDesign:PackIcon Kind="ClipboardEditOutline" Foreground="White" Width="26" Height="26" VerticalAlignment="Center" Margin="0,0,14,0" />
                 <StackPanel>
                     <TextBlock Text="THIS STEP NEEDS A FEW ANSWERS" Foreground="White" Opacity="0.75" FontSize="11" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}"

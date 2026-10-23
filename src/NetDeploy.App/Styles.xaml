@@ -28,6 +28,9 @@
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
     <converters:BooleanToVisibilityConverter x:Key="InverseBoolToVisibility" TrueValue="Collapsed" FalseValue="Visible" />
 
+    <!-- Thin scroll bars without arrow buttons. -->
+    <Style TargetType="ScrollBar" BasedOn="{StaticResource MaterialDesignScrollBarMinimal}" />
+
     <Style x:Key="AppWindow" TargetType="Window" BasedOn="{StaticResource MaterialDesignWindow}">
         <Setter Property="Background" Value="{StaticResource Canvas}" />
         <Setter Property="Foreground" Value="{StaticResource Ink}" />
