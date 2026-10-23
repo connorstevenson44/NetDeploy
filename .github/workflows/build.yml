@@ -9,8 +9,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -37,14 +35,3 @@ jobs:
         with:
           name: Screenshots
           path: tests/NetDeploy.App.Tests/bin/Release/net10.0-windows/screenshots/
-
-      # Temporary: pushes the screenshots to a branch so the design can be reviewed without the Actions UI.
-      - name: Push screenshots
-        if: always() && github.event_name == 'workflow_dispatch'
-        shell: pwsh
-        run: |
-          Set-Location tests/NetDeploy.App.Tests/bin/Release/net10.0-windows/screenshots
-          git init -q -b ci-screenshots
-          git add .
-          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "Screenshots from ${{ github.sha }}"
-          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-screenshots
