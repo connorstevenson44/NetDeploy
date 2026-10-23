@@ -1,0 +1,75 @@
+<Application x:Class="NetDeploy.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
+             xmlns:controls="clr-namespace:NetDeploy.App.Controls"
+             xmlns:core="clr-namespace:NetDeploy.Core;assembly=NetDeploy.Core">
+    <Application.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="MinWidth" Value="80" />
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="4,3" />
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="Padding" Value="4,3" />
+        </Style>
+        <Style x:Key="SectionHeading" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+
+        <!-- Input editors, one per InputType. The form below picks one with the field's Type. -->
+        <DataTemplate x:Key="TextInput">
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+        </DataTemplate>
+        <DataTemplate x:Key="SecretInput">
+            <PasswordBox controls:PasswordBoxAssistant.BoundPassword="{Binding Value, Mode=TwoWay}" />
+        </DataTemplate>
+        <DataTemplate x:Key="YesNoInput">
+            <CheckBox Content="Yes" IsChecked="{Binding IsChecked}" />
+        </DataTemplate>
+        <DataTemplate x:Key="ChoiceInput">
+            <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" />
+        </DataTemplate>
+        <DataTemplate x:Key="PathInput">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Browse..." MinWidth="0" Margin="6,0,0,0" Command="{Binding BrowseCommand}" />
+                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:InputFieldViewModel}">
+            <StackPanel Margin="0,0,0,12">
+                <TextBlock Text="{Binding Label}" Margin="0,0,0,4" TextWrapping="Wrap" />
+                <ContentControl Content="{Binding}" Focusable="False">
+                    <ContentControl.Style>
+                        <Style TargetType="ContentControl">
+                            <Setter Property="ContentTemplate" Value="{StaticResource TextInput}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.Secret}">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource SecretInput}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.YesNo}">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource YesNoInput}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.Choice}">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource ChoiceInput}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.Folder}">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource PathInput}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Type}" Value="{x:Static core:InputType.File}">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource PathInput}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                </ContentControl>
+            </StackPanel>
+        </DataTemplate>
+    </Application.Resources>
+</Application>
