@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NetDeploy.App/NetDeploy.App.csproj" />
+    <Project Path="src/NetDeploy.Core/NetDeploy.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NetDeploy.App.Tests/NetDeploy.App.Tests.csproj" />
+    <Project Path="tests/NetDeploy.Core.Tests/NetDeploy.Core.Tests.csproj" />
+  </Folder>
+</Solution>

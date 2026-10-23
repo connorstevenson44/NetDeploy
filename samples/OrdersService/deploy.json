@@ -1,0 +1,60 @@
+{
+  "$schema": "../../schema/deploy.schema.json",
+  "schemaVersion": 1,
+  "app": { "name": "OrdersService", "version": "2.4.0" },
+  "requiresAdmin": true,
+  "parameters": {
+    "InstallDir": { "label": "Install folder", "type": "folder", "default": "C:\\Apps\\OrdersService" },
+    "DbConnection": { "label": "Database connection", "type": "secret" }
+  },
+  "steps": [
+    {
+      "type": "checkPrerequisite",
+      "name": ".NET 10 runtime",
+      "check": { "kind": "dotnetRuntime", "framework": "Microsoft.NETCore.App", "minVersion": "10.0.0" },
+      "installer": "prereqs/dotnet-runtime-10.0-win-x64.exe",
+      "installerArgs": "/install /quiet /norestart"
+    },
+    { "type": "service", "action": "stop", "service": "OrdersService" },
+    { "type": "backup", "path": "{InstallDir}" },
+    { "type": "copyFiles", "from": "app", "to": "{InstallDir}", "preserve": ["appsettings.json", "logs/**"] },
+    {
+      "type": "mergeConfig",
+      "source": "app/appsettings.json",
+      "target": "{InstallDir}\\appsettings.json",
+      "takeNew": ["Logging"]
+    },
+    {
+      "type": "runExe",
+      "name": "Migrate database",
+      "path": "migrations/Orders.Migrator.exe",
+      "args": "--connection \"{DbConnection}\"",
+      "timeoutMinutes": 10,
+      "when": { "ask": "Run the database migration now?" }
+    },
+    {
+      "type": "scheduledTask",
+      "action": "createOrUpdate",
+      "task": "\\OrdersService\\Nightly Cleanup",
+      "definition": "tasks/nightly-cleanup.xml",
+      "runAs": "{TaskUser}",
+      "inputs": { "TaskUser": { "label": "Run the cleanup task as", "default": "SYSTEM" } }
+    },
+    {
+      "type": "service",
+      "action": "install",
+      "service": "OrdersService",
+      "displayName": "Orders Service",
+      "binary": "{InstallDir}\\OrdersService.exe",
+      "startup": "automatic"
+    },
+    {
+      "type": "if",
+      "condition": { "powershell": "Test-Path 'D:\\OrdersArchive'" },
+      "then": [
+        { "type": "powershell", "file": "scripts/link-archive.ps1", "args": "-InstallDir '{InstallDir}'" }
+      ]
+    },
+    { "type": "service", "action": "start", "service": "OrdersService" }
+  ]
+}

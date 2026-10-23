@@ -1,0 +1,799 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NetDeploy package manifest (deploy.json)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "app",
+    "steps"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "app": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "requiresAdmin": {
+      "type": "boolean",
+      "description": "Relaunch NetDeploy as administrator before deploying."
+    },
+    "parameters": {
+      "$ref": "#/definitions/inputs",
+      "description": "Asked once, before the first step."
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/step"
+      }
+    }
+  },
+  "definitions": {
+    "step": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "checkPrerequisite",
+            "copyFiles",
+            "mergeConfig",
+            "runExe",
+            "powershell",
+            "backup",
+            "service",
+            "scheduledTask",
+            "if"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "checkPrerequisite"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/checkPrerequisiteStep"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "copyFiles"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/copyFilesStep"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "mergeConfig"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/mergeConfigStep"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "runExe"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/runExeStep"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "powershell"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/powershellStep"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "backup"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/backupStep"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "service"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/serviceStep"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "scheduledTask"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/scheduledTaskStep"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "if"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/ifStep"
+          }
+        }
+      ]
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "secret",
+            "number",
+            "yesNo",
+            "choice",
+            "folder",
+            "file"
+          ]
+        },
+        "default": {
+          "type": "string",
+          "description": "Pre-fills the field. Can use {Name} values."
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The choices for a choice input."
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "Allow an empty answer."
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/input"
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "powershell": {
+          "type": "string",
+          "description": "A script whose last output line is True or False."
+        },
+        "ask": {
+          "type": "string",
+          "description": "A Yes/No question asked at run time."
+        },
+        "value": {
+          "type": "string",
+          "description": "Compared with equals, ignoring case."
+        },
+        "equals": {
+          "type": "string"
+        },
+        "all": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/condition"
+          }
+        },
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/condition"
+          }
+        },
+        "not": {
+          "$ref": "#/definitions/condition"
+        }
+      }
+    },
+    "prerequisiteCheck": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "dotnetRuntime",
+            "installedProgram",
+            "registryValue",
+            "fileExists",
+            "powershell"
+          ]
+        },
+        "framework": {
+          "type": "string",
+          "description": "dotnetRuntime: Microsoft.NETCore.App, Microsoft.AspNetCore.App or Microsoft.WindowsDesktop.App."
+        },
+        "minVersion": {
+          "type": "string",
+          "description": "Lowest acceptable version. For dotnetRuntime, the same major version is required."
+        },
+        "name": {
+          "type": "string",
+          "description": "installedProgram: part of the name shown in Apps and Features."
+        },
+        "key": {
+          "type": "string",
+          "description": "registryValue: a key such as HKLM\\SOFTWARE\\Vendor\\Product."
+        },
+        "valueName": {
+          "type": "string",
+          "description": "registryValue: a value under the key."
+        },
+        "path": {
+          "type": "string",
+          "description": "fileExists: a file or folder."
+        },
+        "script": {
+          "type": "string",
+          "description": "powershell: a script that outputs True or False."
+        }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "daily",
+            "hourly",
+            "everyMinutes",
+            "onStart"
+          ]
+        },
+        "time": {
+          "type": "string",
+          "description": "daily: start time as HH:mm."
+        },
+        "minutes": {
+          "type": "integer",
+          "description": "everyMinutes: the interval.",
+          "minimum": 1
+        }
+      }
+    },
+    "checkPrerequisiteStep": {
+      "description": "Confirms something is installed, and runs the bundled installer when it is not.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "check"
+      ],
+      "properties": {
+        "type": {
+          "const": "checkPrerequisite"
+        },
+        "check": {
+          "$ref": "#/definitions/prerequisiteCheck"
+        },
+        "installer": {
+          "type": "string",
+          "description": "Installer inside the package, run when the check fails."
+        },
+        "installerArgs": {
+          "type": "string",
+          "description": "Arguments for the installer, such as /install /quiet /norestart."
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        }
+      }
+    },
+    "copyFilesStep": {
+      "description": "Copies a folder from the package to the server.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "type": {
+          "const": "copyFiles"
+        },
+        "from": {
+          "type": "string",
+          "description": "A folder inside the package."
+        },
+        "to": {
+          "type": "string",
+          "description": "The target folder on the server."
+        },
+        "preserve": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Globs for files kept when they already exist, such as config files merged later."
+        },
+        "deleteExtra": {
+          "type": "boolean",
+          "description": "Delete target files that are not in the package. Preserved files and .deploy are kept."
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        }
+      }
+    },
+    "mergeConfigStep": {
+      "description": "Three-way merges a config file (appsettings.json, app.config, .exe.config) and opens the merge table. List the target in copyFiles' preserve so the server's file survives the copy.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "source",
+        "target"
+      ],
+      "properties": {
+        "type": {
+          "const": "mergeConfig"
+        },
+        "source": {
+          "type": "string",
+          "description": "The new default config, inside the package."
+        },
+        "target": {
+          "type": "string",
+          "description": "The config file on the server."
+        },
+        "takeNew": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Settings paths, such as Logging, where the package's value always wins."
+        },
+        "keepRemoved": {
+          "type": "boolean",
+          "description": "Keep settings the package no longer has."
+        },
+        "interactive": {
+          "type": "boolean",
+          "description": "Open the merge table (default true). When false, conflicts fail the step."
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        }
+      }
+    },
+    "runExeStep": {
+      "description": "Runs an exe, such as a database migrator.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "path"
+      ],
+      "properties": {
+        "type": {
+          "const": "runExe"
+        },
+        "path": {
+          "type": "string",
+          "description": "Relative paths are inside the package; absolute paths are on the server."
+        },
+        "args": {
+          "type": "string"
+        },
+        "workingDir": {
+          "type": "string",
+          "description": "Defaults to the exe's folder."
+        },
+        "successExitCodes": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Defaults to [0]."
+        },
+        "timeoutMinutes": {
+          "type": "integer",
+          "description": "Kill the process after this long.",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        }
+      }
+    },
+    "powershellStep": {
+      "description": "Runs a PowerShell script file or inline script.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "powershell"
+        },
+        "file": {
+          "type": "string",
+          "description": "A .ps1 file, inside the package unless the path is absolute."
+        },
+        "script": {
+          "type": "string",
+          "description": "An inline script, used instead of a file."
+        },
+        "args": {
+          "type": "string",
+          "description": "Arguments for a script file."
+        },
+        "edition": {
+          "enum": [
+            "windows",
+            "core"
+          ],
+          "description": "windows runs powershell.exe (default), core runs pwsh.exe."
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        }
+      }
+    },
+    "backupStep": {
+      "description": "Copies a folder to <folder>.backups\\<timestamp> so a failed deploy can be rolled back.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "path"
+      ],
+      "properties": {
+        "type": {
+          "const": "backup"
+        },
+        "path": {
+          "type": "string",
+          "description": "The folder to back up."
+        },
+        "keep": {
+          "type": "integer",
+          "description": "How many backups to keep (default 3).",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        }
+      }
+    },
+    "serviceStep": {
+      "description": "Manages a Windows service. install creates the service, or updates it if it exists.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "action",
+        "service"
+      ],
+      "properties": {
+        "type": {
+          "const": "service"
+        },
+        "action": {
+          "enum": [
+            "install",
+            "start",
+            "stop",
+            "uninstall"
+          ]
+        },
+        "service": {
+          "type": "string",
+          "description": "The service name."
+        },
+        "binary": {
+          "type": "string",
+          "description": "The service exe; required for install."
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "startup": {
+          "enum": [
+            "automatic",
+            "delayedAutomatic",
+            "manual",
+            "disabled"
+          ]
+        },
+        "account": {
+          "type": "string",
+          "description": "Account to run as. Defaults to LocalSystem."
+        },
+        "password": {
+          "type": "string",
+          "description": "Password for the account, usually a secret {Name} input."
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "description": "How long to wait for start or stop (default 60).",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        }
+      }
+    },
+    "scheduledTaskStep": {
+      "description": "Manages a Windows scheduled task.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "action",
+        "task"
+      ],
+      "properties": {
+        "type": {
+          "const": "scheduledTask"
+        },
+        "action": {
+          "enum": [
+            "createOrUpdate",
+            "enable",
+            "disable",
+            "run",
+            "delete"
+          ]
+        },
+        "task": {
+          "type": "string",
+          "description": "The task name, optionally in a folder, such as \\MyApps\\Nightly Cleanup."
+        },
+        "definition": {
+          "type": "string",
+          "description": "Task XML exported from Task Scheduler, inside the package."
+        },
+        "program": {
+          "type": "string",
+          "description": "The program to run, when not using definition."
+        },
+        "arguments": {
+          "type": "string"
+        },
+        "schedule": {
+          "$ref": "#/definitions/schedule"
+        },
+        "runAs": {
+          "type": "string",
+          "description": "Account to run the task as, such as SYSTEM."
+        },
+        "password": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        }
+      }
+    },
+    "ifStep": {
+      "description": "Runs the then steps when the condition is true, otherwise the else steps.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "condition"
+      ],
+      "properties": {
+        "type": {
+          "const": "if"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition"
+        },
+        "then": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          }
+        },
+        "else": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          }
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        }
+      }
+    }
+  }
+}

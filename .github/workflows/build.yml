@@ -1,0 +1,31 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build
+
+      - name: Publish portable exe
+        run: dotnet publish src/NetDeploy.App -p:PublishProfile=Portable
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NetDeploy
+          path: artifacts/portable/NetDeploy.exe
