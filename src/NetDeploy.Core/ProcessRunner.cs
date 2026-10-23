@@ -61,9 +61,13 @@ internal static class PowerShellRunner
 {
     private const string CommonArguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass";
 
-    public static ProcessStartInfo ForScript(string script, PowerShellEdition edition) =>
+    public static ProcessStartInfo ForScript(string script, PowerShellEdition edition)
+    {
+        // Progress bars come out as CLIXML noise when output is redirected.
+        var command = "$ProgressPreference = 'SilentlyContinue'" + Environment.NewLine + script;
         // EncodedCommand avoids every quoting problem with inline scripts.
-        new(Executable(edition), $"{CommonArguments} -EncodedCommand {Convert.ToBase64String(Encoding.Unicode.GetBytes(script))}");
+        return new(Executable(edition), $"{CommonArguments} -EncodedCommand {Convert.ToBase64String(Encoding.Unicode.GetBytes(command))}");
+    }
 
     public static ProcessStartInfo ForFile(string file, string arguments, PowerShellEdition edition) =>
         new(Executable(edition), $"{CommonArguments} -File \"{file}\" {arguments}");
