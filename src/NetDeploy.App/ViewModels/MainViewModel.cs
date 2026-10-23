@@ -41,6 +41,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool NeedsElevation { get; set; }
 
     [ObservableProperty]
+    public partial bool HasPackage { get; set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     [NotifyCanExecuteChangedFor(nameof(OpenPackageCommand), nameof(DryRunCommand), nameof(DeployCommand), nameof(CancelCommand), nameof(RollBackCommand))]
     public partial bool IsRunning { get; set; }
@@ -68,6 +71,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _package?.Dispose();
         _package = package;
+        HasPackage = true;
         _rollback = null;
 
         var manifest = package.Manifest;

@@ -27,20 +27,13 @@ public sealed partial class StepViewModel : ObservableObject
     public partial string Title { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDetail))]
     public partial string Detail { get; set; }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Glyph))]
-    public partial StepState State { get; set; }
+    public bool HasDetail => Detail.Length > 0;
 
-    public string Glyph => State switch
-    {
-        StepState.Running => "▶",
-        StepState.Succeeded => "✓",
-        StepState.Skipped => "–",
-        StepState.Failed => "✗",
-        _ => "○",
-    };
+    [ObservableProperty]
+    public partial StepState State { get; set; }
 
     /// <summary>Shows the step with the parameter values typed so far.</summary>
     public void Refresh(IReadOnlyDictionary<string, string> values)

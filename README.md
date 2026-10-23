@@ -21,6 +21,8 @@ dotnet publish src/NetDeploy.App -p:PublishProfile=Portable
 # -> artifacts\portable\NetDeploy.exe
 ```
 
+CI uploads a `Screenshots` artifact with each window, so a design change can be reviewed without running the app.
+
 Logs are written to a `logs` folder next to the exe, or to `%LOCALAPPDATA%\NetDeploy\logs` if that folder is read-only.
 
 ## Packages
@@ -101,8 +103,9 @@ section comes from the new file. List the merged file in `copyFiles` `preserve`,
 
 ```text
 src/NetDeploy.Core/          manifest, runner, steps and config merge; no UI
-src/NetDeploy.App/           WPF app
+src/NetDeploy.App/           WPF app (Material Design for WPF, Pantone 301 theme in Styles.xaml)
 tests/NetDeploy.Core.Tests/  xUnit tests
+tests/NetDeploy.App.Tests/   dry runs the sample in the real window and saves screenshots of each window
 schema/                      deploy.json schema
 samples/                     sample package
 ```

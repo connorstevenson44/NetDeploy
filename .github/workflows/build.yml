@@ -29,3 +29,9 @@ jobs:
         with:
           name: NetDeploy
           path: artifacts/portable/NetDeploy.exe
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Screenshots
+          path: tests/NetDeploy.App.Tests/bin/Release/net10.0-windows/screenshots/
