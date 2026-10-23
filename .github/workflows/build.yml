@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -36,14 +38,13 @@ jobs:
           name: Screenshots
           path: tests/NetDeploy.App.Tests/bin/Release/net10.0-windows/screenshots/
 
-      # Temporary: prints the screenshots so the design can be reviewed from the log.
-      - name: Print screenshots
-        if: always()
+      # Temporary: pushes the screenshots to a branch so the design can be reviewed without the Actions UI.
+      - name: Push screenshots
+        if: always() && github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
-          Get-ChildItem tests/NetDeploy.App.Tests/bin/Release/net10.0-windows/screenshots/*.png | ForEach-Object {
-            $text = [Convert]::ToBase64String([IO.File]::ReadAllBytes($_.FullName))
-            for ($i = 0; $i -lt $text.Length; $i += 50000) {
-              "SCREENSHOT $($_.BaseName) $($text.Substring($i, [Math]::Min(50000, $text.Length - $i)))"
-            }
-          }
+          Set-Location tests/NetDeploy.App.Tests/bin/Release/net10.0-windows/screenshots
+          git init -q -b ci-screenshots
+          git add .
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "Screenshots from ${{ github.sha }}"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-screenshots
