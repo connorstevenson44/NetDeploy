@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Threading;
 using NetDeploy.App.ViewModels;
 
 namespace NetDeploy.App;
@@ -13,11 +14,13 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = _viewModel = viewModel;
 
-        // Keep the newest log line in view.
+        // Keep the newest log line in view. The scroll waits until the ListBox has handled the change:
+        // scrolling inside CollectionChanged can reach the ListBox before it knows about the new item,
+        // and it then throws "ItemsControl is inconsistent with its items source".
         viewModel.Log.CollectionChanged += (_, e) =>
         {
-            if (e.NewItems is { Count: > 0 })
-                LogList.ScrollIntoView(e.NewItems[0]!);
+            if (e.NewItems is { Count: > 0 } added)
+                Dispatcher.InvokeAsync(() => LogList.ScrollIntoView(added[0]!), DispatcherPriority.Background);
         };
         Closed += (_, _) => viewModel.Dispose();
     }
