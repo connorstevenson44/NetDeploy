@@ -71,6 +71,16 @@ internal sealed class XmlConfigFormat : IConfigFormat
         return element.ToString(SaveOptions.DisableFormatting);
     }
 
+    // appSettings keys often contain ':', so only the first one separates the section.
+    public IReadOnlyList<string> SplitPath(string path) => path.Split(':', 2);
+
+    public string OpenSection(string? name) => $"<{name ?? "configuration"}>";
+
+    public string CloseSection(string? name) => $"</{name ?? "configuration"}>";
+
+    // The canonical value is the whole <add /> element.
+    public string Line(string key, string value) => value;
+
     private static XAttribute? ValueAttribute(XElement element) =>
         element.Attribute("connectionString") ?? element.Attribute("value");
 }

@@ -5,7 +5,7 @@ namespace NetDeploy.Core.Tests;
 public class JsonMergeTests
 {
     private static readonly IConfigFormat Json = ConfigFormats.For("appsettings.json");
-    private static readonly MergeOptions Defaults = new([], KeepRemoved: false);
+    private static readonly MergeOptions Defaults = new([]);
 
     private static MergeRow Row(MergePlan plan, string path) => plan.Rows.Single(r => r.Path == path);
 
@@ -70,18 +70,19 @@ public class JsonMergeTests
         var current = """{ "Logging": { "LogLevel": { "Default": "Debug" } }, "Db": "prod" }""";
         var incoming = """{ "Logging": { "LogLevel": { "Default": "Warning" } }, "Db": "localhost" }""";
 
-        var plan = ConfigMerger.Plan(null, current, incoming, Json, new MergeOptions(["Logging"], false));
+        var plan = ConfigMerger.Plan(null, current, incoming, Json, new MergeOptions(["Logging"]));
 
         Assert.Equal(MergeChoice.TakeIncoming, Row(plan, "Logging:LogLevel:Default").Choice);
         Assert.Equal(MergeChoice.KeepCurrent, Row(plan, "Db").Choice);
     }
 
     [Fact]
-    public void KeepRemoved_keeps_settings_the_package_dropped()
+    public void Settings_the_package_dropped_are_removed_unless_kept()
     {
-        var plan = ConfigMerger.Plan(null, """{ "Legacy": "x" }""", "{}", Json, new MergeOptions([], KeepRemoved: true));
+        var plan = ConfigMerger.Plan(null, """{ "Legacy": "x" }""", "{}", Json, Defaults);
 
-        Assert.Equal(MergeChoice.KeepCurrent, Row(plan, "Legacy").Choice);
+        Assert.Equal(MergeChoice.Remove, Row(plan, "Legacy").Choice);
+        Row(plan, "Legacy").Choice = MergeChoice.KeepCurrent;
         Assert.Equal("""{"Legacy":"x"}""", Compact(plan.BuildResult()));
     }
 
@@ -98,7 +99,8 @@ public class JsonMergeTests
     [Fact]
     public void Kept_settings_missing_from_the_package_are_added_with_their_parents()
     {
-        var plan = ConfigMerger.Plan(null, """{ "Smtp": { "Host": "mail" } }""", "{}", Json, new MergeOptions([], KeepRemoved: true));
+        var plan = ConfigMerger.Plan(null, """{ "Smtp": { "Host": "mail" } }""", "{}", Json, Defaults);
+        Row(plan, "Smtp:Host").Choice = MergeChoice.KeepCurrent;
 
         Assert.Equal("""{"Smtp":{"Host":"mail"}}""", Compact(plan.BuildResult()));
     }

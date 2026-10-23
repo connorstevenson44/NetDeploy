@@ -1,10 +1,11 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using NetDeploy.App.ViewModels;
 
 namespace NetDeploy.App;
 
-/// <summary>The merge table: server, package and result side by side, like a git merge tool.</summary>
+/// <summary>The config review: each file as it will be written, with changes marked like a GitHub diff.</summary>
 public partial class MergeWindow : Window
 {
     public MergeWindow(MergeViewModel viewModel)
@@ -15,8 +16,9 @@ public partial class MergeWindow : Window
 
     private void OnApply(object sender, RoutedEventArgs e)
     {
-        // Keep a value that is still being typed in the Result column.
-        RowsGrid.CommitEdit(DataGridEditingUnit.Row, exitEditingMode: true);
-        DialogResult = true;
+        // Pressing Enter doesn't move focus, so keep a value that is still being typed.
+        (Keyboard.FocusedElement as TextBox)?.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+        if (((MergeViewModel)DataContext).CanApply)
+            DialogResult = true;
     }
 }

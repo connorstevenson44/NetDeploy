@@ -58,7 +58,6 @@
           "enum": [
             "checkPrerequisite",
             "copyFiles",
-            "mergeConfig",
             "runExe",
             "powershell",
             "backup",
@@ -91,18 +90,6 @@
           },
           "then": {
             "$ref": "#/definitions/copyFilesStep"
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "mergeConfig"
-              }
-            }
-          },
-          "then": {
-            "$ref": "#/definitions/mergeConfigStep"
           }
         },
         {
@@ -371,7 +358,7 @@
       }
     },
     "copyFilesStep": {
-      "description": "Copies a folder from the package to the server.",
+      "description": "Copies a folder from the package to the server. Config files are merged with the server's copy and reviewed before they are written.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -396,65 +383,25 @@
           "items": {
             "type": "string"
           },
-          "description": "Globs for files kept when they already exist, such as config files merged later."
+          "description": "Globs for files kept when they already exist, such as logs or data."
         },
         "deleteExtra": {
           "type": "boolean",
-          "description": "Delete target files that are not in the package. Preserved files and .deploy are kept."
+          "description": "Delete target files that are not in the package. Preserved files, config files and .deploy are kept."
         },
-        "name": {
-          "type": "string",
-          "description": "Shown in the UI instead of the generated description."
-        },
-        "when": {
-          "$ref": "#/definitions/condition",
-          "description": "The step is skipped when this is false."
-        },
-        "inputs": {
-          "$ref": "#/definitions/inputs",
-          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
-        },
-        "continueOnError": {
-          "type": "boolean",
-          "description": "Carry on with the next step if this one fails."
-        }
-      }
-    },
-    "mergeConfigStep": {
-      "description": "Three-way merges a config file (appsettings.json, app.config, .exe.config) and opens the merge table. List the target in copyFiles' preserve so the server's file survives the copy.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "type",
-        "source",
-        "target"
-      ],
-      "properties": {
-        "type": {
-          "const": "mergeConfig"
-        },
-        "source": {
-          "type": "string",
-          "description": "The new default config, inside the package."
-        },
-        "target": {
-          "type": "string",
-          "description": "The config file on the server."
+        "configs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Globs for the config files that are merged instead of copied. Default: **/appsettings*.json and **/*.config."
         },
         "takeNew": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Settings paths, such as Logging, where the package's value always wins."
-        },
-        "keepRemoved": {
-          "type": "boolean",
-          "description": "Keep settings the package no longer has."
-        },
-        "interactive": {
-          "type": "boolean",
-          "description": "Open the merge table (default true). When false, conflicts fail the step."
+          "description": "Setting paths, such as Logging, where the package's value always wins."
         },
         "name": {
           "type": "string",

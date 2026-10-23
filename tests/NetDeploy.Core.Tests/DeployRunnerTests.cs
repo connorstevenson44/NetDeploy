@@ -26,7 +26,7 @@ public sealed class DeployRunnerTests : IDisposable
             Directory.Delete(_target.Path + ".backups", recursive: true);
     }
 
-    private const string CopyApp = """{ "type": "copyFiles", "from": "app", "to": "{Target}", "preserve": ["appsettings.json"] }""";
+    private const string CopyApp = """{ "type": "copyFiles", "from": "app", "to": "{Target}" }""";
 
     private async Task<(DeployOutcome Outcome, DeployManifest Manifest)> RunAsync(
         string steps, bool dryRun = false, string parameters = "", Dictionary<string, string>? values = null)
@@ -54,15 +54,14 @@ public sealed class DeployRunnerTests : IDisposable
     {
         var (outcome, _) = await RunAsync($$"""
             { "type": "backup", "path": "{Target}" },
-            {{CopyApp}},
-            { "type": "mergeConfig", "source": "app/appsettings.json", "target": "{Target}/appsettings.json" }
+            {{CopyApp}}
             """);
 
         Assert.Equal(DeployResult.Succeeded, outcome.Result);
         Assert.Equal("v2", _target.Read("app.dll"));
         Assert.Equal("""{"Db":"prod","New":1}""", Compact(_target.Read("appsettings.json")));
         Assert.Equal(_package.Read("app/appsettings.json"), _target.Read(".deploy/base/appsettings.json"));
-        Assert.Single(_user.Merges);
+        Assert.Single(_user.Reviews);
         Assert.True(outcome.Rollback.IsAvailable);
         Assert.Single(Directory.GetDirectories(_target.Path + ".backups"));
     }
@@ -72,15 +71,14 @@ public sealed class DeployRunnerTests : IDisposable
     {
         var (outcome, _) = await RunAsync($$"""
             { "type": "backup", "path": "{Target}" },
-            {{CopyApp}},
-            { "type": "mergeConfig", "source": "app/appsettings.json", "target": "{Target}/appsettings.json" }
+            {{CopyApp}}
             """, dryRun: true);
 
         Assert.Equal(DeployResult.Succeeded, outcome.Result);
         Assert.Equal("v1", _target.Read("app.dll"));
         Assert.Equal("""{ "Db": "prod" }""", _target.Read("appsettings.json"));
         Assert.False(Directory.Exists(_target.Path + ".backups"));
-        Assert.Single(_user.Merges);
+        Assert.Single(_user.Reviews);
         Assert.Contains("Would copy 1 files", _log.Text);
     }
 
@@ -181,58 +179,71 @@ public sealed class DeployRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Cancelling_the_merge_cancels_the_deploy_without_writing()
+    public async Task Cancelling_the_config_review_cancels_the_deploy_without_writing()
     {
-        _user.CancelMerge = true;
+        _user.CancelReview = true;
 
-        var (outcome, _) = await RunAsync("""{ "type": "mergeConfig", "source": "app/appsettings.json", "target": "{Target}/appsettings.json" }""");
+        var (outcome, _) = await RunAsync(CopyApp);
 
         Assert.Equal(DeployResult.Cancelled, outcome.Result);
         Assert.Equal("""{ "Db": "prod" }""", _target.Read("appsettings.json"));
     }
 
     [Fact]
-    public async Task Merge_choices_made_in_the_table_are_written()
+    public async Task Choices_made_in_the_review_are_written()
     {
-        _user.ResolveMerge = plan => plan.Rows.Single(r => r.Path == "Db").Choice = MergeChoice.TakeIncoming;
+        _user.ResolveReview = files => files[0].Plan.Rows.Single(r => r.Path == "Db").Choice = MergeChoice.TakeIncoming;
 
-        await RunAsync("""{ "type": "mergeConfig", "source": "app/appsettings.json", "target": "{Target}/appsettings.json" }""");
+        await RunAsync(CopyApp);
 
         Assert.Equal("""{"Db":"localhost","New":1}""", Compact(_target.Read("appsettings.json")));
     }
 
     [Fact]
-    public async Task A_non_interactive_merge_with_a_conflict_fails()
+    public async Task A_conflict_left_unresolved_fails_the_step()
     {
         _target.File(".deploy/base/appsettings.json", """{ "Db": "base" }""");
 
-        var (outcome, _) = await RunAsync("""{ "type": "mergeConfig", "source": "app/appsettings.json", "target": "{Target}/appsettings.json", "interactive": false }""");
+        var (outcome, _) = await RunAsync(CopyApp);
 
         Assert.Equal(DeployResult.Failed, outcome.Result);
-        Assert.Empty(_user.Merges);
-        Assert.Contains("changed on both sides", outcome.Error!.Message);
+        Assert.Contains("needs a choice", outcome.Error!.Message);
+        Assert.Equal("""{ "Db": "prod" }""", _target.Read("appsettings.json"));
     }
 
     [Fact]
-    public async Task Identical_settings_do_not_open_the_merge_table()
+    public async Task Identical_settings_do_not_open_the_review()
     {
         _target.File("appsettings.json", _package.Read("app/appsettings.json"));
 
-        var (outcome, _) = await RunAsync("""{ "type": "mergeConfig", "source": "app/appsettings.json", "target": "{Target}/appsettings.json" }""");
+        var (outcome, _) = await RunAsync(CopyApp);
 
         Assert.Equal(DeployResult.Succeeded, outcome.Result);
-        Assert.Empty(_user.Merges);
+        Assert.Empty(_user.Reviews);
     }
 
     [Fact]
-    public async Task Merging_into_a_missing_file_copies_the_package_file()
+    public async Task A_config_the_server_lacks_is_shown_for_review_then_copied()
     {
         File.Delete(_target.Combine("appsettings.json"));
 
-        await RunAsync("""{ "type": "mergeConfig", "source": "app/appsettings.json", "target": "{Target}/appsettings.json" }""");
+        await RunAsync(CopyApp);
 
+        Assert.Equal(ConfigFileKind.New, Assert.Single(Assert.Single(_user.Reviews)).Kind);
         Assert.Equal(_package.Read("app/appsettings.json"), _target.Read("appsettings.json"));
-        Assert.Empty(_user.Merges);
+    }
+
+    [Fact]
+    public async Task Server_overrides_are_reviewed_with_the_settings_they_override()
+    {
+        _target.File("appsettings.Production.json", """{ "Db": "prod-db" }""");
+
+        await RunAsync(CopyApp);
+
+        var files = Assert.Single(_user.Reviews);
+        Assert.Equal(["appsettings.json", "appsettings.Production.json"], files.Select(f => f.FileName));
+        Assert.Equal(ConfigFileKind.Override, files[1].Kind);
+        Assert.Equal("""{ "Db": "prod-db" }""", _target.Read("appsettings.Production.json"));
     }
 
     [Fact]

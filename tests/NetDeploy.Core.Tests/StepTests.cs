@@ -6,21 +6,23 @@ namespace NetDeploy.Core.Tests;
 public class StepTests
 {
     [Fact]
-    public async Task CopyFiles_with_deleteExtra_keeps_preserved_files_and_tool_state()
+    public async Task CopyFiles_with_deleteExtra_keeps_preserved_files_configs_and_tool_state()
     {
         using var package = new TempFolder();
         using var target = new TempFolder();
         package.File("app/app.dll", "new");
         target.File("stale.dll", "old");
-        target.File("appsettings.json", "{}");
+        target.File("data/orders.db", "data");
+        target.File("appsettings.Production.json", "{}");
         target.File(".deploy/base/appsettings.json", "{}");
 
-        var step = new CopyFilesStep { From = "app", To = target.Path, Preserve = ["appsettings.json"], DeleteExtra = true };
+        var step = new CopyFilesStep { From = "app", To = target.Path, Preserve = ["data/**"], DeleteExtra = true };
         await step.RunAsync(Context(package.Path), TestContext.Current.CancellationToken);
 
         Assert.True(target.Exists("app.dll"));
         Assert.False(target.Exists("stale.dll"));
-        Assert.True(target.Exists("appsettings.json"));
+        Assert.True(target.Exists("data/orders.db"));
+        Assert.True(target.Exists("appsettings.Production.json"));
         Assert.True(target.Exists(".deploy/base/appsettings.json"));
     }
 

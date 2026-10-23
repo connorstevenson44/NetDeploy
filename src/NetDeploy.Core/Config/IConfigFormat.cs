@@ -16,6 +16,19 @@ public interface IConfigFormat
 
     /// <summary>Turns text the user typed into a canonical value, keeping the original value's kind.</summary>
     string ParseEdit(string original, string text);
+
+    // How the file looks, so the merge view can show settings the way they appear in the file.
+
+    /// <summary>Splits a setting path into its sections and, last, its key.</summary>
+    IReadOnlyList<string> SplitPath(string path);
+
+    /// <summary>A section's opening line; null is the file's root.</summary>
+    string OpenSection(string? name);
+
+    string CloseSection(string? name);
+
+    /// <summary>The line a setting is written as.</summary>
+    string Line(string key, string value);
 }
 
 public static class ConfigFormats

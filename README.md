@@ -56,8 +56,7 @@ Secret values are masked in the log.
 | Step | What it does |
 | --- | --- |
 | `checkPrerequisite` | Checks for a .NET runtime, an installed program, a registry value, a file, or a PowerShell test; runs `installer` if missing |
-| `copyFiles` | Copies a package folder to the server; `preserve` keeps existing files such as config, `deleteExtra` mirrors |
-| `mergeConfig` | Three-way merges appsettings.json, app.config or .exe.config and opens the merge table |
+| `copyFiles` | Copies a package folder to the server and merges its config files (see below); `preserve` keeps existing files such as logs, `deleteExtra` mirrors |
 | `runExe` | Runs an exe, such as a database migrator, and checks its exit code |
 | `powershell` | Runs a .ps1 file or an inline script in Windows PowerShell or `pwsh` |
 | `backup` | Copies a folder to `<folder>.backups\<timestamp>` for rollback, keeping the newest `keep` |
@@ -81,23 +80,48 @@ Used by `when` and `if`. Exactly one of:
 A PowerShell condition that errors stops the run instead of counting as false. Conditions also run in a dry run,
 so their scripts should only read state.
 
-### Merging config
+### Config files
 
-`mergeConfig` compares three versions of each setting: the package deployed last time (kept in `.deploy\base`
-beside the file), the file on the server, and the file in the new package.
+Config files are never copied over the server's copy. `copyFiles` treats every file matching `configs`
+(default `**/appsettings*.json` and `**/*.config`) as config. After the other files are copied, it works out how each
+config file should change and opens the **config review**. The review shows each file the way it will be written,
+with changes marked like a GitHub diff. Nothing is written until you confirm. A dry run shows the same review
+without writing anything.
 
-| Situation | Proposed result |
-| --- | --- |
-| Changed only on the server | Keep the server's value |
-| Changed only in the package | Take the package's value |
-| Changed on both sides | Conflict: you choose in the merge table |
-| New in the package | Add it |
-| Removed from the package | Remove it, or keep it with `keepRemoved` |
-| Under a `takeNew` path | Take the package's value |
+How the tool decides, following how .NET layers configuration:
 
-The first deploy of an app has no earlier package to compare with, so any value that differs keeps the server's value.
+- **appsettings.json ships with the app and decides which settings exist.** It is merged three ways: the package
+  deployed last time (kept in `.deploy\base` beside the file), the server's file, and the new package's file.
+
+  | Situation | Proposed result |
+  | --- | --- |
+  | Changed only on the server | Keep the server's value |
+  | Changed only in the package | Use the package's value |
+  | Changed on both sides | You choose |
+  | New in the package | Add it |
+  | Removed from the package | Remove it |
+  | Under a `takeNew` path, such as `Logging` | Use the package's value |
+
+  The first deploy of an app has no earlier package to compare with, so any value that differs keeps the server's value.
+- **appsettings.{Environment}.json on the server holds that server's values.** Overrides the package doesn't ship are
+  checked against the new appsettings.json. .NET silently ignores a setting that the app no longer has, so a
+  renamed setting would quietly lose its server value:
+
+  | In the override | Proposed result |
+  | --- | --- |
+  | Still in appsettings.json | Nothing to do |
+  | Removed from appsettings.json, and one new setting appeared in the same section | Treated as a rename: the value moves to the new name |
+  | Removed from appsettings.json | Remove it |
+  | appsettings.json now has a section at that path | You choose |
+  | Never in appsettings.json (a typo, or a setting only the app's code reads) | Keep it, but show it |
+
+  An override the package does ship is merged three ways like appsettings.json.
+- **A setting must not go live with a placeholder.** A new setting with an empty value, or any value such as
+  `CHANGE_ME`, `TODO`, `<your key>` or `__KEY__`, needs a value before the files can be written, unless an override
+  on the server already sets it.
+
 Arrays are one value. In XML config files, `appSettings` and `connectionStrings` entries are merged and every other
-section comes from the new file. List the merged file in `copyFiles` `preserve`, so the copy doesn't overwrite it first.
+section comes from the new file.
 
 ## Solution layout
 
