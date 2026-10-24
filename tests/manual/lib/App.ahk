@@ -7,6 +7,7 @@ class App {
     static Hwnd := 0
     static Window := ""
     static Marked := ""      ; the status text before the last click, so a wait sees the new one
+    static WheelNoted := false
 
     ; ===== Starting and stopping =====
 
@@ -214,10 +215,17 @@ class App {
                 amount := down ? UIA.ScrollAmount.LargeIncrement : UIA.ScrollAmount.LargeDecrement
             else
                 amount := down ? UIA.ScrollAmount.SmallIncrement : UIA.ScrollAmount.SmallDecrement
+            ; The UIA library's default for the other direction isn't a ScrollAmount UI Automation knows, and WPF
+            ; refuses the whole call for it, so it is given as NoAmount.
             try {
-                list.ScrollPattern.Scroll(amount)
+                list.ScrollPattern.Scroll(amount, UIA.ScrollAmount.NoAmount)
                 Sleep(120)
                 return
+            } catch as e {
+                if !this.WheelNoted {
+                    this.WheelNoted := true
+                    Runner.Log("NOTE", "Scrolling through UI Automation failed, so the mouse wheel is used: " e.Message)
+                }
             }
         }
         spot := {l: area.l + 20, t: (area.t + area.b) // 2 - 5, r: area.l + 40, b: (area.t + area.b) // 2 + 5}
