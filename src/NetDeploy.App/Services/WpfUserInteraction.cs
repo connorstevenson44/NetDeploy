@@ -1,14 +1,19 @@
 using System.Windows;
-using NetDeploy.App.ViewModels;
 using NetDeploy.Core;
 using NetDeploy.Core.Config;
 
 namespace NetDeploy.App.Services;
 
-/// <summary>Shows the deploy's questions as dialogs. Called from the deploy thread, so each call hops to the UI thread.</summary>
+/// <summary>
+/// Shows the deploy's questions as dialogs, and its config review in the workspace. Called from the deploy thread,
+/// so each call hops to the UI thread.
+/// </summary>
 internal sealed class WpfUserInteraction : IUserInteraction
 {
     private static Window Owner => Application.Current.MainWindow;
+
+    /// <summary>Shows the config review in the main window; set once the window's view model exists.</summary>
+    public Func<IReadOnlyList<ConfigFileUpdate>, bool, Task<bool>> ReviewConfigs { get; set; } = (_, _) => Task.FromResult(false);
 
     public Task<bool> AskYesNoAsync(string question, CancellationToken cancellationToken) =>
         Application.Current.Dispatcher.InvokeAsync(() =>
@@ -23,8 +28,7 @@ internal sealed class WpfUserInteraction : IUserInteraction
         }).Task;
 
     public Task<bool> ReviewConfigsAsync(IReadOnlyList<ConfigFileUpdate> files, bool readOnly, CancellationToken cancellationToken) =>
-        Application.Current.Dispatcher.InvokeAsync(() =>
-            new MergeWindow(new MergeViewModel(files, readOnly)) { Owner = Owner }.ShowDialog() == true).Task;
+        ReviewConfigs(files, readOnly);
 
     public Task<CleanupDecision> ConfirmCleanupAsync(string title, string explanation, int number, int total, CancellationToken cancellationToken) =>
         Application.Current.Dispatcher.InvokeAsync(() =>

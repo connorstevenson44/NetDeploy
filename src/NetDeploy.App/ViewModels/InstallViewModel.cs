@@ -59,6 +59,9 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
 
     public bool CanCopy => Selected?.IsNew == true && Installs.Any();
 
+    /// <summary>An install picked to update can be given another instance name, which moves it to a new instance.</summary>
+    public bool CanRename => AllowsInstances && Selected is { IsNew: false };
+
     public InstallPlan Plan => Selected?.Install switch
     {
         null => Name.Length == 0 ? InstallPlan.NewSingle : InstallPlan.NewInstance,
@@ -187,6 +190,7 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
         OnPropertyChanged(nameof(Summary));
         OnPropertyChanged(nameof(Problem));
         OnPropertyChanged(nameof(CanCopy));
+        OnPropertyChanged(nameof(CanRename));
     }
 
     private static string Describe(Installation existing) => existing.IsInstance ? $"instance {existing.Name}" : "the single install";

@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Data;
+using NetDeploy.App.ViewModels;
 
 namespace NetDeploy.App;
 
@@ -26,4 +28,34 @@ public sealed class StepIconConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
         throw new NotSupportedException();
+}
+
+/// <summary>A grid size from a flag: Star when true, nothing when false, for a column that only shows sometimes.</summary>
+public sealed class BoolToStarConverter : IValueConverter
+{
+    public double Star { get; set; } = 1;
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+        value is true ? new GridLength(Star, GridUnitType.Star) : new GridLength(0);
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary>
+/// Picks the folder tree's container style by row: folders bind expand and select to their view model, while the new
+/// install row only binds select, and the placeholder that shows an expander binds neither.
+/// </summary>
+public sealed class TreeItemStyleSelector : StyleSelector
+{
+    public Style? Folder { get; set; }
+    public Style? NewInstall { get; set; }
+    public Style? Placeholder { get; set; }
+
+    public override Style? SelectStyle(object item, DependencyObject container) => item switch
+    {
+        FolderNodeViewModel => Folder,
+        NewInstallRowViewModel => NewInstall,
+        _ => Placeholder,
+    };
 }
