@@ -123,8 +123,8 @@ public sealed partial class ConfigStageViewModel : ReviewStageViewModel
     {
         (true, true) => "These config files are new on this server and would be written like this. Nothing is written in a dry run.",
         (true, false) => "This is how the server's config files would be merged with the package's. Nothing is written in a dry run.",
-        (false, true) => "These config files are new on this server. Check the values on the right before they are written.",
-        _ => "Each file is the server's copy merged with the package's. Check or change the values on the right before they are written.",
+        (false, true) => "These config files are new on this server. Check them, and edit anything, before they are written.",
+        _ => "Each file is the package's with the server's values kept. Changes to the server's copy are marked: undo any, or edit the text, before it is written.",
     };
 
     public override string ContinueText => IsDryRun ? "Continue the dry run" : "Write files and continue";

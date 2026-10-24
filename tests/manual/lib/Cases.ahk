@@ -106,7 +106,7 @@ AddMain() {
     App.WaitStage("Check the files")
     App.ContinueStage()
     App.WaitStage("Check the config")
-    Runner.Say("This time the values on the right could be changed before they are written.")
+    Runner.Say("This time the text could be edited before it is written.")
     App.ContinueStage()
     log := App.LogFile(App.WaitStatus(["Deploy finished."], 300000))
     App.GoToRoot()
