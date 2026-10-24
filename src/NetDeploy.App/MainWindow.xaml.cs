@@ -1,7 +1,9 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using NetDeploy.App.ViewModels;
+using NetDeploy.Core;
 
 namespace NetDeploy.App;
 
@@ -30,7 +32,6 @@ public partial class MainWindow : Window
                 if (viewModel.Log.Count == 0)
                     return;
                 LogList.ScrollIntoView(viewModel.Log[^1]);
-                FolderLogList.ScrollIntoView(viewModel.Log[^1]);
             }, DispatcherPriority.Background);
         };
         Closed += (_, _) => viewModel.Dispose();
@@ -46,10 +47,14 @@ public partial class MainWindow : Window
     {
         if (e.Data.GetData(DataFormats.FileDrop) is not string[] { Length: > 0 } paths)
             return;
-        if (paths[0].EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            _viewModel.EditConfig(paths[0]);
+        // A .json is a config to edit, a folder without deploy.json an install folder to manage, anything else a package.
+        var path = paths[0];
+        if (path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            _viewModel.EditConfig(path);
+        else if (Directory.Exists(path) && !File.Exists(Path.Combine(path, DeployPackage.ManifestFileName)))
+            _viewModel.ShowFolder(path);
         else
-            _viewModel.Load(paths[0]);
+            _viewModel.Load(path);
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)

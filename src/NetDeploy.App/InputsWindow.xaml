@@ -5,21 +5,25 @@
         Style="{StaticResource AppWindow}" Background="{StaticResource Surface}"
         Width="480" SizeToContent="Height" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
+    <!-- A step's questions, asked as it runs. Laid out like the workspace's panes: a header, the form, and a footer bar. -->
     <StackPanel>
-        <Border Background="{StaticResource Brand}" Padding="24,18">
-            <DockPanel>
-                <materialDesign:PackIcon Kind="ClipboardEditOutline" Foreground="White" Width="26" Height="26" VerticalAlignment="Center" Margin="0,0,14,0" />
-                <StackPanel>
-                    <TextBlock Text="THIS STEP NEEDS A FEW ANSWERS" Foreground="White" Opacity="0.75" FontSize="11" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}"
-                               Foreground="White" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" />
-                </StackPanel>
-            </DockPanel>
+        <DockPanel Margin="22,20,22,4">
+            <Border Width="40" Height="40" CornerRadius="20" Background="{StaticResource BrandTint}" VerticalAlignment="Top" Margin="0,0,14,0">
+                <materialDesign:PackIcon Kind="ClipboardEditOutline" Foreground="{StaticResource Brand}" Width="20" Height="20"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="THIS STEP NEEDS A FEW ANSWERS" Foreground="{StaticResource Brand}" FontSize="11" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource PanelTitle}" TextWrapping="Wrap" />
+            </StackPanel>
+        </DockPanel>
+        <ItemsControl ItemsSource="{Binding Fields}" Focusable="False" Margin="22,18,22,6" />
+        <Border Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="22,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{StaticResource QuietButton}" Content="Cancel deploy" IsCancel="True" Margin="0,0,8,0" />
+                <Button Style="{StaticResource PrimaryButton}" Content="Continue" IsDefault="True" Click="OnContinue"
+                        Tag="{x:Static materialDesign:PackIconKind.ArrowRight}" ContentTemplate="{StaticResource IconLabel}" />
+            </StackPanel>
         </Border>
-        <ItemsControl ItemsSource="{Binding Fields}" Focusable="False" Margin="24,22,24,4" />
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="24,0,24,20">
-            <Button Style="{StaticResource QuietButton}" Content="Cancel deploy" IsCancel="True" Margin="0,0,8,0" />
-            <Button Style="{StaticResource PrimaryButton}" Content="Continue" IsDefault="True" Click="OnContinue" />
-        </StackPanel>
     </StackPanel>
 </Window>

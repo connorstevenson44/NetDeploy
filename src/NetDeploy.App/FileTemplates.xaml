@@ -1,0 +1,241 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+                    xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
+                    xmlns:steps="clr-namespace:NetDeploy.Core.Steps;assembly=NetDeploy.Core">
+    <!-- How files look in the two file lists: the install folder's files, and the files a deploy will change.
+         Both are flat, virtualized lists of folder headings and files, so a big folder scrolls smoothly. -->
+
+    <FontFamily x:Key="Code">Cascadia Mono, Consolas</FontFamily>
+
+    <!-- A folder heading, in either list -->
+    <DataTemplate DataType="{x:Type vm:FolderViewModel}">
+        <StackPanel Orientation="Horizontal" Height="26" Margin="30,0,0,0">
+            <materialDesign:PackIcon Kind="FolderOutline" Width="14" Height="14" Foreground="{StaticResource InkFaint}"
+                                     VerticalAlignment="Center" Margin="{Binding Indent}" />
+            <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource InkMuted}"
+                       VerticalAlignment="Center" Margin="6,0,0,0" />
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- ===== The install folder's files: edit settings, run, or stage a delete ===== -->
+
+    <Style x:Key="FileButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
+        <Setter Property="Width" Value="26" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="IsTabStop" Value="False" />
+    </Style>
+
+    <DataTemplate DataType="{x:Type vm:FolderFileViewModel}">
+        <Border x:Name="Row" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Background="Transparent">
+            <Grid Height="30">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <materialDesign:PackIcon x:Name="Icon" Kind="{Binding Icon}" Width="16" Height="16" Foreground="{StaticResource InkMuted}"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <TextBlock x:Name="Name" Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding RelativePath}" Margin="{Binding Indent}"
+                           FontFamily="{StaticResource Code}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <StackPanel x:Name="Actions" Grid.Column="2" Orientation="Horizontal" Visibility="Hidden" Margin="0,0,4,0">
+                    <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}" ToolTip="Edit settings"
+                            Command="{Binding DataContext.Folder.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}" Visibility="{Binding IsConfig, Converter={StaticResource BoolToVisibility}}">
+                        <materialDesign:PackIcon Kind="PencilOutline" Width="16" Height="16" />
+                    </Button>
+                    <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Success}" ToolTip="Run, with arguments"
+                            Command="{Binding DataContext.RunFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}" Visibility="{Binding CanRun, Converter={StaticResource BoolToVisibility}}">
+                        <materialDesign:PackIcon Kind="Play" Width="16" Height="16" />
+                    </Button>
+                    <Button x:Name="Delete" Style="{StaticResource FileButton}" Foreground="{StaticResource Danger}" ToolTip="Delete when finalized"
+                            Command="{Binding DataContext.Folder.ToggleDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}">
+                        <materialDesign:PackIcon x:Name="DeleteIcon" Kind="TrashCanOutline" Width="16" Height="16" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsMouseOver, ElementName=Row}" Value="True">
+                <Setter TargetName="Actions" Property="Visibility" Value="Visible" />
+                <Setter TargetName="Row" Property="Background" Value="{StaticResource Canvas}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsConfig}" Value="True">
+                <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Brand}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding HasEdits}" Value="True">
+                <Setter TargetName="Row" Property="Background" Value="{StaticResource BrandTint}" />
+                <Setter TargetName="Icon" Property="Kind" Value="FileEditOutline" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsStagedForDelete}" Value="True">
+                <Setter TargetName="Row" Property="Background" Value="{StaticResource DiffRemoved}" />
+                <Setter TargetName="Name" Property="TextDecorations" Value="Strikethrough" />
+                <Setter TargetName="Actions" Property="Visibility" Value="Visible" />
+                <Setter TargetName="DeleteIcon" Property="Kind" Value="Undo" />
+                <Setter TargetName="Delete" Property="ToolTip" Value="Keep this file" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- ===== The files a deploy will change: one heading per copy step, then its files ===== -->
+
+    <!-- An action is a small icon button; the chosen one is filled with the action's colour. -->
+    <Style x:Key="ActionButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
+        <Setter Property="Width" Value="26" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="2,0,0,0" />
+        <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="ToolTip" Value="{Binding Tip}" />
+        <Setter Property="Command" Value="{Binding ChooseCommand}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsAvailable}" Value="False">
+                <Setter Property="Visibility" Value="Hidden" />
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsSelected}" Value="True" />
+                    <Condition Binding="{Binding Action}" Value="{x:Static steps:FileAction.Delete}" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Danger}" />
+                <Setter Property="Foreground" Value="White" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsSelected}" Value="True" />
+                    <Condition Binding="{Binding Action}" Value="{x:Static steps:FileAction.Keep}" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource InkMuted}" />
+                <Setter Property="Foreground" Value="White" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsSelected}" Value="True" />
+                    <Condition Binding="{Binding Action}" Value="{x:Static steps:FileAction.Replace}" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brand}" />
+                <Setter Property="Foreground" Value="White" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsSelected}" Value="True" />
+                    <Condition Binding="{Binding Action}" Value="{x:Static steps:FileAction.Merge}" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brand}" />
+                <Setter Property="Foreground" Value="White" />
+            </MultiDataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- A copy step: where it copies to, and the totals -->
+    <DataTemplate DataType="{x:Type vm:FilePlanViewModel}">
+        <Border Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1" Padding="10,0" Margin="0,6,0,0">
+            <DockPanel Height="34">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" TextElement.FontFamily="{StaticResource Code}" TextElement.FontSize="12">
+                    <TextBlock Foreground="{StaticResource Success}" Margin="0,0,12,0" ToolTip="Files added"><Run Text="+" /><Run Text="{Binding NewCount, Mode=OneWay}" /></TextBlock>
+                    <TextBlock Foreground="{StaticResource Brand}" Margin="0,0,12,0" ToolTip="Files replaced or merged"><Run Text="~" /><Run Text="{Binding ReplaceCount, Mode=OneWay}" /></TextBlock>
+                    <TextBlock Foreground="{StaticResource Danger}" Margin="0,0,12,0" ToolTip="Files deleted"><Run Text="−" /><Run Text="{Binding DeleteCount, Mode=OneWay}" /></TextBlock>
+                    <StackPanel Orientation="Horizontal" ToolTip="Files left as they are">
+                        <materialDesign:PackIcon Kind="Lock" Foreground="{StaticResource InkMuted}" Width="12" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding KeepCount}" Foreground="{StaticResource InkMuted}" Margin="3,0,0,0" />
+                    </StackPanel>
+                </StackPanel>
+                <materialDesign:PackIcon Kind="ContentCopy" Width="16" Height="16" Foreground="{StaticResource Brand}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Target}"><Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding Target, Mode=OneWay}" FontFamily="{StaticResource Code}" FontSize="12" Foreground="{StaticResource InkMuted}" /></TextBlock>
+            </DockPanel>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:FilePlanError}">
+        <Border Background="{StaticResource WarningTint}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1" Padding="10,8" Margin="0,6,0,0">
+            <DockPanel>
+                <materialDesign:PackIcon Kind="FolderAlertOutline" Foreground="{StaticResource Warning}" Width="16" Height="16"
+                                         VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"><Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=": " /><Run Text="{Binding Message, Mode=OneWay}" /></TextBlock>
+            </DockPanel>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:FilesMatch}">
+        <StackPanel Orientation="Horizontal" Margin="30,6">
+            <materialDesign:PackIcon Kind="CheckCircleOutline" Foreground="{StaticResource Success}" Width="16" Height="16" VerticalAlignment="Center" />
+            <TextBlock Text="The server already matches the package." Style="{StaticResource Caption}" Margin="6,0,0,0" VerticalAlignment="Center" />
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A file: how it compares with the server, and what the deploy does with it -->
+    <DataTemplate DataType="{x:Type vm:FileRowViewModel}">
+        <Border x:Name="Row" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Background="Transparent">
+            <Grid Height="30">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <materialDesign:PackIcon x:Name="State" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                         Background="Transparent" ToolTip="{Binding StateTip}"
+                                         Kind="FileCheckOutline" Foreground="{StaticResource InkFaint}" />
+
+                <TextBlock x:Name="Name" Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding Path}" Margin="{Binding Indent}"
+                           FontFamily="{StaticResource Code}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+
+                <ItemsControl Grid.Column="2" ItemsSource="{Binding Options}" Margin="8,0,4,0" Focusable="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource ActionButton}">
+                                <materialDesign:PackIcon Kind="{Binding Icon}" Width="16" Height="16" />
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </Border>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding State}" Value="{x:Static steps:FileState.New}">
+                <Setter TargetName="State" Property="Kind" Value="FilePlusOutline" />
+                <Setter TargetName="State" Property="Foreground" Value="{StaticResource Success}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding State}" Value="{x:Static steps:FileState.Changed}">
+                <Setter TargetName="State" Property="Kind" Value="FileSyncOutline" />
+                <Setter TargetName="State" Property="Foreground" Value="{StaticResource Brand}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding State}" Value="{x:Static steps:FileState.OnlyOnServer}">
+                <Setter TargetName="State" Property="Kind" Value="FileQuestionOutline" />
+                <Setter TargetName="State" Property="Foreground" Value="{StaticResource Warning}" />
+            </DataTrigger>
+
+            <!-- The row's colour is the outcome: green when a file arrives, red when one goes, blue when it's your call. -->
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding State}" Value="{x:Static steps:FileState.New}" />
+                    <Condition Binding="{Binding Action}" Value="{x:Static steps:FileAction.Replace}" />
+                </MultiDataTrigger.Conditions>
+                <Setter TargetName="Row" Property="Background" Value="{StaticResource DiffAdded}" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding State}" Value="{x:Static steps:FileState.New}" />
+                    <Condition Binding="{Binding Action}" Value="{x:Static steps:FileAction.Merge}" />
+                </MultiDataTrigger.Conditions>
+                <Setter TargetName="Row" Property="Background" Value="{StaticResource DiffAdded}" />
+            </MultiDataTrigger>
+            <DataTrigger Binding="{Binding IsChosen}" Value="True">
+                <Setter TargetName="Row" Property="Background" Value="{StaticResource BrandTint}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Action}" Value="{x:Static steps:FileAction.Delete}">
+                <Setter TargetName="Row" Property="Background" Value="{StaticResource DiffRemoved}" />
+                <Setter TargetName="Name" Property="TextDecorations" Value="Strikethrough" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+</ResourceDictionary>

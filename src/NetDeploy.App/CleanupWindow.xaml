@@ -7,17 +7,18 @@
         ShowInTaskbar="False" Title="Remove install">
     <!-- One step of removing an install: exactly what it does, and an explicit OK before it runs. -->
     <StackPanel>
-        <Border Background="{StaticResource Danger}" Padding="24,18">
-            <DockPanel>
-                <materialDesign:PackIcon Kind="DeleteAlertOutline" Foreground="White" Width="28" Height="28" VerticalAlignment="Center" Margin="0,0,14,0" />
-                <StackPanel>
-                    <TextBlock x:Name="Counter" Foreground="White" Opacity="0.8" FontSize="11" FontWeight="SemiBold" />
-                    <TextBlock x:Name="StepTitle" Foreground="White" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" />
-                </StackPanel>
-            </DockPanel>
-        </Border>
+        <DockPanel Margin="22,20,22,0">
+            <Border Width="40" Height="40" CornerRadius="20" Background="{StaticResource DangerTint}" VerticalAlignment="Top" Margin="0,0,14,0">
+                <materialDesign:PackIcon Kind="DeleteAlertOutline" Foreground="{StaticResource Danger}" Width="20" Height="20"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock x:Name="Counter" Foreground="{StaticResource Danger}" FontSize="11" FontWeight="SemiBold" />
+                <TextBlock x:Name="StepTitle" Style="{StaticResource PanelTitle}" TextWrapping="Wrap" />
+            </StackPanel>
+        </DockPanel>
 
-        <StackPanel Margin="24,20,24,8">
+        <StackPanel Margin="22,18,22,16">
             <TextBlock Text="WHAT WILL HAPPEN" Style="{StaticResource Caption}" FontWeight="SemiBold" Margin="0,0,0,6" />
             <Border Background="{StaticResource DangerTint}" CornerRadius="6" Padding="14,10">
                 <TextBlock x:Name="Explanation" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Ink}" />
@@ -25,16 +26,18 @@
             <CheckBox x:Name="Understood" Margin="0,16,0,0" Content="I understand. This can't be undone." Checked="OnUnderstoodChanged" Unchecked="OnUnderstoodChanged" />
         </StackPanel>
 
-        <DockPanel Margin="24,8,24,20">
-            <Button DockPanel.Dock="Left" Style="{StaticResource QuietButton}" Content="Stop removing" IsCancel="True" Click="OnCancel"
-                    Tag="{x:Static materialDesign:PackIconKind.Cancel}" ContentTemplate="{StaticResource IconLabel}" />
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Style="{StaticResource SecondaryButton}" Content="Skip this step" Margin="0,0,8,0" Click="OnSkip"
-                        Tag="{x:Static materialDesign:PackIconKind.SkipNext}" ContentTemplate="{StaticResource IconLabel}" />
-                <Button x:Name="RunButton" Style="{StaticResource PrimaryButton}" Background="{StaticResource Danger}" BorderBrush="{StaticResource Danger}"
-                        Content="Run this step" IsEnabled="False" Click="OnRun"
-                        Tag="{x:Static materialDesign:PackIconKind.Play}" ContentTemplate="{StaticResource IconLabel}" />
-            </StackPanel>
-        </DockPanel>
+        <Border Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="22,12">
+            <DockPanel>
+                <Button DockPanel.Dock="Left" Style="{StaticResource QuietButton}" Content="Stop removing" IsCancel="True" Click="OnCancel"
+                        Tag="{x:Static materialDesign:PackIconKind.Cancel}" ContentTemplate="{StaticResource IconLabel}" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource SecondaryButton}" Content="Skip this step" Margin="0,0,8,0" Click="OnSkip"
+                            Tag="{x:Static materialDesign:PackIconKind.SkipNext}" ContentTemplate="{StaticResource IconLabel}" />
+                    <Button x:Name="RunButton" Style="{StaticResource PrimaryButton}" Background="{StaticResource Danger}" BorderBrush="{StaticResource Danger}"
+                            Content="Run this step" IsEnabled="False" Click="OnRun"
+                            Tag="{x:Static materialDesign:PackIconKind.Play}" ContentTemplate="{StaticResource IconLabel}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
     </StackPanel>
 </Window>
