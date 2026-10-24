@@ -48,30 +48,14 @@ public sealed partial class FolderFileViewModel : ObservableObject
     public partial bool HasEdits { get; set; }
 }
 
-/// <summary>Shows a folder's expander before its subfolders are read.</summary>
-public sealed class LoadingNode
+/// <summary>A folder in the install folder, with its install marked. The folder view lists those in the folder it is in.</summary>
+public sealed class FolderNodeViewModel
 {
-    public static readonly LoadingNode Instance = new();
-
-    private LoadingNode()
+    internal FolderNodeViewModel(string path, string name, Installation? install)
     {
-    }
-}
-
-/// <summary>A folder in the install folder's tree. Installs are marked, and subfolders are read when it is first opened.</summary>
-public sealed partial class FolderNodeViewModel : ObservableObject
-{
-    private readonly InstallFolderViewModel _owner;
-    private bool _loaded;
-
-    internal FolderNodeViewModel(InstallFolderViewModel owner, string path, string name, Installation? install)
-    {
-        _owner = owner;
         FullPath = path;
         Name = name;
         Target = install is null ? null : new InstallTarget(install);
-        if (InstallFolderViewModel.HasSubfolders(path))
-            Children.Add(LoadingNode.Instance);
     }
 
     public string FullPath { get; }
@@ -92,59 +76,15 @@ public sealed partial class FolderNodeViewModel : ObservableObject
         _ => IsMissing ? "new folder" : "",
     };
 
-    public string Kind => Target?.Install switch
-    {
-        { IsInstance: true } => "instance",
-        not null => "single install",
-        _ => "",
-    };
+    public string Kind => IsInstall ? "install" : "";
 
-    public PackIconKind Icon => Target?.Install switch
-    {
-        { IsInstance: true } => PackIconKind.ServerNetwork,
-        not null => PackIconKind.Server,
-        _ => IsMissing ? PackIconKind.FolderPlusOutline : PackIconKind.FolderOutline,
-    };
-
-    /// <summary>Subfolders, a LoadingNode until they are read, and for the root, the row that adds an install.</summary>
-    public ObservableCollection<object> Children { get; } = [];
-
-    [ObservableProperty]
-    public partial bool IsExpanded { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsSelected { get; set; }
-
-    partial void OnIsExpandedChanged(bool value)
-    {
-        if (value)
-            Load();
-    }
-
-    partial void OnIsSelectedChanged(bool value)
-    {
-        if (value)
-            _owner.Select(this);
-    }
-
-    internal void Load()
-    {
-        if (_loaded)
-            return;
-        _loaded = true;
-        Children.Remove(LoadingNode.Instance);
-        foreach (var folder in InstallFolderViewModel.Subfolders(FullPath))
-            Children.Insert(Children.Count(child => child is FolderNodeViewModel), _owner.Node(folder));
-    }
-
-    /// <summary>This folder and every subfolder read so far.</summary>
-    internal IEnumerable<FolderNodeViewModel> Loaded() =>
-        Children.OfType<FolderNodeViewModel>().SelectMany(child => child.Loaded()).Prepend(this);
+    public PackIconKind Icon =>
+        IsInstall ? PackIconKind.Server : IsMissing ? PackIconKind.FolderPlusOutline : PackIconKind.FolderOutline;
 }
 
 /// <summary>
-/// The last row of the tree: a new install, named in place, so the installs already there stay in view while it is
-/// set up. It is the deploy's target while it is selected or being named.
+/// The last row in the install folder itself: a new install, named in place, so the installs already there stay in
+/// view while it is set up. It is the deploy's target once it is picked or named.
 /// </summary>
 public sealed partial class NewInstallRowViewModel : ObservableObject
 {
@@ -156,13 +96,6 @@ public sealed partial class NewInstallRowViewModel : ObservableObject
         _install = install;
         install.PropertyChanged += OnInstallChanged;
     }
-
-    /// <summary>A package without instances only installs once, at the top of the folder, so there is no name.</summary>
-    public bool CanName => _install.AllowsInstances;
-
-    public string Label => CanName ? "New install" : "Install here";
-
-    public string Hint => _install.Installs.Any() ? "Name the new instance" : "Name, or leave empty for a single install";
 
     public bool IsTarget => _install.Selected?.IsNew == true;
 
@@ -177,16 +110,14 @@ public sealed partial class NewInstallRowViewModel : ObservableObject
         }
     }
 
-    [ObservableProperty]
-    public partial bool IsSelected { get; set; }
-
-    partial void OnIsSelectedChanged(bool value)
+    /// <summary>Makes the new install the deploy's target, with the name typed before.</summary>
+    [RelayCommand]
+    private void Pick()
     {
-        if (value && !IsTarget)
-        {
-            Choose();
-            _install.Name = _draft;
-        }
+        if (IsTarget)
+            return;
+        Choose();
+        _install.Name = _draft;
     }
 
     private void Choose()
@@ -208,9 +139,9 @@ public sealed partial class NewInstallRowViewModel : ObservableObject
 }
 
 /// <summary>
-/// An install folder: a tree of its folders with the installs marked, the files of the folder picked in the tree,
-/// and changes staged on them. Settings edits and deletes are only written when the user finalizes, all together.
-/// With a package open, the tree also picks where the deploy goes: an install in it, or a new one.
+/// An install folder, browsed one folder at a time: the folders in the current one with the installs marked, its
+/// files, and changes staged on them. Settings edits and deletes are only written when the user finalizes, all
+/// together. With a package open, going into an install, or naming a new one, picks where the deploy goes.
 /// </summary>
 public sealed partial class InstallFolderViewModel : ObservableObject, IDisposable
 {
@@ -228,7 +159,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     private bool _reloading;
 
     /// <param name="path">The install folder.</param>
-    /// <param name="target">With a package open, where its deploy goes; the tree selects it.</param>
+    /// <param name="target">With a package open, where its deploy goes; the view goes to it.</param>
     /// <param name="appFiles">The package's app files, which tell its installs apart from other folders.</param>
     public InstallFolderViewModel(string path, InstallViewModel? target = null, IReadOnlyCollection<string>? appFiles = null)
     {
@@ -242,16 +173,26 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
 
     public string Root { get; }
 
-    /// <summary>The tree's one top node: the install folder.</summary>
-    public ObservableCollection<FolderNodeViewModel> Tree { get; } = [];
+    /// <summary>The folders in the current one, then in the install folder itself, the row for a new install.</summary>
+    public ObservableCollection<object> Rows { get; } = [];
 
     /// <summary>Installs found in the folder from its layout.</summary>
     [ObservableProperty]
     public partial IReadOnlyList<InstallTarget> Installs { get; private set; } = [];
 
-    /// <summary>The folder whose files are listed.</summary>
+    /// <summary>The folder the view is in: its folders are listed on the left and its files on the right.</summary>
     [ObservableProperty]
-    public partial FolderNodeViewModel? SelectedFolder { get; private set; }
+    [NotifyPropertyChangedFor(nameof(CanGoUp), nameof(Location))]
+    [NotifyCanExecuteChangedFor(nameof(GoUpCommand))]
+    public partial FolderNodeViewModel? CurrentFolder { get; private set; }
+
+    /// <summary>The view stops at the install folder.</summary>
+    public bool CanGoUp => CurrentFolder is { } current && !IsRoot(current.FullPath);
+
+    /// <summary>Where the view is, from the install folder down, such as "C:\Apps\Orders › logs › 2026".</summary>
+    public string Location => CurrentFolder is not { } current ? ""
+        : IsRoot(current.FullPath) ? current.Name
+        : string.Join(" › ", [Root.TrimEnd(Path.DirectorySeparatorChar), .. Path.GetRelativePath(Root, current.FullPath).Split(Path.DirectorySeparatorChar)]);
 
     /// <summary>Folder headings and files, in path order.</summary>
     [ObservableProperty]
@@ -340,13 +281,11 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         Discard();
     }
 
-    /// <summary>Reads the folder again: its installs, its tree, and the files of the folder picked in it.</summary>
+    /// <summary>Reads the folder again: its installs, and the folders and files of the one the view is in.</summary>
     [RelayCommand]
     public void Reload()
     {
-        var expanded = Tree.SelectMany(node => node.Loaded()).Where(node => node.IsExpanded).Select(node => node.FullPath)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var selected = SelectedFolder?.FullPath;
+        var current = CurrentFolder?.FullPath;
 
         var installs = Installations.Find(Root, _appFiles);
         _installsByFolder = installs.ToDictionary(install => Path.GetFullPath(install.Directory), StringComparer.OrdinalIgnoreCase);
@@ -354,23 +293,12 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
 
         _newInstall?.Detach();
         _newInstall = _target is { } target && target.Targets.Any(choice => choice.IsNew) ? new NewInstallRowViewModel(target) : null;
-        var root = new FolderNodeViewModel(this, Root, Root.TrimEnd(Path.DirectorySeparatorChar), _installsByFolder.GetValueOrDefault(Root));
-        root.IsExpanded = true;
-        if (_newInstall is not null)
-            root.Children.Add(_newInstall);
-        Tree.Clear();
-        Tree.Add(root);
 
-        // Open the folders that were open, top down, so their children are there to open in turn.
-        foreach (var node in root.Loaded().ToList())
-            ReopenUnder(node, expanded);
-        // Picking the folder again lists it, but must not move the deploy's target, which the user chose.
-        var keep = root.Loaded().FirstOrDefault(node => node.FullPath.Equals(selected, StringComparison.OrdinalIgnoreCase)) ?? root;
-        SelectedFolder = null;
+        // Staying in the same folder lists it again, but must not move the deploy's target, which the user chose.
         _reloading = true;
         try
         {
-            keep.IsSelected = true;
+            Navigate(Node(current is not null && Directory.Exists(current) ? current : Root));
         }
         finally
         {
@@ -379,51 +307,39 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         NotifyPendingChanged();
     }
 
-    private static void ReopenUnder(FolderNodeViewModel node, HashSet<string> expanded)
-    {
-        foreach (var child in node.Children.OfType<FolderNodeViewModel>().ToList())
-        {
-            if (!expanded.Contains(child.FullPath))
-                continue;
-            child.IsExpanded = true;
-            ReopenUnder(child, expanded);
-        }
-    }
+    [RelayCommand]
+    private void GoInto(FolderNodeViewModel folder) => Navigate(folder);
+
+    [RelayCommand(CanExecute = nameof(CanGoUp))]
+    private void GoUp() => Navigate(Node(Path.GetDirectoryName(CurrentFolder!.FullPath)!));
 
     internal FolderNodeViewModel Node(string path) =>
-        new(this, path, Path.GetFileName(path), _installsByFolder.GetValueOrDefault(Path.GetFullPath(path)));
+        new(path, IsRoot(path) ? Root.TrimEnd(Path.DirectorySeparatorChar) : Path.GetFileName(path),
+            _installsByFolder.GetValueOrDefault(Path.GetFullPath(path)));
 
-    /// <summary>Lists the folder picked in the tree, and with a package open, makes an install picked there the deploy's target.</summary>
-    internal void Select(FolderNodeViewModel node)
+    /// <summary>
+    /// Goes into a folder: lists its folders and its files, and with a package open, makes an install there the
+    /// deploy's target.
+    /// </summary>
+    private void Navigate(FolderNodeViewModel folder)
     {
-        foreach (var other in Tree.SelectMany(root => root.Loaded()).Where(other => other != node))
-            other.IsSelected = false;
-        if (_newInstall is not null)
-            _newInstall.IsSelected = false;
+        CurrentFolder = folder;
+        Rows.Clear();
+        foreach (var path in Subfolders(folder.FullPath))
+            Rows.Add(Node(path));
+        if (_newInstall is not null && IsRoot(folder.FullPath))
+            Rows.Add(_newInstall);
 
-        if (!_reloading && _target is not null && node.Target?.Install is { } install
+        if (!_reloading && _target is not null && folder.Target?.Install is { } install
             && _target.Targets.FirstOrDefault(choice => choice.Install?.Directory == install.Directory) is { } choice)
             _target.Selected = choice;
 
-        if (SelectedFolder == node)
-            return;
-        SelectedFolder = node;
         OpenFile = null;
-        Listing = ListFilesAsync(node.FullPath);
+        Listing = ListFilesAsync(folder.FullPath);
     }
 
-    internal static bool HasSubfolders(string path)
-    {
-        try
-        {
-            return Directory.EnumerateDirectories(path)
-                .Any(folder => !Path.GetFileName(folder).Equals(ConfigUpdates.StateFolder, StringComparison.OrdinalIgnoreCase));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            return false;
-        }
-    }
+    private bool IsRoot(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar)
+        .Equals(Root.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Subfolders in name order, without NetDeploy's own state folder. Folders that can't be read are left out.</summary>
     internal static IEnumerable<string> Subfolders(string path)
@@ -503,20 +419,17 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
             .ToList();
     }
 
-    // The tree's pick follows a target chosen elsewhere, such as the new row after Clone.
+    // The view follows a target chosen elsewhere: to the install, or for a new one such as after Clone, to the
+    // install folder, where its row is.
     private void OnTargetChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(InstallViewModel.Selected) || _reloading || _target?.Selected is not { } choice)
             return;
-        if (choice.Install is not { } install)
-        {
-            if (_newInstall is not null)
-                _newInstall.IsSelected = true;
+        var folder = choice.Install?.Directory ?? Root;
+        if (CurrentFolder is { } current && Path.GetFullPath(current.FullPath).Equals(Path.GetFullPath(folder), StringComparison.OrdinalIgnoreCase))
             return;
-        }
-        var node = Tree.SelectMany(root => root.Loaded()).FirstOrDefault(node => node.Target?.Install?.Directory == install.Directory);
-        if (node is not null)
-            node.IsSelected = true;
+        if (choice.Install is null || Directory.Exists(folder))
+            Navigate(Node(folder));
     }
 
     private void OnEdited(string path)

@@ -107,16 +107,12 @@ public sealed class CopyFilesStep : DeployStep
         if (Directory.Exists(target))
         {
             var inPackage = packageFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
-            // Files that aren't the server's to compare: the tool's state, and other installs of the app inside this one.
-            var skipped = Installations.NestedInstalls(target, Installations.TopAppFiles(source))
-                .Select(folder => Path.GetFileName(folder) + "/")
-                .Where(folder => !Directory.Exists(Path.Combine(source, folder)))
-                .Append(ConfigUpdates.StateFolder + "/")
-                .ToList();
+            // The tool's own state isn't the server's to compare.
+            const string State = ConfigUpdates.StateFolder + "/";
             foreach (var file in Directory.EnumerateFiles(target, "*", SearchOption.AllDirectories))
             {
                 var relative = FileSystem.RelativeUnixPath(target, file);
-                if (inPackage.Contains(relative) || skipped.Any(folder => relative.StartsWith(folder, StringComparison.OrdinalIgnoreCase)))
+                if (inPackage.Contains(relative) || relative.StartsWith(State, StringComparison.OrdinalIgnoreCase))
                     continue;
                 var isConfig = configs.Match(relative).HasMatches;
                 var delete = DeleteExtra && !isConfig && !preserve.Match(relative).HasMatches;

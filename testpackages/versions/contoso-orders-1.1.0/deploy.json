@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "app": { "name": "Contoso.Orders", "version": "1.1.0" },
   "requiresAdmin": true,
-  "install": { "folder": "{InstallDir}", "instances": true },
+  "install": { "folder": "{InstallDir}" },
   "parameters": {
     "InstallDir": { "label": "Install folder", "type": "folder", "default": "C:\\Apps\\Contoso.Orders" },
     "DataDir": { "label": "Database folder", "type": "folder", "default": "C:\\ProgramData\\Contoso.Orders" },

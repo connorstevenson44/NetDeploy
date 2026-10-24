@@ -124,57 +124,56 @@
                 </Setter>
             </Style>
 
-            <!-- ===== The folder tree ===== -->
+            <!-- ===== The folder view: the folders in the one it is in ===== -->
 
-            <Style x:Key="TreeItem" TargetType="TreeViewItem" BasedOn="{StaticResource MaterialDesignTreeViewItem}">
-                <Setter Property="Padding" Value="4,1" />
-                <Setter Property="materialDesign:TreeViewAssist.ExpanderSize" Value="14" />
+            <!-- A row to click: a folder to go into, or the new install to pick -->
+            <Style x:Key="FolderRow" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+                <Setter Property="Height" Value="30" />
+                <Setter Property="Padding" Value="6,0" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Foreground" Value="{StaticResource Ink}" />
+                <Setter Property="FontWeight" Value="Normal" />
+                <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="4" />
             </Style>
-            <app:TreeItemStyleSelector x:Key="TreeItems">
-                <app:TreeItemStyleSelector.Folder>
-                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource TreeItem}">
-                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
-                        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
-                    </Style>
-                </app:TreeItemStyleSelector.Folder>
-                <app:TreeItemStyleSelector.NewInstall>
-                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource TreeItem}">
-                        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
-                    </Style>
-                </app:TreeItemStyleSelector.NewInstall>
-                <app:TreeItemStyleSelector.Placeholder>
-                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource TreeItem}">
-                        <Setter Property="Focusable" Value="False" />
-                    </Style>
-                </app:TreeItemStyleSelector.Placeholder>
-            </app:TreeItemStyleSelector>
 
-            <!-- A folder: installs show their version and kind, and the one the deploy updates says so -->
-            <HierarchicalDataTemplate DataType="{x:Type vm:FolderNodeViewModel}" ItemsSource="{Binding Children}">
-                <Grid x:Name="Row" Height="26" Background="Transparent" ToolTip="{Binding FullPath}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <materialDesign:PackIcon x:Name="Icon" Kind="{Binding Icon}" Width="16" Height="16" Foreground="{StaticResource InkMuted}"
-                                             VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"><Run x:Name="Name" Text="{Binding Name, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding Detail, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="11" FontFamily="{StaticResource Code}" /></TextBlock>
-                    <StackPanel x:Name="Actions" Grid.Column="2" Orientation="Horizontal" Margin="4,0,0,0" Visibility="Collapsed">
-                        <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}"
-                                ToolTip="Clone: deploy as a new instance that starts from a copy of this one"
-                                Command="{Binding DataContext.CloneInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                CommandParameter="{Binding Target}">
-                            <materialDesign:PackIcon Kind="ContentCopy" Width="14" Height="14" />
-                        </Button>
-                        <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Danger}" ToolTip="Remove this install, confirming each step"
-                                Command="{Binding DataContext.RemoveInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                CommandParameter="{Binding Target}">
-                            <materialDesign:PackIcon Kind="TrashCanOutline" Width="14" Height="14" />
-                        </Button>
-                    </StackPanel>
-                </Grid>
-                <HierarchicalDataTemplate.Triggers>
+            <!-- Clone and remove for an install, shown on hover -->
+            <DataTemplate x:Key="InstallActions">
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}"
+                            ToolTip="Clone: deploy as a new install that starts from a copy of this one"
+                            Command="{Binding DataContext.CloneInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding Target}">
+                        <materialDesign:PackIcon Kind="ContentCopy" Width="14" Height="14" />
+                    </Button>
+                    <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Danger}" ToolTip="Remove this install, confirming each step"
+                            Command="{Binding DataContext.RemoveInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding Target}">
+                        <materialDesign:PackIcon Kind="TrashCanOutline" Width="14" Height="14" />
+                    </Button>
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- A folder: clicking it goes into it. Installs show their version and kind. -->
+            <DataTemplate DataType="{x:Type vm:FolderNodeViewModel}">
+                <Button x:Name="Row" Style="{StaticResource FolderRow}" ToolTip="{Binding FullPath}"
+                        Command="{Binding DataContext.Folder.GoIntoCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <materialDesign:PackIcon x:Name="Icon" Kind="{Binding Icon}" Width="16" Height="16" Foreground="{StaticResource InkMuted}"
+                                                 VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"><Run x:Name="Name" Text="{Binding Name, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding Detail, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="11" FontFamily="{StaticResource Code}" /></TextBlock>
+                        <ContentControl x:Name="Actions" Grid.Column="2" Content="{Binding}" ContentTemplate="{StaticResource InstallActions}"
+                                        Focusable="False" Margin="4,0,0,0" Visibility="Collapsed" />
+                        <materialDesign:PackIcon Grid.Column="3" Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource InkFaint}"
+                                                 VerticalAlignment="Center" Margin="4,0,0,0" />
+                    </Grid>
+                </Button>
+                <DataTemplate.Triggers>
                     <DataTrigger Binding="{Binding IsInstall}" Value="True">
                         <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Brand}" />
                         <Setter TargetName="Name" Property="FontWeight" Value="SemiBold" />
@@ -189,35 +188,29 @@
                         </MultiDataTrigger.Conditions>
                         <Setter TargetName="Actions" Property="Visibility" Value="Visible" />
                     </MultiDataTrigger>
-                </HierarchicalDataTemplate.Triggers>
-            </HierarchicalDataTemplate>
-
-            <!-- The last row: a new install, named in place so the installs already there stay in view -->
-            <DataTemplate DataType="{x:Type vm:NewInstallRowViewModel}">
-                <Grid Height="30">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <materialDesign:PackIcon Kind="PlusCircleOutline" Width="16" Height="16" Foreground="{StaticResource Brand}"
-                                             VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <TextBlock x:Name="Label" Grid.Column="1" Text="{Binding Label}" Foreground="{StaticResource Brand}" FontWeight="SemiBold"
-                               VerticalAlignment="Center" />
-                    <TextBox x:Name="NameBox" Grid.Column="1" MinWidth="170" Padding="0,2" VerticalAlignment="Center" Visibility="Collapsed"
-                             FontFamily="{StaticResource Code}" FontSize="12"
-                             materialDesign:HintAssist.Hint="{Binding Hint}" materialDesign:TextFieldAssist.DecorationVisibility="Visible"
-                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
-                </Grid>
-                <DataTemplate.Triggers>
-                    <DataTrigger Binding="{Binding CanName}" Value="True">
-                        <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
-                        <Setter TargetName="NameBox" Property="Visibility" Value="Visible" />
-                    </DataTrigger>
                 </DataTemplate.Triggers>
             </DataTemplate>
 
-            <DataTemplate DataType="{x:Type vm:LoadingNode}">
-                <TextBlock Text="Reading..." Style="{StaticResource Caption}" />
+            <!-- The last row in the install folder: a new install, named in place so the installs already there stay in
+                 view. Clicking it or typing a name picks it, and it is tinted while it is the deploy's target. -->
+            <DataTemplate DataType="{x:Type vm:NewInstallRowViewModel}">
+                <Border x:Name="Row" CornerRadius="4" Height="32">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Left" Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}" Margin="2,0,4,0"
+                                Command="{Binding PickCommand}" ToolTip="Deploy as a new install">
+                            <materialDesign:PackIcon Kind="PlusCircleOutline" Width="16" Height="16" />
+                        </Button>
+                        <TextBox MinWidth="170" Padding="0,2" Margin="0,0,6,0" VerticalAlignment="Center"
+                                 FontFamily="{StaticResource Code}" FontSize="12"
+                                 materialDesign:HintAssist.Hint="Name the new install" materialDesign:TextFieldAssist.DecorationVisibility="Visible"
+                                 Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                    </DockPanel>
+                </Border>
+                <DataTemplate.Triggers>
+                    <DataTrigger Binding="{Binding IsTarget}" Value="True">
+                        <Setter TargetName="Row" Property="Background" Value="{StaticResource BrandTint}" />
+                    </DataTrigger>
+                </DataTemplate.Triggers>
             </DataTemplate>
 
             <!-- ===== The steps ===== -->
@@ -541,7 +534,7 @@
                                     <Button Style="{StaticResource SecondaryButton}" Command="{Binding DryRunCommand}" Margin="0,0,6,0"
                                             Content="Dry run" Tag="{x:Static materialDesign:PackIconKind.PlayOutline}" ContentTemplate="{StaticResource IconLabel}"
                                             ToolTip="Walk through every step without changing anything" />
-                                    <!-- Says what happens to the install picked in the folder: Add, Update, Rename or Convert -->
+                                    <!-- Says what happens to the install picked in the folder: Add, Update or Rename -->
                                     <Button Style="{StaticResource PrimaryButton}" Command="{Binding DeployCommand}" Margin="6,0,0,0"
                                             Content="{Binding Install.DeployLabel, FallbackValue=Deploy}" ContentTemplate="{StaticResource IconLabel}"
                                             Tag="{Binding Install.PlanIcon, FallbackValue={x:Static materialDesign:PackIconKind.CloudUpload}}"
@@ -619,7 +612,7 @@
                                         <TextBlock Text="{Binding Problem}" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Danger}" />
                                     </DockPanel>
                                     <TextBox Style="{StaticResource InputBox}" Margin="0,10,0,0"
-                                             materialDesign:HintAssist.Hint="Instance name" ToolTip="Change it to move this install to a new instance"
+                                             materialDesign:HintAssist.Hint="Install name" ToolTip="Change it to move this install to a new folder"
                                              Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
                                              Visibility="{Binding CanRename, Converter={StaticResource BoolToVisibility}}" />
                                     <ComboBox Style="{StaticResource InputChoice}" Margin="0,10,0,0"
@@ -629,10 +622,50 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- The folders. Picking one lists its files on the right; picking an install makes it the deploy's target. -->
-                            <TreeView x:Name="FolderTree" ItemsSource="{Binding Folder.Tree}" ItemContainerStyleSelector="{StaticResource TreeItems}"
-                                      Padding="6,0,6,6" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Standard"
-                                      Visibility="{Binding HasFolder, Converter={StaticResource BoolToVisibility}}" />
+                            <!-- The folders, one level at a time: click one to go into it and list its files on the right, Up to come
+                                 back. Going into an install makes it the deploy's target. -->
+                            <DockPanel Visibility="{Binding HasFolder, Converter={StaticResource BoolToVisibility}}">
+                                <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="6,2,8,2"
+                                        DataContext="{Binding Folder}">
+                                    <Grid x:Name="Here" Background="Transparent">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Style="{StaticResource PaneButton}" Command="{Binding GoUpCommand}" ToolTip="Up to the folder above">
+                                            <materialDesign:PackIcon Kind="ArrowUp" Width="16" Height="16" />
+                                        </Button>
+                                        <materialDesign:PackIcon Grid.Column="1" Kind="{Binding CurrentFolder.Icon}" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                                                 VerticalAlignment="Center" Margin="4,0,8,0" />
+                                        <TextBlock Grid.Column="2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding CurrentFolder.FullPath}"><Run Text="{Binding Location, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding CurrentFolder.Detail, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="11" FontFamily="{StaticResource Code}" /></TextBlock>
+                                        <ContentControl Grid.Column="3" Content="{Binding CurrentFolder}" ContentTemplate="{StaticResource InstallActions}" Focusable="False">
+                                            <ContentControl.Style>
+                                                <Style TargetType="ContentControl">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsMouseOver, ElementName=Here}" Value="True" />
+                                                                <Condition Binding="{Binding CurrentFolder.IsInstall}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ContentControl.Style>
+                                        </ContentControl>
+                                    </Grid>
+                                </Border>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel Margin="6,4,6,6">
+                                        <ItemsControl ItemsSource="{Binding Folder.Rows}" Focusable="False" />
+                                        <TextBlock Text="No folders in here." Style="{StaticResource Caption}" Margin="8,6,0,0"
+                                                   Visibility="{Binding Folder.Rows.Count, Converter={StaticResource ZeroToVisible}}" />
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </DockPanel>
                         </DockPanel>
                     </materialDesign:Card>
                 </DockPanel>
@@ -660,9 +693,9 @@
                                             <DockPanel>
                                                 <ProgressBar DockPanel.Dock="Right" Style="{StaticResource MaterialDesignCircularProgressBar}" IsIndeterminate="True"
                                                              Width="16" Height="16" Margin="8,0" Visibility="{Binding IsListing, Converter={StaticResource BoolToVisibility}}" />
-                                                <materialDesign:PackIcon Kind="{Binding SelectedFolder.Icon}" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                                <materialDesign:PackIcon Kind="{Binding CurrentFolder.Icon}" Width="16" Height="16" Foreground="{StaticResource Brand}"
                                                                          VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedFolder.FullPath}"><Run Text="{Binding SelectedFolder.Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding SelectedFolder.Kind, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" /></TextBlock>
+                                                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding CurrentFolder.FullPath}"><Run Text="{Binding CurrentFolder.Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding CurrentFolder.Kind, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" /></TextBlock>
                                             </DockPanel>
                                         </Border>
 

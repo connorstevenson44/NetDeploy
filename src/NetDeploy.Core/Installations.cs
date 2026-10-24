@@ -4,11 +4,8 @@ using NetDeploy.Core.Steps;
 
 namespace NetDeploy.Core;
 
-/// <summary>One install found in an install folder: the single install in the folder itself, or a named instance.</summary>
-public sealed record Installation(string Name, string Directory, string? Version)
-{
-    public bool IsInstance => Name.Length > 0;
-}
+/// <summary>One install found in an install folder: a subfolder, named after the install, that holds the app.</summary>
+public sealed record Installation(string Name, string Directory, string? Version);
 
 /// <summary>
 /// Finds installs by looking at the folder, so installs made by hand count as much as ones NetDeploy made. Nothing is
@@ -19,33 +16,32 @@ public static partial class Installations
     [GeneratedRegex("^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$")]
     private static partial Regex NamePattern();
 
-    /// <summary>Instance names end up in folder and service names, so they stay short and plain.</summary>
+    /// <summary>Install names end up in folder and service names, so they stay short and plain.</summary>
     public static string? CheckName(string name) =>
         NamePattern().IsMatch(name) ? null : "Use up to 40 letters, digits, - or _, starting with a letter or digit.";
 
-    /// <summary>{Instance}, {InstanceSuffix} and {InstanceDir} for an instance; an empty name is the single install.</summary>
-    public static IReadOnlyDictionary<string, string> Variables(string installFolder, string instance) => new Dictionary<string, string>
+    /// <summary>{Instance}, {InstanceSuffix} and {InstanceDir} for the install with this name.</summary>
+    public static IReadOnlyDictionary<string, string> Variables(string installFolder, string name) => new Dictionary<string, string>
     {
-        ["Instance"] = instance,
-        ["InstanceSuffix"] = instance.Length == 0 ? "" : "-" + instance,
-        ["InstanceDir"] = instance.Length == 0 ? installFolder : Path.Combine(installFolder, instance),
+        ["Instance"] = name,
+        ["InstanceSuffix"] = "-" + name,
+        ["InstanceDir"] = Path.Combine(installFolder, name),
     };
 
     /// <summary>
-    /// The single install comes first when the folder itself holds the app; instances are subfolders that hold it.
-    /// appFiles are file names that mark the app, such as its exe (see AppFiles). With none, any exe counts.
+    /// The subfolders of the install folder that hold the app, by name. appFiles are file names that mark the app, such
+    /// as its exe (see AppFiles). With none, any exe counts.
     /// </summary>
     public static IReadOnlyList<Installation> Find(string installFolder, IReadOnlyCollection<string> appFiles)
     {
         if (!Path.IsPathFullyQualified(installFolder) || !System.IO.Directory.Exists(installFolder))
             return [];
 
-        var found = new List<Installation>();
-        if (HoldsApp(installFolder, appFiles))
-            found.Add(new Installation("", installFolder, VersionOf(installFolder, appFiles)));
-        foreach (var folder in InstanceFolders(installFolder, appFiles).Order(StringComparer.OrdinalIgnoreCase))
-            found.Add(new Installation(Path.GetFileName(folder), folder, VersionOf(folder, appFiles)));
-        return found;
+        return System.IO.Directory.EnumerateDirectories(installFolder)
+            .Where(folder => HoldsApp(folder, appFiles))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(folder => new Installation(Path.GetFileName(folder), folder, VersionOf(folder, appFiles)))
+            .ToList();
     }
 
     /// <summary>
@@ -78,30 +74,6 @@ public static partial class Installations
         var exes = top.Where(name => name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)).ToList();
         return exes.Count > 0 ? exes : top.Where(name => name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)).ToList();
     }
-
-    /// <summary>
-    /// Subfolders of an install that hold one of its app files: other installs, such as the instances inside a single
-    /// install, with their backups beside them. Copies and backups of the install leave them alone.
-    /// </summary>
-    internal static IReadOnlyList<string> NestedInstalls(string folder, IReadOnlyCollection<string> appFiles) =>
-        appFiles.Count == 0 || !System.IO.Directory.Exists(folder)
-            ? []
-            : InstanceFolders(folder, appFiles).SelectMany(nested => new[] { nested, BackupStep.BackupsOf(nested) }).Where(System.IO.Directory.Exists).ToList();
-
-    /// <summary>
-    /// The files that belong to an install, relative to its folder: everything except instances nested in it and the
-    /// folders in skipFolders.
-    /// </summary>
-    public static IEnumerable<string> OwnFiles(string installDirectory, IReadOnlyCollection<string> appFiles, params string[] skipFolders)
-    {
-        var skip = InstanceFolders(installDirectory, appFiles).Concat(skipFolders).Select(Path.GetFullPath).ToList();
-        return System.IO.Directory.EnumerateFiles(installDirectory, "*", SearchOption.AllDirectories)
-            .Where(file => !skip.Any(folder => file.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
-            .Select(file => Path.GetRelativePath(installDirectory, file));
-    }
-
-    internal static IEnumerable<string> InstanceFolders(string installFolder, IReadOnlyCollection<string> appFiles) =>
-        System.IO.Directory.EnumerateDirectories(installFolder).Where(folder => HoldsApp(folder, appFiles));
 
     /// <summary>Every step, with the steps inside if steps.</summary>
     internal static IEnumerable<DeployStep> Flatten(IEnumerable<DeployStep> steps)

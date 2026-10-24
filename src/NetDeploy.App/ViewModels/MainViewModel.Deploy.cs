@@ -224,10 +224,9 @@ public sealed partial class MainViewModel
 
     private async Task RemoveAsync(Installation install, IDeployLog log)
     {
-        var all = Folder?.Installs.Select(target => target.Install).OfType<Installation>().ToList() ?? [install];
         var package = _package?.Manifest.Install is not null ? _package : null;
         var values = package is null ? new Dictionary<string, string>() : ParameterValues(includeSecrets: true);
-        var result = await Task.Run(() => new InstallRemover(_user, log).RemoveAsync(install, all, package, values, CancellationToken.None));
+        var result = await Task.Run(() => new InstallRemover(_user, log).RemoveAsync(install, package, values, CancellationToken.None));
         Status = result switch
         {
             DeployResult.Succeeded => $"Removed {install.Directory}.",

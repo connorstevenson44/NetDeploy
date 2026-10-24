@@ -34,10 +34,8 @@ public sealed class BackupStep : DeployStep
             return Task.CompletedTask;
         }
 
-        // Instances inside a single install have their own backups, and may be running while this one is restored.
-        var nested = Installations.NestedInstalls(folder, Installations.TopAppFiles(folder));
-        FileSystem.CopyDirectory(folder, backup, skip: nested);
-        context.Rollback.Backups.Add(new BackupRecord(folder, backup, nested));
+        FileSystem.CopyDirectory(folder, backup);
+        context.Rollback.Backups.Add(new BackupRecord(folder, backup));
         context.Log.Info($"Backed up to {backup}");
 
         // Timestamps sort by name, so the oldest backups come last.

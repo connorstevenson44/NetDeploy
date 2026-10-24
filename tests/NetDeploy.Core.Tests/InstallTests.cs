@@ -2,14 +2,14 @@ using NetDeploy.Core.Steps;
 
 namespace NetDeploy.Core.Tests;
 
-public sealed class InstanceTests : IDisposable
+public sealed class InstallTests : IDisposable
 {
     private readonly TempFolder _package = new();
     private readonly TempFolder _server = new();
     private readonly FakeUser _user = new();
     private readonly TestLog _log = new();
 
-    public InstanceTests()
+    public InstallTests()
     {
         _package.File("app/Orders.exe", "v2");
         _package.File("app/Orders.dll", "v2");
@@ -18,7 +18,7 @@ public sealed class InstanceTests : IDisposable
             {
               "schemaVersion": 1,
               "app": { "name": "Orders", "version": "2.0.0" },
-              "install": { "folder": "{InstallDir}", "instances": true },
+              "install": { "folder": "{InstallDir}" },
               "parameters": { "InstallDir": { "type": "folder" }, "Password": { "type": "secret" } },
               "steps": [
                 { "type": "backup", "path": "{InstanceDir}" },
@@ -39,7 +39,7 @@ public sealed class InstanceTests : IDisposable
             Directory.Delete(backups, recursive: true);
     }
 
-    private async Task<DeployOutcome> DeployAsync(string instance = "", string? seedFrom = null)
+    private async Task<DeployOutcome> DeployAsync(string instance, string? seedFrom = null)
     {
         using var package = DeployPackage.Open(_package.Path);
         var values = new Dictionary<string, string> { ["InstallDir"] = _server.Path, ["Password"] = "s3cret" };
@@ -57,11 +57,11 @@ public sealed class InstanceTests : IDisposable
     {
         using var package = DeployPackage.Open(_package.Path);
         var values = new Dictionary<string, string> { ["InstallDir"] = _server.Path };
-        return await new InstallRemover(_user, _log).RemoveAsync(install, Find(), package, values, TestContext.Current.CancellationToken);
+        return await new InstallRemover(_user, _log).RemoveAsync(install, package, values, TestContext.Current.CancellationToken);
     }
 
     [Fact]
-    public async Task An_instance_gets_its_own_folder_and_nothing_extra_is_saved()
+    public async Task An_install_gets_its_own_folder_and_nothing_extra_is_saved()
     {
         var outcome = await DeployAsync("east");
 
@@ -73,7 +73,7 @@ public sealed class InstanceTests : IDisposable
     }
 
     [Fact]
-    public void Services_and_tasks_undo_themselves_with_the_instance_name_filled_in()
+    public void Services_and_tasks_undo_themselves_with_the_install_name_filled_in()
     {
         var values = new Dictionary<string, string> { ["InstanceSuffix"] = "-east", ["InstanceDir"] = @"C:\Apps\Orders\east" };
 
@@ -119,13 +119,13 @@ public sealed class InstanceTests : IDisposable
     [Fact]
     public async Task Installs_are_found_from_the_folder_layout_including_hand_made_ones()
     {
-        _server.File("Orders.exe", "hand copied");
+        _server.File("Orders.exe", "not an install: installs are the named folders inside");
         _server.File("plugins/Payments.dll", "not an install");
         _server.File("west/Orders.exe", "hand copied");
         await DeployAsync("east");
         Directory.CreateDirectory(_server.Combine("logs"));
 
-        Assert.Equal(["", "east", "west"], Find().Select(install => install.Name));
+        Assert.Equal(["east", "west"], Find().Select(install => install.Name));
         Assert.Empty(Installations.Find(_server.Combine("missing"), ["Orders.exe"]));
     }
 
@@ -144,43 +144,13 @@ public sealed class InstanceTests : IDisposable
     }
 
     [Fact]
-    public async Task A_single_install_can_be_turned_into_an_instance_inside_it()
-    {
-        await DeployAsync();
-        await DeployAsync("west");
-        await DeployAsync("east", seedFrom: _server.Path);
-
-        Assert.Equal("v2", _server.Read("east/Orders.exe"));
-        Assert.False(Directory.Exists(_server.Combine("east/east")));
-        Assert.False(Directory.Exists(_server.Combine("east/west")));
-    }
-
-    [Fact]
-    public async Task Updating_the_single_install_leaves_the_instances_inside_it_alone()
-    {
-        await DeployAsync();
-        await DeployAsync("west");
-        await DeployAsync("west");
-        _server.File("west/logs/today.log", "running");
-
-        var plan = new CopyFilesStep { From = "app", To = _server.Path, DeleteExtra = true }.PlanFiles(_package.Path, new Dictionary<string, string>());
-        Assert.DoesNotContain(plan.Entries, entry => entry.Path.StartsWith("west"));
-
-        var outcome = await DeployAsync();
-        var backup = Directory.GetDirectories(_server.Path + ".backups").Order().Last();
-        Assert.False(Directory.Exists(Path.Combine(backup, "west")));
-        Assert.False(Directory.Exists(Path.Combine(backup, "west.backups")));
-
-        _server.File("Orders.exe", "broken");
-        outcome.Rollback.Restore(_log);
-        Assert.Equal("v2", _server.Read("Orders.exe"));
-        Assert.Equal("running", _server.Read("west/logs/today.log"));
-    }
-
-    [Fact]
-    public async Task A_new_instance_needs_an_empty_folder_and_a_plain_name()
+    public async Task A_new_install_needs_an_empty_folder_and_a_plain_name()
     {
         await DeployAsync("east");
+
+        var noName = await DeployAsync("");
+        Assert.Equal(DeployResult.Failed, noName.Result);
+        Assert.Contains("Name the install", noName.Error!.Message);
 
         Assert.Equal(DeployResult.Failed, (await DeployAsync("west", seedFrom: _server.Combine("missing"))).Result);
         Assert.Equal(DeployResult.Failed, (await DeployAsync("east", seedFrom: _server.Path)).Result);
@@ -190,7 +160,7 @@ public sealed class InstanceTests : IDisposable
     }
 
     [Fact]
-    public async Task Removing_an_instance_undoes_newest_first_then_deletes_its_folder()
+    public async Task Removing_an_install_undoes_newest_first_then_deletes_its_folder()
     {
         await DeployAsync("east");
         var folder = _server.Combine("east");
@@ -209,23 +179,6 @@ public sealed class InstanceTests : IDisposable
         Assert.Contains("everything in it", _user.CleanupPrompts[3].Explanation);
         Assert.False(Directory.Exists(folder));
         Assert.DoesNotContain("s3cret", _log.Text);
-    }
-
-    [Fact]
-    public async Task Removing_a_single_install_keeps_the_instances_inside_it()
-    {
-        await DeployAsync();
-        await DeployAsync("east");
-        await DeployAsync("east");
-        var single = Find().First();
-        _user.CleanupDecisions.Enqueue(CleanupDecision.Skip); // the task, which isn't there
-
-        await RemoveAsync(single);
-
-        Assert.Contains("except east", _user.CleanupPrompts.Last().Explanation);
-        Assert.False(_server.Exists("Orders.exe"));
-        Assert.True(_server.Exists("east/Orders.exe"));
-        Assert.True(Directory.Exists(_server.Combine("east.backups")));
     }
 
     [Fact]

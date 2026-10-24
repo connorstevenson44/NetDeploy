@@ -11,11 +11,11 @@ public sealed record DeployOptions
     public IReadOnlyDictionary<DeployStep, IReadOnlyDictionary<string, FileAction>> FileActions { get; init; } =
         new Dictionary<DeployStep, IReadOnlyDictionary<string, FileAction>>();
 
-    /// <summary>The instance to add or update; empty for a single install. Only used when the manifest has "install".</summary>
+    /// <summary>The name of the install to add or update. Required when the manifest has "install", unused otherwise.</summary>
     public string Instance { get; init; } = "";
 
     /// <summary>
-    /// An existing install whose files are copied into a new instance before the steps run, so a clone or rename keeps
+    /// An existing install whose files are copied into a new install before the steps run, so a clone or rename keeps
     /// its config edits and its merge base.
     /// </summary>
     public string? SeedFrom { get; init; }

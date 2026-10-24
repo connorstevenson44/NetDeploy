@@ -338,7 +338,6 @@
                                                  Text="{Binding InstallFolder, UpdateSourceTrigger=PropertyChanged}" />
                                         <TextBlock Style="{StaticResource Caption}" Margin="2,4,0,10"
                                                    Text="Steps use {InstanceDir} for the app's folder. Leave it empty if the app isn't installed into one folder." />
-                                        <CheckBox Content="Can run as several named instances side by side" IsChecked="{Binding Instances}" IsEnabled="{Binding HasInstall}" Margin="2,0,0,12" />
                                         <ContentControl Content="{Binding Parameters}" Focusable="False" />
                                     </StackPanel>
 
