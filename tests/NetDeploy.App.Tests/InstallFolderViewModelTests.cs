@@ -15,6 +15,7 @@ public class InstallFolderViewModelTests : IDisposable
         Write("logs/old.log", "x");
         Write(".deploy/base/appsettings.json", "{}");
         Write("east/Orders.exe", "");
+        Write("main/Orders.exe", "");
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
@@ -47,7 +48,7 @@ public class InstallFolderViewModelTests : IDisposable
 
     private InstallViewModel Target()
     {
-        var target = new InstallViewModel(new InstallInfo { Folder = "{InstallDir}", Instances = true }, "2.5.0", ["Orders.exe"]);
+        var target = new InstallViewModel("2.5.0", ["Orders.exe"]);
         target.Refresh(_root);
         return target;
     }
@@ -57,7 +58,7 @@ public class InstallFolderViewModelTests : IDisposable
     {
         var folder = await OpenAsync();
 
-        Assert.Equal(["Single install", "east"], folder.Installs.Select(install => install.Label));
+        Assert.Equal(["east", "main"], folder.Installs.Select(install => install.Label));
         Assert.DoesNotContain(folder.Items.OfType<FolderFileViewModel>(), file => file.RelativePath.StartsWith(".deploy"));
         Assert.True(File(folder, "appsettings.json").IsConfig);
         Assert.True(File(folder, "Orders.exe").CanRun);
@@ -70,10 +71,10 @@ public class InstallFolderViewModelTests : IDisposable
         var folder = await OpenAsync();
 
         Assert.Equal(_root, folder.CurrentFolder!.FullPath);
-        Assert.Equal("single install", folder.CurrentFolder.Kind);
+        Assert.False(folder.CurrentFolder.IsInstall);
         Assert.False(folder.CanGoUp);
-        Assert.Equal(["east", "logs"], folder.Rows.OfType<FolderNodeViewModel>().Select(row => row.Name));
-        Assert.Equal("instance", Row(folder, "east").Kind);
+        Assert.Equal(["east", "logs", "main"], folder.Rows.OfType<FolderNodeViewModel>().Select(row => row.Name));
+        Assert.Equal("install", Row(folder, "east").Kind);
         Assert.False(Row(folder, "logs").IsInstall);
 
         await GoIntoAsync(folder, "logs");
@@ -109,14 +110,14 @@ public class InstallFolderViewModelTests : IDisposable
     {
         var target = Target();
         var folder = await OpenAsync(target);
-        Assert.Equal("Single install", target.Selected!.Label);
+        Assert.Equal("east", target.Selected!.Label);
 
         await GoIntoAsync(folder, "logs");
-        Assert.Equal("Single install", target.Selected!.Label);
+        Assert.Equal("east", target.Selected!.Label);
         folder.GoUpCommand.Execute(null);
-        await GoIntoAsync(folder, "east");
+        await GoIntoAsync(folder, "main");
 
-        Assert.Equal("east", target.Selected!.Install!.Name);
+        Assert.Equal("main", target.Selected!.Install!.Name);
         Assert.Equal(InstallPlan.Update, target.Plan);
         Assert.Equal("Update", target.DeployLabel);
     }
@@ -127,9 +128,9 @@ public class InstallFolderViewModelTests : IDisposable
         var target = Target();
         var folder = await OpenAsync(target);
 
-        target.Selected = target.Targets.Single(choice => choice.Label == "east");
+        target.Selected = target.Targets.Single(choice => choice.Label == "main");
         await folder.Listing;
-        Assert.Equal("east", folder.CurrentFolder!.Name);
+        Assert.Equal("main", folder.CurrentFolder!.Name);
 
         // Clone picks the new install for the user to name, and its row is in the install folder.
         target.Selected = target.Targets.Single(choice => choice.IsNew);
@@ -141,7 +142,7 @@ public class InstallFolderViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task The_last_row_names_a_new_instance_while_the_installs_stay_in_view()
+    public async Task The_last_row_names_a_new_install_while_the_installs_stay_in_view()
     {
         var target = Target();
         var folder = await OpenAsync(target);
@@ -152,7 +153,7 @@ public class InstallFolderViewModelTests : IDisposable
         row.Name = "west";
 
         Assert.True(row.IsTarget);
-        Assert.Equal(InstallPlan.NewInstance, target.Plan);
+        Assert.Equal(InstallPlan.New, target.Plan);
         Assert.Equal("west", target.Name);
 
         // Picking an install and coming back keeps what was typed.
@@ -161,7 +162,7 @@ public class InstallFolderViewModelTests : IDisposable
         folder.GoUpCommand.Execute(null);
         row.PickCommand.Execute(null);
         Assert.Equal("west", target.Name);
-        Assert.Equal(InstallPlan.NewInstance, target.Plan);
+        Assert.Equal(InstallPlan.New, target.Plan);
     }
 
     [Fact]
@@ -170,7 +171,7 @@ public class InstallFolderViewModelTests : IDisposable
         Write("logs/2026/october.log", "x");
         var target = Target();
         var folder = await OpenAsync(target);
-        await GoIntoAsync(folder, "east");
+        await GoIntoAsync(folder, "main");
         folder.GoUpCommand.Execute(null);
         await GoIntoAsync(folder, "logs");
         await GoIntoAsync(folder, "2026");
@@ -180,7 +181,7 @@ public class InstallFolderViewModelTests : IDisposable
 
         Assert.Equal("2026", folder.CurrentFolder!.Name);
         Assert.Equal(["october.log"], folder.Items.OfType<FolderFileViewModel>().Select(file => file.Name));
-        Assert.Equal("east", target.Selected!.Install!.Name);
+        Assert.Equal("main", target.Selected!.Install!.Name);
     }
 
     [Fact]

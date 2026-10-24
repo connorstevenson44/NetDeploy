@@ -10,38 +10,31 @@ namespace NetDeploy.App.ViewModels;
 public sealed record InstallTarget(Installation? Install)
 {
     public bool IsNew => Install is null;
-    public string Label => Install is null ? "New" : Install.IsInstance ? Install.Name : "Single install";
+    public string Label => Install?.Name ?? "New";
 
     /// <summary>The label in the "start from a copy of" list, where no install means a fresh one.</summary>
     public string CopyLabel => Install is null ? "Nothing: a fresh install" : Label;
 
     public string Detail => Install?.Version is { } version ? "v" + version : "";
 
-    public PackIconKind Icon => Install switch
-    {
-        null => PackIconKind.PlusCircleOutline,
-        { IsInstance: true } => PackIconKind.ServerNetwork,
-        _ => PackIconKind.Server,
-    };
+    public PackIconKind Icon => Install is null ? PackIconKind.PlusCircleOutline : PackIconKind.Server;
 }
 
 /// <summary>What this deploy does to the installs in the folder.</summary>
-public enum InstallPlan { NewSingle, NewInstance, Update, Rename, Convert }
+public enum InstallPlan { New, Update, Rename }
 
 /// <summary>
 /// Picks where the deploy goes when the manifest has an install block: update an install that is there, add a new
-/// one, rename an instance, or turn a single install into an instance.
+/// one, or rename one. Every install is named and has its own folder inside the install folder.
 /// </summary>
-public sealed partial class InstallViewModel(InstallInfo install, string version, IReadOnlyCollection<string> appFiles) : ObservableObject
+public sealed partial class InstallViewModel(string version, IReadOnlyCollection<string> appFiles) : ObservableObject
 {
     private string _folder = "";
     private bool _refreshing;
 
-    public bool AllowsInstances => install.Instances;
-
     public ObservableCollection<InstallTarget> Targets { get; } = [];
 
-    /// <summary>What a new instance can start from: nothing, or a copy of an install.</summary>
+    /// <summary>What a new install can start from: nothing, or a copy of an install.</summary>
     public ObservableCollection<InstallTarget> CopySources { get; } = [];
 
     public IEnumerable<Installation> Installs => Targets.Select(target => target.Install).OfType<Installation>();
@@ -49,24 +42,23 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
     [ObservableProperty]
     public partial InstallTarget? Selected { get; set; }
 
-    /// <summary>The instance name; empty for a single install.</summary>
+    /// <summary>The install's name, which is also its folder's.</summary>
     [ObservableProperty]
     public partial string Name { get; set; } = "";
 
-    /// <summary>For a new instance: an install to copy, so its config edits and data come along.</summary>
+    /// <summary>For a new install: an install to copy, so its config edits and data come along.</summary>
     [ObservableProperty]
     public partial InstallTarget? CopyFrom { get; set; }
 
     public bool CanCopy => Selected?.IsNew == true && Installs.Any();
 
-    /// <summary>An install picked to update can be given another instance name, which moves it to a new instance.</summary>
-    public bool CanRename => AllowsInstances && Selected is { IsNew: false };
+    /// <summary>An install picked to update can be given another name, which moves it to a new folder.</summary>
+    public bool CanRename => Selected is { IsNew: false };
 
     public InstallPlan Plan => Selected?.Install switch
     {
-        null => Name.Length == 0 ? InstallPlan.NewSingle : InstallPlan.NewInstance,
+        null => InstallPlan.New,
         { } existing when existing.Name.Equals(Name, StringComparison.OrdinalIgnoreCase) => InstallPlan.Update,
-        { IsInstance: false } => InstallPlan.Convert,
         _ => InstallPlan.Rename,
     };
 
@@ -74,7 +66,6 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
     {
         InstallPlan.Update => PackIconKind.Sync,
         InstallPlan.Rename => PackIconKind.RenameOutline,
-        InstallPlan.Convert => PackIconKind.CallSplit,
         _ => PackIconKind.PlusCircleOutline,
     };
 
@@ -83,7 +74,6 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
     {
         InstallPlan.Update => "Update",
         InstallPlan.Rename => "Rename",
-        InstallPlan.Convert => "Convert",
         _ => "Add",
     };
 
@@ -96,13 +86,10 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
             var old = Selected?.Install;
             return Plan switch
             {
-                InstallPlan.NewSingle => $"Installs {version} into {target}.",
-                InstallPlan.NewInstance when CopyFrom?.Install is { } source =>
-                    $"Adds instance {Name} in {target}, starting from a copy of {Describe(source)}.",
-                InstallPlan.NewInstance => $"Adds instance {Name} in {target}.",
-                InstallPlan.Update => $"Updates {Describe(old!)} from {old!.Version ?? "an unknown version"} to {version}.",
-                InstallPlan.Convert => $"Copies the single install to {target}, deploys {version} there as instance {Name}, then offers to remove the old one.",
-                _ => $"Copies {Describe(old!)} to {target}, deploys {version} there as instance {Name}, then offers to remove {old!.Name}.",
+                InstallPlan.New when CopyFrom?.Install is { } source => $"Adds {Name} in {target}, starting from a copy of {source.Name}.",
+                InstallPlan.New => $"Adds {Name} in {target}.",
+                InstallPlan.Update => $"Updates {old!.Name} from {old.Version ?? "an unknown version"} to {version}.",
+                _ => $"Copies {old!.Name} to {target}, deploys {version} there as {Name}, then offers to remove {old.Name}.",
             };
         }
     }
@@ -116,25 +103,23 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
                 return "Set the install folder first.";
             if (Selected is null)
                 return "Pick an install to update, or New.";
-            if (Name.Length > 0 && Installations.CheckName(Name) is { } nameProblem)
+            if (Name.Length == 0)
+                return Selected.IsNew ? "Name the new install." : "An install needs a name.";
+            if (Installations.CheckName(Name) is { } nameProblem)
                 return nameProblem;
-            if (Name.Length > 0 && Installs.Any(other => other != Selected.Install && other.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)))
+            if (Installs.Any(other => other != Selected.Install && other.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)))
                 return $"There is already an install called {Name}.";
-            if (Name.Length == 0 && Selected.Install is { IsInstance: true })
-                return "An instance needs a name.";
-            if (Name.Length == 0 && Selected.IsNew && Installs.Any())
-                return Installs.Any(other => !other.IsInstance) ? "There is already a single install here. Name the new instance." : "Name the new instance.";
             return null;
         }
     }
 
-    /// <summary>The install this deploy replaces and should remove afterwards, for a rename or a conversion.</summary>
-    public Installation? Replaced => Plan is InstallPlan.Rename or InstallPlan.Convert ? Selected?.Install : null;
+    /// <summary>The install a rename replaces and should remove afterwards.</summary>
+    public Installation? Replaced => Plan == InstallPlan.Rename ? Selected?.Install : null;
 
     public DeployOptions Apply(DeployOptions options) => options with
     {
         Instance = Name,
-        SeedFrom = Replaced?.Directory ?? (Plan == InstallPlan.NewInstance ? CopyFrom?.Install?.Directory : null),
+        SeedFrom = Replaced?.Directory ?? (Plan == InstallPlan.New ? CopyFrom?.Install?.Directory : null),
     };
 
     /// <summary>
@@ -156,8 +141,7 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
             Targets.Clear();
             foreach (var existing in found)
                 Targets.Add(new InstallTarget(existing));
-            if (AllowsInstances || found.Count == 0)
-                Targets.Add(new InstallTarget(null));
+            Targets.Add(new InstallTarget(null));
 
             CopySources.Clear();
             CopySources.Add(new InstallTarget(null));
@@ -202,6 +186,4 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
         OnPropertyChanged(nameof(CanCopy));
         OnPropertyChanged(nameof(CanRename));
     }
-
-    private static string Describe(Installation existing) => existing.IsInstance ? $"instance {existing.Name}" : "the single install";
 }

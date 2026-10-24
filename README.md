@@ -33,7 +33,7 @@ Everything happens in one window. Open or drop a package, an install folder, or 
 - **Left:** the package's settings with **Dry run** and **Deploy**, and below them the install folder, one folder at
   a time: the folders in the one you are in, with installs marked with their version. Click a folder to go into it
   and **Up** to come back. Going into an install makes it the deploy's target, and the **Deploy** button says what it
-  will do (**Add**, **Update**, **Rename** or **Convert**). For a new install, use the **New install** row at the
+  will do (**Add**, **Update** or **Rename**). For a new install, use the **New install** row at the
   bottom of the install folder and type a name, so the installs already there stay in view. Hover an install to clone
   or remove it.
 - **Right:** tabs for **Files** (every file in the folder you are in: edit a settings file side by side, run
@@ -99,22 +99,22 @@ Secret values are masked in the log.
 
 Every step also takes `name`, `when`, `inputs`, `continueOnError` and `cleanup`.
 
-### Installs and instances
+### Installs
 
-Add an `install` block so NetDeploy can add, update, clone and remove installs of the app:
+Add an `install` block so NetDeploy can add, update, rename, clone and remove installs of the app:
 
 ```jsonc
-"install": { "folder": "{InstallDir}", "instances": true }
+"install": { "folder": "{InstallDir}" }
 ```
 
-- A single install goes straight into the folder, for example `C:\Apps\Orders\Orders.exe`.
-- With `instances`, each named instance gets its own subfolder, for example `C:\Apps\Orders\east\Orders.exe`.
-- Steps use `{InstanceDir}` for the app's folder, and `{Instance}` or `{InstanceSuffix}` (empty, or `-east`) in
-  service and task names, so instances don't clash.
+- Every install has a name and its own subfolder of the install folder, for example `C:\Apps\Orders\main\Orders.exe`,
+  whether there is one install or several.
+- Steps use `{InstanceDir}` for the install's folder, and `{Instance}` (the name) or `{InstanceSuffix}` (`-main`) in
+  service and task names, so installs side by side don't clash.
 
-NetDeploy saves nothing extra to mark an install. It finds installs from the folder layout: the folder itself is the
-single install when it holds the app's exe (or its dlls, for an app without one), and each subfolder that holds it is an
-instance. Installs copied by hand are found the same way. The version shown is read from the exe.
+NetDeploy saves nothing extra to mark an install. It finds installs from the folder layout: each subfolder of the
+install folder that holds the app's exe (or its dlls, for an app without one) is an install. Installs copied by hand are
+found the same way. The version shown is read from the exe.
 
 **Removing an install** runs the open package's undo steps, newest first, then removes any other service whose program
 is in the folder (read from Windows, so services installed by hand are included), then deletes the folder. Each step is

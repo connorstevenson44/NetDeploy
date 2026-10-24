@@ -176,16 +176,7 @@ public sealed partial class EditorViewModel : ObservableObject
             else
                 Install["folder"] = value;
             OnChanged();
-            OnPropertyChanged(nameof(HasInstall));
         }
-    }
-
-    public bool HasInstall => _document.Root["install"] is JsonObject;
-
-    public bool Instances
-    {
-        get => _document.Root["install"]?["instances"] is JsonValue flag && flag.TryGetValue(out bool value) && value;
-        set => SetFlag(Install, "instances", value);
     }
 
     [ObservableProperty]

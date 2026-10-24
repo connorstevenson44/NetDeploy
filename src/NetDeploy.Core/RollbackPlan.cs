@@ -2,8 +2,7 @@ using NetDeploy.Core.Steps;
 
 namespace NetDeploy.Core;
 
-/// <summary>A backup of Target, which left out the Nested folders; restoring it leaves them in place.</summary>
-internal sealed record BackupRecord(string Target, string BackupPath, IReadOnlyList<string> Nested);
+internal sealed record BackupRecord(string Target, string BackupPath);
 
 /// <summary>Restores the backups a deploy made and restarts the services it stopped.</summary>
 public sealed class RollbackPlan
@@ -29,7 +28,7 @@ public sealed class RollbackPlan
         foreach (var backup in Enumerable.Reverse(Backups))
         {
             log.Info($"Restoring {backup.Target} from {backup.BackupPath}");
-            FileSystem.ReplaceDirectory(backup.BackupPath, backup.Target, keep: backup.Nested);
+            FileSystem.ReplaceDirectory(backup.BackupPath, backup.Target);
         }
 
         // Only the services that ran before the deploy are started again.

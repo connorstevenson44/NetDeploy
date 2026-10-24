@@ -7,7 +7,7 @@ checks each result.
 
 ## Contoso.Orders 1.0.0 → 1.1.0
 
-A self-contained .NET 10 Windows service that can be installed several times side by side (`"instances": true`).
+A self-contained .NET 10 Windows service, installed twice side by side (`main` and `blue`).
 
 | Area | What it exercises |
 | --- | --- |
@@ -17,11 +17,11 @@ A self-contained .NET 10 Windows service that can be installed several times sid
 | .exe.config | `export\Contoso.Orders.Export.exe` is a .NET Framework 4.8 tool. 1.1 changes and removes appSettings and adds a connection string. |
 | Files | Templates are added, changed and removed (`deleteExtra`). `logs` and `exports` are preserved. |
 | Steps | PowerShell prerequisite, service stop/install/start, backup, copy, a PowerShell script with arguments, runExe, a daily scheduled task, if/else on a choice, a `when` question, a secret parameter (1.1). |
-| Instances | Service and task names use `{InstanceSuffix}`; each instance gets its own folder and database. |
+| Installs | Service and task names use `{InstanceSuffix}`; each install gets its own folder and database. |
 
 ## Fabrikam.Reports 2.0.0 → 2.1.0
 
-A .NET Framework 4.8 app that reads `Fabrikam.Reports.exe.config` (app.config), with plugins in `plugins\`. Single install.
+A .NET Framework 4.8 app that reads `Fabrikam.Reports.exe.config` (app.config), with plugins in `plugins\`. One install, `main`.
 
 | Area | What it exercises |
 | --- | --- |
@@ -30,5 +30,5 @@ A .NET Framework 4.8 app that reads `Fabrikam.Reports.exe.config` (app.config), 
 | Files | 2.1 removes the Pdf plugin and adds an Excel one (`deleteExtra`). `data` and `reports` are preserved. Templates change. |
 | Steps | Registry and PowerShell prerequisites, a task disabled only `when` it exists, `--init` that keeps existing data, if on a question, an hourly task with an input for its account, if/else on a yes/no parameter and IIS, `--check` (2.1). |
 
-Things to try by hand: edit a setting on the server before upgrading, add an instance, rename one, clone one, open
+Things to try by hand: edit a setting on the server before upgrading, add an install, rename one, clone one, open
 the install folder in the folder manager, and remove an install.

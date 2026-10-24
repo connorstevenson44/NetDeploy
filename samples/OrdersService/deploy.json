@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "app": { "name": "OrdersService", "version": "2.4.0" },
   "requiresAdmin": true,
-  "install": { "folder": "{InstallDir}", "instances": true },
+  "install": { "folder": "{InstallDir}" },
   "parameters": {
     "InstallDir": { "label": "Install folder", "type": "folder", "default": "C:\\Apps\\OrdersService" },
     "DbConnection": { "label": "Database connection", "type": "secret" }

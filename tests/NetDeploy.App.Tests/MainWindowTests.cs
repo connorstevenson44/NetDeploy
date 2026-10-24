@@ -50,6 +50,7 @@ public class MainWindowTests
                     await SaveScreenshotAsync(window, "1-empty");
                     viewModel.Load(SamplePath);
                     viewModel.FolderField!.Value = Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "missing");
+                    viewModel.Install!.Name = "main";
                     viewModel.Parameters.Single(p => p.Name == "DbConnection").Value = "asd";
 
                     // The files come first, in the right-hand pane; Continue runs the rest.
@@ -183,45 +184,48 @@ public class MainWindowTests
     }
 
     /// <summary>
-    /// Opens the sample next to a folder with a hand-made single install and an instance: renames the single one,
-    /// names a new instance on the tree's last row, then picks the instance to update.
+    /// Opens the sample next to a folder with two hand-made installs: renames the first, names a new install on the
+    /// last row of the install folder, then goes into the other install to update it.
     /// </summary>
     private static async Task SaveInstallScreenshotsAsync(Window window, MainViewModel viewModel)
     {
         var folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "installs", Path.GetRandomFileName())).FullName;
-        File.WriteAllText(Path.Combine(folder, "OrdersService.exe"), "");
-        File.WriteAllText(Path.Combine(folder, "appsettings.json"), """{ "Region": "Main" }""");
-        Directory.CreateDirectory(Path.Combine(folder, "east"));
-        File.WriteAllText(Path.Combine(folder, "east", "OrdersService.exe"), "");
+        foreach (var name in new[] { "east", "main" })
+        {
+            Directory.CreateDirectory(Path.Combine(folder, name));
+            File.WriteAllText(Path.Combine(folder, name, "OrdersService.exe"), "");
+        }
+        File.WriteAllText(Path.Combine(folder, "main", "appsettings.json"), """{ "Region": "Main" }""");
 
         viewModel.Load(SamplePath);
         viewModel.FolderField!.Value = folder;
         var tree = viewModel.Folder!;
         await tree.Listing;
-        var east = tree.Rows.OfType<FolderNodeViewModel>().Single(node => node.Name == "east");
+        var main = tree.Rows.OfType<FolderNodeViewModel>().Single(node => node.Name == "main");
         Assert.Equal(InstallPlan.Update, viewModel.Install!.Plan);
-        Assert.Equal("instance", east.Kind);
+        Assert.Equal("east", viewModel.Install.Selected!.Label);
+        Assert.Equal("install", main.Kind);
 
-        viewModel.Install.Name = "main";
-        Assert.Equal(InstallPlan.Convert, viewModel.Install.Plan);
-        Assert.Contains(viewModel.Steps, step => step.Title == "Stop service OrdersService-main");
+        viewModel.Install.Name = "blue";
+        Assert.Equal(InstallPlan.Rename, viewModel.Install.Plan);
+        Assert.Contains(viewModel.Steps, step => step.Title == "Stop service OrdersService-blue");
         viewModel.SelectedTab = MainViewModel.StepsTab;
         await SaveScreenshotAsync(window, "9-install-rename");
 
         var newInstall = tree.Rows.OfType<NewInstallRowViewModel>().Single();
         newInstall.Name = "west";
-        Assert.Equal(InstallPlan.NewInstance, viewModel.Install.Plan);
+        Assert.Equal(InstallPlan.New, viewModel.Install.Plan);
         Assert.True(newInstall.IsTarget);
         Assert.Equal("Add", viewModel.Install.DeployLabel);
         viewModel.SelectedTab = MainViewModel.FilesTab;
         await SaveScreenshotAsync(window, "10-new-install");
 
-        tree.GoIntoCommand.Execute(east);
+        tree.GoIntoCommand.Execute(main);
         await tree.Listing;
         Assert.Equal(InstallPlan.Update, viewModel.Install.Plan);
-        Assert.Equal("east", viewModel.Install.Selected!.Label);
-        Assert.Equal(["OrdersService.exe"], tree.Items.OfType<FolderFileViewModel>().Select(file => file.Name));
-        await SaveScreenshotAsync(window, "10b-in-an-instance");
+        Assert.Equal("main", viewModel.Install.Selected!.Label);
+        Assert.Contains("appsettings.json", tree.Items.OfType<FolderFileViewModel>().Select(file => file.Name));
+        await SaveScreenshotAsync(window, "10b-in-an-install");
     }
 
     /// <summary>Opens an install folder on its own, edits a setting and stages a delete.</summary>

@@ -41,10 +41,10 @@ public class ReviewStageViewModelTests : IDisposable
         var matching = Plan("matching");
         var error = new FilePlanError("Copy tools", "{ToolsDir} has no value.");
 
-        var stage = new FilesStageViewModel([changed, matching, error], "Updates the single install.", isDryRun: false);
+        var stage = new FilesStageViewModel([changed, matching, error], "Updates main from 1.0.0 to 2.0.0.", isDryRun: false);
 
         Assert.Equal(1, stage.Number);
-        Assert.Equal("Updates the single install.", stage.Description);
+        Assert.Equal("Updates main from 1.0.0 to 2.0.0.", stage.Description);
         Assert.Equal([changed, changed.Items.Single(), matching, new FilesMatch(), error], stage.Items);
     }
 

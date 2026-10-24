@@ -169,11 +169,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 Parameters.Add(parameter);
         }
 
-        Install = manifest.Install is { } install ? new InstallViewModel(install, manifest.App.Version, _appFiles) : null;
+        Install = manifest.Install is not null ? new InstallViewModel(manifest.App.Version, _appFiles) : null;
         if (Install is not null)
             Install.PropertyChanged += (_, e) =>
             {
-                // The instance name is part of folder, service and task names.
+                // The install name is part of folder, service and task names.
                 if (e.PropertyName == nameof(InstallViewModel.Name))
                     RefreshSteps();
             };

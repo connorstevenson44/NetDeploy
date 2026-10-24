@@ -76,19 +76,10 @@ public sealed class FolderNodeViewModel
         _ => IsMissing ? "new folder" : "",
     };
 
-    public string Kind => Target?.Install switch
-    {
-        { IsInstance: true } => "instance",
-        not null => "single install",
-        _ => "",
-    };
+    public string Kind => IsInstall ? "install" : "";
 
-    public PackIconKind Icon => Target?.Install switch
-    {
-        { IsInstance: true } => PackIconKind.ServerNetwork,
-        not null => PackIconKind.Server,
-        _ => IsMissing ? PackIconKind.FolderPlusOutline : PackIconKind.FolderOutline,
-    };
+    public PackIconKind Icon =>
+        IsInstall ? PackIconKind.Server : IsMissing ? PackIconKind.FolderPlusOutline : PackIconKind.FolderOutline;
 }
 
 /// <summary>
@@ -105,13 +96,6 @@ public sealed partial class NewInstallRowViewModel : ObservableObject
         _install = install;
         install.PropertyChanged += OnInstallChanged;
     }
-
-    /// <summary>A package without instances only installs once, at the top of the folder, so there is no name.</summary>
-    public bool CanName => _install.AllowsInstances;
-
-    public string Label => CanName ? "New install" : "Install here";
-
-    public string Hint => _install.Installs.Any() ? "Name the new instance" : "Name, or leave empty for a single install";
 
     public bool IsTarget => _install.Selected?.IsNew == true;
 
@@ -155,9 +139,9 @@ public sealed partial class NewInstallRowViewModel : ObservableObject
 }
 
 /// <summary>
-/// An install folder: a tree of its folders with the installs marked, the files of the folder picked in the tree,
-/// and changes staged on them. Settings edits and deletes are only written when the user finalizes, all together.
-/// With a package open, the tree also picks where the deploy goes: an install in it, or a new one.
+/// An install folder, browsed one folder at a time: the folders in the current one with the installs marked, its
+/// files, and changes staged on them. Settings edits and deletes are only written when the user finalizes, all
+/// together. With a package open, going into an install, or naming a new one, picks where the deploy goes.
 /// </summary>
 public sealed partial class InstallFolderViewModel : ObservableObject, IDisposable
 {

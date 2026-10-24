@@ -9,7 +9,7 @@ internal static class WindowsServices
     /// Services whose program is inside the folder, read from each service's ImagePath, so services installed by hand
     /// are found too. Programs inside skipFolders don't count.
     /// </summary>
-    public static IReadOnlyList<string> ServicesIn(string folder, IEnumerable<string> skipFolders)
+    public static IReadOnlyList<string> ServicesIn(string folder)
     {
         if (!OperatingSystem.IsWindows())
             return [];
@@ -17,13 +17,12 @@ internal static class WindowsServices
         if (services is null)
             return [];
 
-        var skip = skipFolders.Select(Path.GetFullPath).ToList();
         var found = new List<string>();
         foreach (var name in services.GetSubKeyNames())
         {
             using var service = services.OpenSubKey(name);
             if (service?.GetValue("ImagePath") is string image && ProgramPath(image) is { } program
-                && IsInside(program, folder) && !skip.Any(skipped => IsInside(program, skipped)))
+                && IsInside(program, folder))
                 found.Add(name);
         }
         return found;

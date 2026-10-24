@@ -49,15 +49,11 @@
       "required": [
         "folder"
       ],
-      "description": "Where the app is installed. Steps use {InstanceDir} for the app's folder, and {Instance} or {InstanceSuffix} (\"\" or \"-name\") in service and task names.",
+      "description": "Where the app is installed. Steps use {InstanceDir} for the app's folder, and {Instance} or {InstanceSuffix} (\"-name\") in service and task names.",
       "properties": {
         "folder": {
           "type": "string",
-          "description": "The install folder, usually \"{InstallDir}\". A single install goes straight into it; each instance gets a subfolder."
-        },
-        "instances": {
-          "type": "boolean",
-          "description": "The app can run as several named instances side by side."
+          "description": "The install folder, usually \"{InstallDir}\". Each install is named and gets its own subfolder."
         }
       }
     },

@@ -140,7 +140,7 @@
             <DataTemplate x:Key="InstallActions">
                 <StackPanel Orientation="Horizontal">
                     <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}"
-                            ToolTip="Clone: deploy as a new instance that starts from a copy of this one"
+                            ToolTip="Clone: deploy as a new install that starts from a copy of this one"
                             Command="{Binding DataContext.CloneInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             CommandParameter="{Binding Target}">
                         <materialDesign:PackIcon Kind="ContentCopy" Width="14" Height="14" />
@@ -200,19 +200,13 @@
                                 Command="{Binding PickCommand}" ToolTip="Deploy as a new install">
                             <materialDesign:PackIcon Kind="PlusCircleOutline" Width="16" Height="16" />
                         </Button>
-                        <Button x:Name="Label" Style="{StaticResource FolderRow}" Content="{Binding Label}" Command="{Binding PickCommand}"
-                                Foreground="{StaticResource Brand}" FontWeight="SemiBold" HorizontalContentAlignment="Left" />
-                        <TextBox x:Name="NameBox" MinWidth="170" Padding="0,2" Margin="0,0,6,0" VerticalAlignment="Center" Visibility="Collapsed"
+                        <TextBox MinWidth="170" Padding="0,2" Margin="0,0,6,0" VerticalAlignment="Center"
                                  FontFamily="{StaticResource Code}" FontSize="12"
-                                 materialDesign:HintAssist.Hint="{Binding Hint}" materialDesign:TextFieldAssist.DecorationVisibility="Visible"
+                                 materialDesign:HintAssist.Hint="Name the new install" materialDesign:TextFieldAssist.DecorationVisibility="Visible"
                                  Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
                     </DockPanel>
                 </Border>
                 <DataTemplate.Triggers>
-                    <DataTrigger Binding="{Binding CanName}" Value="True">
-                        <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
-                        <Setter TargetName="NameBox" Property="Visibility" Value="Visible" />
-                    </DataTrigger>
                     <DataTrigger Binding="{Binding IsTarget}" Value="True">
                         <Setter TargetName="Row" Property="Background" Value="{StaticResource BrandTint}" />
                     </DataTrigger>
@@ -540,7 +534,7 @@
                                     <Button Style="{StaticResource SecondaryButton}" Command="{Binding DryRunCommand}" Margin="0,0,6,0"
                                             Content="Dry run" Tag="{x:Static materialDesign:PackIconKind.PlayOutline}" ContentTemplate="{StaticResource IconLabel}"
                                             ToolTip="Walk through every step without changing anything" />
-                                    <!-- Says what happens to the install picked in the folder: Add, Update, Rename or Convert -->
+                                    <!-- Says what happens to the install picked in the folder: Add, Update or Rename -->
                                     <Button Style="{StaticResource PrimaryButton}" Command="{Binding DeployCommand}" Margin="6,0,0,0"
                                             Content="{Binding Install.DeployLabel, FallbackValue=Deploy}" ContentTemplate="{StaticResource IconLabel}"
                                             Tag="{Binding Install.PlanIcon, FallbackValue={x:Static materialDesign:PackIconKind.CloudUpload}}"
@@ -618,7 +612,7 @@
                                         <TextBlock Text="{Binding Problem}" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Danger}" />
                                     </DockPanel>
                                     <TextBox Style="{StaticResource InputBox}" Margin="0,10,0,0"
-                                             materialDesign:HintAssist.Hint="Instance name" ToolTip="Change it to move this install to a new instance"
+                                             materialDesign:HintAssist.Hint="Install name" ToolTip="Change it to move this install to a new folder"
                                              Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
                                              Visibility="{Binding CanRename, Converter={StaticResource BoolToVisibility}}" />
                                     <ComboBox Style="{StaticResource InputChoice}" Margin="0,10,0,0"

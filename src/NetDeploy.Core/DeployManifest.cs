@@ -29,16 +29,13 @@ public sealed class DeployManifest
 public sealed record AppInfo(string Name, string Version);
 
 /// <summary>
-/// The install folder. A single install goes straight into it; with instances, each named copy gets its own
-/// subfolder. Steps use {InstanceDir} for the app's folder and {Instance} or {InstanceSuffix} in names.
+/// The install folder. Each install is named and gets its own subfolder. Steps use {InstanceDir} for the app's folder
+/// and {Instance} or {InstanceSuffix} in names.
 /// </summary>
 public sealed record InstallInfo
 {
     /// <summary>Usually "{InstallDir}", a parameter.</summary>
     public required string Folder { get; init; }
-
-    /// <summary>True when the app can run as several named instances side by side.</summary>
-    public bool Instances { get; init; }
 }
 
 public enum InputType { Text, Secret, Number, YesNo, Choice, Folder, File }

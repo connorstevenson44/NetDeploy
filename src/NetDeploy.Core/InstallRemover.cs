@@ -11,13 +11,11 @@ public sealed class InstallRemover(IUserInteraction user, IDeployLog log)
 {
     /// <summary>
     /// The steps in the order they run, with the install's values filled in. manifest is the package the install came
-    /// from, when one is open; without it only the services and the folder are removed. A single install keeps the
-    /// instance folders inside it.
+    /// from, when one is open; without it only the services and the folder are removed.
     /// </summary>
-    public static IReadOnlyList<DeployStep> Plan(
-        Installation install, IReadOnlyList<Installation> all, DeployManifest? manifest, IReadOnlyDictionary<string, string> values)
+    public static IReadOnlyList<DeployStep> Plan(Installation install, DeployManifest? manifest, IReadOnlyDictionary<string, string> values)
     {
-        var installFolder = install.IsInstance ? Path.GetDirectoryName(install.Directory)! : install.Directory;
+        var installFolder = Path.GetDirectoryName(install.Directory)!;
         var withInstance = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
         foreach (var (name, value) in Installations.Variables(installFolder, install.Name))
             withInstance[name] = value;
@@ -29,23 +27,16 @@ public sealed class InstallRemover(IUserInteraction user, IDeployLog log)
             .Select(step => step.WithValues(withInstance))
             .ToList();
 
-        var keep = install.IsInstance
-            ? []
-            : all.Where(other => other.IsInstance)
-                .SelectMany(other => new[] { other.Name, Path.GetFileName(BackupStep.BackupsOf(other.Directory)) })
-                .Where(name => Directory.Exists(Path.Combine(install.Directory, name)))
-                .ToList();
         var known = steps.OfType<ServiceStep>().Where(step => step.Action == ServiceAction.Uninstall).Select(step => step.Service).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var services = WindowsServices.ServicesIn(install.Directory, keep.Select(name => Path.Combine(install.Directory, name)));
-        steps.InsertRange(0, services.Where(service => !known.Contains(service))
+        steps.InsertRange(0, WindowsServices.ServicesIn(install.Directory).Where(service => !known.Contains(service))
             .Select(service => new ServiceStep { Action = ServiceAction.Uninstall, Service = service }));
 
-        steps.Add(new DeleteFolderStep { Path = install.Directory, Keep = keep });
+        steps.Add(new DeleteFolderStep { Path = install.Directory });
         return steps;
     }
 
     public async Task<DeployResult> RemoveAsync(
-        Installation install, IReadOnlyList<Installation> all, DeployPackage? package, IReadOnlyDictionary<string, string> values,
+        Installation install, DeployPackage? package, IReadOnlyDictionary<string, string> values,
         CancellationToken cancellationToken)
     {
         var secrets = package?.Manifest.Parameters.Where(pair => pair.Value.Type == InputType.Secret).Select(pair => pair.Key).ToHashSet() ?? [];
@@ -63,8 +54,8 @@ public sealed class InstallRemover(IUserInteraction user, IDeployLog log)
             User = user,
         };
 
-        maskingLog.Info($"Removing {(install.IsInstance ? "instance " + install.Name : "the install")} in {install.Directory}");
-        var steps = Plan(install, all, package?.Manifest, values);
+        maskingLog.Info($"Removing install {install.Name} in {install.Directory}");
+        var steps = Plan(install, package?.Manifest, values);
         var failed = false;
         for (var i = 0; i < steps.Count; i++)
         {

@@ -39,7 +39,7 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>
-    /// Starts a new instance from a copy of an install, so its settings and data come along. With a package open it
+    /// Starts a new install from a copy of an install, so its settings and data come along. With a package open it
     /// becomes the deploy's target; otherwise a package is opened first. The deploy itself runs as usual.
     /// </summary>
     [RelayCommand(CanExecute = nameof(IsIdle))]
@@ -55,17 +55,17 @@ public sealed partial class MainViewModel
             Load(dialog.FileName);
             // Point the install folder at the one the source lives in.
             if (FolderField is not null)
-                FolderField.Value = source.IsInstance ? Path.GetDirectoryName(source.Directory)! : source.Directory;
+                FolderField.Value = Path.GetDirectoryName(source.Directory)!;
         }
-        if (_package?.Manifest.Install is not { Instances: true } || Install is null)
+        if (Install is null)
         {
-            MessageBox.Show("This package doesn't support instances, so it can't make a clone.", "Clone", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("This package has no install folder, so it can't make a clone.", "Clone", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         Install.Selected = Install.Targets.First(choice => choice.IsNew);
         Install.CopyFrom = Install.CopySources.FirstOrDefault(choice => choice.Install?.Directory == source.Directory);
-        Status = "Name the new instance in the folder tree, then deploy.";
+        Status = "Name the new install in the folder view, then deploy.";
     }
 
     /// <summary>Runs an exe, script or batch file from the folder, after asking for its arguments.</summary>
