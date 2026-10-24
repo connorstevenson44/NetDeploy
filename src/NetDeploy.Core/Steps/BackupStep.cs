@@ -13,6 +13,10 @@ public sealed class BackupStep : DeployStep
 
     public override string Describe() => $"Back up {Folder}";
 
+    /// <summary>Removing the install also removes its backups.</summary>
+    protected internal override IEnumerable<DeployStep> DefaultCleanup() =>
+        [new DeleteFolderStep { Path = Folder.TrimEnd('\\', '/') + ".backups" }];
+
     public override Task RunAsync(StepContext context, CancellationToken cancellationToken)
     {
         var folder = Path.GetFullPath(context.Resolve(Folder)).TrimEnd(Path.DirectorySeparatorChar);

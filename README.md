@@ -63,8 +63,36 @@ Secret values are masked in the log.
 | `service` | Installs or updates, starts, stops or uninstalls a Windows service |
 | `scheduledTask` | Creates or updates, enables, disables, runs or deletes a scheduled task |
 | `if` | Runs `then` or `else` steps depending on a condition |
+| `deleteFolder` | Deletes a folder, except the subfolders named in `keep`; mostly used in `cleanup` |
 
-Every step also takes `name`, `when`, `inputs` and `continueOnError`.
+Every step also takes `name`, `when`, `inputs`, `continueOnError` and `cleanup`.
+
+### Installs and instances
+
+Add an `install` block so NetDeploy can add, update, clone and remove installs of the app:
+
+```jsonc
+"install": { "folder": "{InstallDir}", "instances": true }
+```
+
+- A single install goes straight into the folder, for example `C:\Apps\Orders\Orders.exe`.
+- With `instances`, each named instance gets its own subfolder, for example `C:\Apps\Orders\east\Orders.exe`.
+- Steps use `{InstanceDir}` for the app's folder, and `{Instance}` or `{InstanceSuffix}` (empty, or `-east`) in
+  service and task names, so instances don't clash.
+
+NetDeploy saves nothing extra to mark an install. It finds installs from the folder layout: the folder itself is the
+single install when it holds the app's exe (or its dlls, for an app without one), and each subfolder that holds it is an
+instance. Installs copied by hand are found the same way. The version shown is read from the exe.
+
+**Removing an install** runs the open package's undo steps, newest first, then removes any other service whose program
+is in the folder (read from Windows, so services installed by hand are included), then deletes the folder. Each step is
+shown with exactly what it will do and needs its own OK. The built-in undo:
+
+- A `service` install removes the service.
+- A `scheduledTask` createOrUpdate deletes the task.
+- A `backup` deletes the backups.
+
+Give a step `cleanup` steps to replace its undo, for example to drop a database, or `"cleanup": []` for none.
 
 ### Conditions
 

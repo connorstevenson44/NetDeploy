@@ -30,6 +30,8 @@
     <converters:BooleanToVisibilityConverter x:Key="InverseBoolToVisibility" TrueValue="Collapsed" FalseValue="Visible" />
     <app:CountToVisibilityConverter x:Key="ZeroToVisible" ShowWhenZero="True" />
     <app:CountToVisibilityConverter x:Key="NonZeroToVisible" />
+    <converters:NullableToVisibilityConverter x:Key="NullToCollapsed" />
+    <converters:NullableToVisibilityConverter x:Key="NullToVisible" NullValue="Visible" NotNullValue="Collapsed" />
 
     <!-- Thin scroll bars without arrow buttons. -->
     <Style TargetType="ScrollBar" BasedOn="{StaticResource MaterialDesignScrollBarMinimal}" />

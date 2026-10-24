@@ -39,6 +39,24 @@
       "$ref": "#/definitions/inputs",
       "description": "Asked once, before the first step."
     },
+    "install": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "folder"
+      ],
+      "description": "Where the app is installed. Steps use {InstanceDir} for the app's folder, and {Instance} or {InstanceSuffix} (\"\" or \"-name\") in service and task names.",
+      "properties": {
+        "folder": {
+          "type": "string",
+          "description": "The install folder, usually \"{InstallDir}\". A single install goes straight into it; each instance gets a subfolder."
+        },
+        "instances": {
+          "type": "boolean",
+          "description": "The app can run as several named instances side by side."
+        }
+      }
+    },
     "steps": {
       "type": "array",
       "minItems": 1,
@@ -63,7 +81,8 @@
             "backup",
             "service",
             "scheduledTask",
-            "if"
+            "if",
+            "deleteFolder"
           ]
         }
       },
@@ -162,6 +181,18 @@
           },
           "then": {
             "$ref": "#/definitions/ifStep"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "deleteFolder"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/deleteFolderStep"
           }
         }
       ]
@@ -354,6 +385,13 @@
         "continueOnError": {
           "type": "boolean",
           "description": "Carry on with the next step if this one fails."
+        },
+        "cleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
         }
       }
     },
@@ -418,6 +456,13 @@
         "continueOnError": {
           "type": "boolean",
           "description": "Carry on with the next step if this one fails."
+        },
+        "cleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
         }
       }
     },
@@ -471,6 +516,13 @@
         "continueOnError": {
           "type": "boolean",
           "description": "Carry on with the next step if this one fails."
+        },
+        "cleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
         }
       }
     },
@@ -519,6 +571,13 @@
         "continueOnError": {
           "type": "boolean",
           "description": "Carry on with the next step if this one fails."
+        },
+        "cleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
         }
       }
     },
@@ -558,6 +617,13 @@
         "continueOnError": {
           "type": "boolean",
           "description": "Carry on with the next step if this one fails."
+        },
+        "cleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
         }
       }
     },
@@ -629,6 +695,13 @@
         "continueOnError": {
           "type": "boolean",
           "description": "Carry on with the next step if this one fails."
+        },
+        "cleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
         }
       }
     },
@@ -694,6 +767,13 @@
         "continueOnError": {
           "type": "boolean",
           "description": "Carry on with the next step if this one fails."
+        },
+        "cleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
         }
       }
     },
@@ -739,6 +819,60 @@
         "continueOnError": {
           "type": "boolean",
           "description": "Carry on with the next step if this one fails."
+        },
+        "cleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+        }
+      }
+    },
+    "deleteFolderStep": {
+      "description": "Deletes a folder and everything in it. Mostly used in cleanup.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "path"
+      ],
+      "properties": {
+        "type": {
+          "const": "deleteFolder"
+        },
+        "path": {
+          "type": "string"
+        },
+        "keep": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Subfolders, by name, to leave in place."
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the UI instead of the generated description."
+        },
+        "when": {
+          "$ref": "#/definitions/condition",
+          "description": "The step is skipped when this is false."
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs",
+          "description": "Asked just before the step runs. Answers become {Name} values for this and later steps."
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Carry on with the next step if this one fails."
+        },
+        "cleanup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
         }
       }
     }
