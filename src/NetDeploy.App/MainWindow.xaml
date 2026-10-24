@@ -194,7 +194,7 @@
                             <materialDesign:PackIcon Kind="PlusCircleOutline" Width="16" Height="16" />
                         </Button>
                         <TextBox MinWidth="150" Padding="0,3" Margin="0,0,8,0" VerticalAlignment="Center"
-                                 materialDesign:HintAssist.Hint="New install name" materialDesign:TextFieldAssist.DecorationVisibility="Visible"
+                                 materialDesign:HintAssist.Hint="New install name" AutomationProperties.Name="New install name" materialDesign:TextFieldAssist.DecorationVisibility="Visible"
                                  Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
                     </DockPanel>
                 </Border>
@@ -460,7 +460,7 @@
             <DockPanel>
                 <materialDesign:PackIcon Kind="InformationOutline" Foreground="{StaticResource Brand}" Width="15" Height="15"
                                          VerticalAlignment="Center" Margin="0,0,8,0" />
-                <TextBlock Text="{Binding Status}" Foreground="{StaticResource InkMuted}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                <TextBlock x:Name="StatusText" Text="{Binding Status}" Foreground="{StaticResource InkMuted}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
             </DockPanel>
         </Border>
 
@@ -666,13 +666,13 @@
                                     </DockPanel>
                                     <HeaderedContentControl Style="{StaticResource Field}" Header="Install name" Margin="0,12,0,0"
                                                             Visibility="{Binding CanRename, Converter={StaticResource BoolToVisibility}}">
-                                        <TextBox Style="{StaticResource InputBox}" Background="{StaticResource Surface}"
+                                        <TextBox Style="{StaticResource InputBox}" Background="{StaticResource Surface}" AutomationProperties.Name="Install name"
                                                  ToolTip="Change it to move this install to a new folder"
                                                  Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
                                     </HeaderedContentControl>
                                     <HeaderedContentControl Style="{StaticResource Field}" Header="Start from" Margin="0,12,0,0"
                                                             Visibility="{Binding CanCopy, Converter={StaticResource BoolToVisibility}}">
-                                        <ComboBox Style="{StaticResource InputChoice}" Background="{StaticResource Surface}"
+                                        <ComboBox Style="{StaticResource InputChoice}" Background="{StaticResource Surface}" AutomationProperties.Name="Start from"
                                                   ItemsSource="{Binding CopySources}" SelectedItem="{Binding CopyFrom}" DisplayMemberPath="CopyLabel" />
                                     </HeaderedContentControl>
                                 </StackPanel>
