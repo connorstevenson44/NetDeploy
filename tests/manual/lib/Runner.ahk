@@ -1,4 +1,4 @@
-; The run itself: the panel beside the app, the pace, pausing, checkpoints and the results.
+; The run itself: the panel beside the app, the pace, pausing, going step by step, checks and the results.
 
 ; Thrown to give up on the rest of a case, after the person chose to skip it.
 class SkipCase extends Error {
@@ -10,13 +10,16 @@ class StopRun extends Error {
 
 class Runner {
     static Unattended := false
-    static StopAtCheckpoints := false  ; true waits at each checkpoint until the person continues
+    static StopAtCheckpoints := false  ; true waits at each check until the person carries on
+    static StepByStep := false   ; true waits before each step until the person presses Enter
     static Pace := 1100          ; ms spent on each action, so it can be followed
     static MouseSpeed := 15      ; 0 is instant, 100 the slowest
     static KeyDelay := 60        ; ms between typed keys
     static TimeoutScale := 1     ; waits are longer on a slow CI machine
-    static Waiting := ""         ; "", "pause", "checkpoint" or "stuck"
+    static Waiting := ""         ; "", "pause", "step", "checkpoint" or "stuck"
     static StopRequested := false
+    static Asking := false       ; one of the runner's own questions is showing
+    static YouClicked := false   ; the person clicked outside the panel since the run last carried on
     static ResultsDir := ""
     static LogPath := ""
     static Results := []         ; one {Name, Status, Failures, Notes} per case run
@@ -38,8 +41,16 @@ class Runner {
         else
             this.SetSpeed(speed)
         this.BuildPanel(speed)
-        Hotkey("F8", (*) => Runner.PauseOrContinue())
-        Hotkey("F12", (*) => Runner.RequestStop())
+        if unattended
+            return
+        ; The keys only act while nobody is typing, so they still type as usual in a text box the person clicked
+        ; into, or in the note and the runner's own questions. The keys the runner sends never trigger them.
+        HotIf((*) => Runner.KeysAreMine())
+        Hotkey("$Space", (*) => Runner.PauseOrCarryOn())
+        Hotkey("$Enter", (*) => Runner.NextStep())
+        Hotkey("$Escape", (*) => Runner.RequestStop())
+        HotIf()
+        Hotkey("~*LButton", (*) => Runner.NoticeClick())
     }
 
     static SetSpeed(name) {
@@ -56,19 +67,19 @@ class Runner {
         ui.MarginX := 15, ui.MarginY := 12
 
         ui.SetFont("s8 c5B6B7C bold", "Segoe UI")
-        this.CaseLabel := ui.Add("Text", "w" inner, "STARTING")
+        this.CaseLabel := ui.Add("Text", "w" inner, "GETTING READY")
         ui.SetFont("s12 c1A2633 bold")
         this.CaseName := ui.Add("Text", "w" inner " y+2", "")
 
         ui.SetFont("s8 c5B6B7C bold")
-        ui.Add("Text", "w" inner " y+14", "NOW")
+        this.NowLabel := ui.Add("Text", "w" inner " y+14", "NOW")
         ui.SetFont("s11 c1A2633 norm")
         this.StepText := ui.Add("Text", "w" inner " r4 y+3", "")
         ui.SetFont("s10 cWhite bold")
         this.StateText := ui.Add("Text", "w" inner " h30 y+6 Center 0x200 Background004B87", "Running")
 
         ui.SetFont("s8 c5B6B7C bold")
-        this.CheckTitle := ui.Add("Text", "w" inner " y+14", "CHECKPOINT")
+        this.CheckTitle := ui.Add("Text", "w" inner " y+14", "CHECK")
         ui.SetFont("s9 c1A2633 norm", "Segoe UI")
         this.CheckText := ui.Add("Edit", "w" inner " r13 y+4 ReadOnly VScroll -WantReturn", "")
         this.Tools := []
@@ -81,7 +92,7 @@ class Runner {
         }
 
         ui.SetFont("s8 c5B6B7C bold")
-        ui.Add("Text", "xm w" inner " y+14", "SO FAR")
+        ui.Add("Text", "xm w" inner " y+14", "DONE SO FAR")
         ui.SetFont("s9 c1A2633 norm")
         this.History := ui.Add("ListBox", "xm w" inner " r7 y+4 0x100")
         this.HistoryCount := 0
@@ -95,12 +106,14 @@ class Runner {
         this.SpeedList.Enabled := !this.Unattended
 
         ui.SetFont("s10 bold")
-        this.MainButton := ui.Add("Button", "xm w192 h36 y+10", "Pause  (F8)")
-        this.MainButton.OnEvent("Click", (*) => Runner.PauseOrContinue())
+        this.MainButton := ui.Add("Button", "xm w192 h36 y+10", "Pause  (Space)")
+        this.MainButton.OnEvent("Click", (*) => Runner.PauseOrCarryOn())
+        this.NextButton := ui.Add("Button", "x+6 yp w192 h36", "Next step  (Enter)")
+        this.NextButton.OnEvent("Click", (*) => Runner.NextStep())
         ui.SetFont("s9 norm")
-        this.NoteButton := ui.Add("Button", "x+6 yp w192 h36", "Note a problem…")
+        this.NoteButton := ui.Add("Button", "xm w192 h30 y+6", "Note a problem…")
         this.NoteButton.OnEvent("Click", (*) => Runner.NoteProblem())
-        this.StopButton := ui.Add("Button", "xm w" inner " h28 y+6", "Stop the run  (F12)")
+        this.StopButton := ui.Add("Button", "x+6 yp w192 h30", "Stop the test  (Esc)")
         this.StopButton.OnEvent("Click", (*) => Runner.RequestStop())
         ui.OnEvent("Close", (*) => (Runner.RequestStop(), true))
 
@@ -117,6 +130,7 @@ class Runner {
             ui.Opt("+E0x20")
             WinSetTransparent(210, ui)
         }
+        this.ShowState()
     }
 
     ; Moves the panel to the other side of the screen when it covers what is about to be clicked.
@@ -133,6 +147,21 @@ class Runner {
     static SetState(text, color) {
         this.StateText.Opt("Background" color)
         this.StateText.Text := text
+    }
+
+    ; Says on the panel whether the run is going or waiting, and what the keys do now.
+    static ShowState() {
+        if this.Unattended
+            return this.SetState("Running by itself, unattended", "004B87")
+        switch this.Waiting {
+            case "pause": this.SetState("Paused", "9A5B00")
+            case "step": this.SetState("Waiting for you: Enter does this step", "6A3D9A")
+            case "checkpoint": this.SetState("Your turn: look it over, then carry on", "2E7D32")
+            case "stuck": this.SetState("Stuck: see the message", "C62828")
+            default: this.SetState(this.StepByStep ? "Doing this step" : "Running by itself", "004B87")
+        }
+        this.NowLabel.Text := this.Waiting = "step" ? "UP NEXT" : "NOW"
+        this.MainButton.Text := this.Waiting = "" ? "Pause  (Space)" : this.StepByStep ? "Run by itself  (Space)" : "Carry on  (Space)"
     }
 
     static AddHistory(text) {
@@ -161,20 +190,53 @@ class Runner {
                 MsgBox("That didn't open: " e.Message, "NetDeploy tests", "Icon! 0x40000")
     }
 
-    ; ===== Pace, pausing and stopping =====
+    ; Asks the person something, with a button for each answer, and returns the one they clicked. Esc or closing the
+    ; window gives the last answer.
+    static Ask(title, message, answers) {
+        this.Asking := true
+        ui := Gui("+AlwaysOnTop -MinimizeBox", title)
+        ui.BackColor := "FFFFFF"
+        ui.MarginX := 20, ui.MarginY := 16
+        ui.SetFont("s10 c1A2633", "Segoe UI")
+        ui.Add("Text", "w480", message)
+        picked := {Answer: ""}
+        for index, answer in answers {
+            button := ui.Add("Button", (index = 1 ? "xm y+18 h32 Default" : "x+8 yp h32"), "   " answer "   ")
+            button.OnEvent("Click", ((text, *) => picked.Answer := text).Bind(answer))
+        }
+        last := answers[answers.Length]
+        ui.OnEvent("Close", (*) => picked.Answer := last)
+        ui.OnEvent("Escape", (*) => picked.Answer := last)
+        ui.Show()
+        while picked.Answer = ""
+            Sleep(50)
+        ui.Destroy()
+        this.Asking := false
+        return picked.Answer
+    }
 
-    ; Shows what is about to happen, then waits while the run is paused.
+    ; ===== Pace, pausing, stepping and stopping =====
+
+    ; Shows what is about to happen. Step by step, it then waits for Enter; paused, it waits until the run carries on.
     static Step(text) {
-        this.Log("STEP", text)
-        this.StepText.Text := text
-        this.AddHistory(text)
+        this.Show(text)
+        if this.StepByStep && !this.Unattended {
+            this.Waiting := "step"
+            this.ShowState()
+        }
         this.Gate()
     }
 
-    ; Explains what is on screen, and gives time to read it.
+    static Show(text) {
+        this.Log("STEP", text)
+        this.StepText.Text := text
+        this.AddHistory(text)
+    }
+
+    ; Explains what is on screen, and gives time to read it. Step by step, the wait for Enter is the time to read it.
     static Say(text) {
         this.Step(text)
-        if !this.Unattended
+        if !this.Unattended && !this.StepByStep
             this.Wait(Max(this.Pace * 2, StrLen(text) * 40))
     }
 
@@ -187,39 +249,80 @@ class Runner {
         }
     }
 
-    ; Holds the run while it is paused, at a checkpoint or stuck, and ends it once a stop was asked for.
+    ; Holds the run while it is paused, waiting for a step, at a check or stuck, and ends it once a stop was asked for.
     static Gate() {
         while this.Waiting != "" && !this.StopRequested
             Sleep(100)
         if this.StopRequested
-            throw StopRun("You stopped the run.")
+            throw StopRun("You stopped the test.")
     }
 
-    static PauseOrContinue() {
+    ; Space: pauses a run that is going. On a run that is waiting, carries on by itself, no longer step by step.
+    static PauseOrCarryOn() {
+        if this.Waiting = "stuck" || this.StopRequested
+            return
         if this.Waiting = "" {
             this.Waiting := "pause"
-            this.SetState("Paused: press F8 or Continue to carry on", "9A5B00")
-            this.MainButton.Text := "Continue  (F8)"
             this.Log("PAUSE", "Paused by you")
-        } else if this.Waiting != "stuck" {
-            this.Waiting := ""
-            this.SetState("Running", "004B87")
-            this.MainButton.Text := "Pause  (F8)"
-        }
+        } else
+            this.StepByStep := false, this.CarryOn()
+        this.ShowState()
+    }
+
+    ; Enter: does the next step, then waits for Enter again. On a run that is going, it waits before the next step.
+    static NextStep() {
+        if this.Waiting = "stuck" || this.StopRequested
+            return
+        this.StepByStep := true
+        if this.Waiting != ""
+            this.CarryOn()
+        this.ShowState()
+    }
+
+    static CarryOn() {
+        this.Waiting := ""
+        this.YouClicked := false
     }
 
     static RequestStop() {
-        if this.StopRequested
+        if this.StopRequested || this.Asking
             return
-        if !this.Unattended && MsgBox("Stop the run? The app is left as it is now, and the results so far are saved.",
-            "NetDeploy tests", "YesNo Icon? 0x40000") != "Yes"
+        if !this.Unattended && this.Ask("Stop the test?", "Stop the test here? NetDeploy is left as it is now, and the results so far are saved.",
+            ["Stop the test", "Keep going"]) != "Stop the test"
             return
         this.StopRequested := true
         this.SetState("Stopping…", "C62828")
     }
 
+    ; Space, Enter and Esc belong to the runner unless the person is typing: in a text box they clicked into
+    ; themselves, or in one of the runner's own windows, such as the note. While the runner is stuck they do nothing.
+    static KeysAreMine() {
+        if WinActive(this.Ui)
+            return true
+        if this.Waiting = "stuck" || this.Asking || WinActive("ahk_pid " ProcessExist())
+            return false
+        return !(this.YouClicked && this.IsTyping())
+    }
+
+    static NoticeClick() {
+        MouseGetPos(, , &window)
+        if window != this.Ui.Hwnd
+            this.YouClicked := true
+    }
+
+    ; Whether the keyboard is in a text box that can be typed in, in any app.
+    static IsTyping() {
+        try {
+            focused := UIA.GetFocusedElement()
+            return (focused.Type = UIA.Type.Edit || focused.Type = UIA.Type.Document) && !focused.ValueIsReadOnly
+        }
+        return false
+    }
+
     static NoteProblem() {
-        answer := InputBox("What looks wrong? It's saved with this case's results, with a screenshot.", "Note a problem", "w460 h150")
+        this.Asking := true
+        answer := InputBox("What looks wrong? It's saved with this case's results, with a screenshot of the screen now.", "Note a problem", "w460 h150")
+        this.Asking := false
         if answer.Result != "OK" || answer.Value = ""
             return
         shot := this.Capture("note")
@@ -229,14 +332,16 @@ class Runner {
         this.AddHistory("Noted: " answer.Value)
     }
 
-    ; ===== Checkpoints =====
+    ; ===== Checks =====
 
-    ; Runs the automatic checks and lists what to look at by hand. In an attended run it then shows them for a few
-    ; seconds and carries on by itself: F8 holds the run there to look closer. With StopAtCheckpoints it waits until
-    ; the person continues. checks are made with Check.*, tools (buttons that open what to inspect) with Tool.*.
+    ; Checks what it can by itself, and lists what to look at by hand. In an attended run it then shows them for a few
+    ; seconds and carries on by itself: Space holds the run there to look closer. With StopAtCheckpoints, or step by
+    ; step, it waits until the person carries on. checks are made with Check.*, tools (buttons that open what to look
+    ; at) with Tool.*.
     static Checkpoint(title, checks := [], look := [], tools := []) {
-        this.Step("Checkpoint: " title)
-        this.CheckTitle.Text := "CHECKPOINT: " StrUpper(title)
+        this.Show("Check: " title)
+        this.Gate()
+        this.CheckTitle.Text := "CHECK: " StrUpper(title)
         lines := ""
         if checks.Length {
             lines .= "Checked for you:`r`n"
@@ -246,7 +351,7 @@ class Runner {
             }
         }
         if look.Length {
-            lines .= (lines ? "`r`n" : "") "Look for yourself:`r`n"
+            lines .= (lines ? "`r`n" : "") "Have a look yourself:`r`n"
             for item in look
                 lines .= "  •  " item "`r`n"
         }
@@ -255,18 +360,16 @@ class Runner {
         if this.Unattended
             return
 
-        if !this.StopAtCheckpoints {
-            this.SetState("Checkpoint: carrying on by itself. F8 holds it here", "2E7D32")
-            this.Wait(Max(this.Pace * 5, 4000))
-            this.SetState("Running", "004B87")
+        if this.StopAtCheckpoints || this.StepByStep {
+            this.Waiting := "checkpoint"
+            this.ShowState()
+            SoundBeep(880, 120)
+            this.Gate()
             return
         }
-        this.Waiting := "checkpoint"
-        this.SetState("Your turn: check the list, then press F8 or Continue", "2E7D32")
-        this.MainButton.Text := "Continue  (F8)"
-        SoundBeep(880, 120)
-        this.Gate()
-        this.ShowTools([])
+        this.SetState("Carrying on in a few seconds. Space stays here", "2E7D32")
+        this.Wait(Max(this.Pace * 5, 4000))
+        this.ShowState()
     }
 
     ; Waits for a check to pass, for things that take a moment, such as a service's next heartbeat.
@@ -299,8 +402,8 @@ class Runner {
             this.Current.Failures.Push(text)
     }
 
-    ; Something the run needs isn't there. Attended, the person can put it right and retry, skip the case or stop;
-    ; unattended, the run ends.
+    ; Something the run needs isn't there. Attended, the person can put it right and try again, skip the case or
+    ; stop; unattended, the run ends.
     static Stuck(what, detail := "") {
         shot := this.Capture("stuck")
         message := "I couldn't " what "." (detail ? "`n`n" detail : "")
@@ -311,17 +414,17 @@ class Runner {
         }
 
         this.Waiting := "stuck"
-        this.SetState("Stuck: see the message", "C62828")
-        answer := MsgBox(message "`n`nYou can put the app right by hand first. Then:`n`n"
-            . "Retry:  look again`nIgnore:  skip the rest of this case`nAbort:  stop the run`n`nScreenshot: " shot,
-            "NetDeploy tests: stuck", "AbortRetryIgnore Icon! 0x40000")
-        this.Waiting := ""
-        this.SetState("Running", "004B87")
-        this.MainButton.Text := "Pause  (F8)"
-        if answer = "Retry"
+        this.ShowState()
+        answer := this.Ask("NetDeploy tests: stuck", message "`n`nYou can put NetDeploy right by hand first, then try again. "
+            . "A screenshot of the screen now is saved with the results:`n" shot,
+            ["Try again", "Skip the rest of this case", "Stop the test"])
+        this.CarryOn()
+        this.ShowState()
+        if answer = "Try again"
             return
-        this.Fail(StrReplace(message, "`n", " ") (answer = "Ignore" ? " (skipped the rest of the case)" : " (stopped the run)"))
-        throw answer = "Ignore" ? SkipCase(what) : StopRun(what)
+        skip := answer = "Skip the rest of this case"
+        this.Fail(StrReplace(message, "`n", " ") (skip ? " (skipped the rest of the case)" : " (stopped the test)"))
+        throw skip ? SkipCase(what) : StopRun(what)
     }
 
     ; Saves a screenshot and the app's UI Automation tree, for working out what went wrong.
@@ -341,8 +444,9 @@ class Runner {
             this.Results.Push(this.Current)
             this.CaseLabel.Text := "CASE " index " OF " cases.Length
             this.CaseName.Text := testCase.Name
-            this.CheckTitle.Text := "CHECKPOINT"
+            this.CheckTitle.Text := "CHECK"
             this.CheckText.Value := ""
+            this.ShowTools([])
             this.Log("CASE", index ". " testCase.Name)
             this.AddHistory("▶ " testCase.Name)
             try {
@@ -360,8 +464,8 @@ class Runner {
                 this.Capture("error")
                 this.Fail("Script error: " e.Message " (" e.What ", line " e.Line ")")
                 this.Current.Status := "failed"
-                if this.Unattended || MsgBox("The test script hit an error:`n`n" e.Message "`n`nCarry on with the next case?",
-                    "NetDeploy tests", "YesNo Icon! 0x40000") != "Yes"
+                if this.Unattended || this.Ask("NetDeploy tests: script error", "Something went wrong in the test script itself:`n`n" e.Message
+                    . "`n`nIt's saved with the results.", ["Go on to the next case", "Stop the test"]) != "Go on to the next case"
                     break
             }
             this.Log("RESULT", testCase.Name ": " this.Current.Status)
@@ -387,9 +491,12 @@ class Runner {
         this.Log("DONE", StrReplace(text, "`r`n", " | "))
         failed := this.Results.Length - counts["passed"]
         if !this.Unattended {
-            this.SetState(failed ? "Finished with problems" : "Finished: everything passed", failed ? "C62828" : "2E7D32")
+            this.CarryOn()
+            this.SetState(failed ? "Finished, with problems" : "Finished: everything passed", failed ? "C62828" : "2E7D32")
+            this.Asking := true
             if MsgBox(text "`nOpen the results folder?", "NetDeploy tests: results", "YesNo 0x40000") = "Yes"
                 Run('explorer.exe "' this.ResultsDir '"')
+            this.Asking := false
         }
         return failed
     }

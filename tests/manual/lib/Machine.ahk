@@ -87,6 +87,20 @@ class Machine {
         )", file, section, keyAttribute, key, valueAttribute)
     }
 
+    ; Starts or stops a service, as someone in Services would: action is "Start" or "Stop".
+    static SetService(name, action) => this.PowerShell(action "-Service -Name $args[0]", name)
+
+    ; Copies a folder, as someone copying it in File Explorer would. A file a service has open, such as its log, may
+    ; not copy, as in File Explorer.
+    static CopyFolder(from, to) {
+        this.PowerShell("
+        (
+            $from, $to = $args
+            if (Test-Path -LiteralPath $to) { Remove-Item -LiteralPath $to -Recurse -Force }
+            Copy-Item -LiteralPath $from -Destination $to -Recurse -ErrorAction SilentlyContinue
+        )", from, to)
+    }
+
     ; Sets an appSettings value in a .config file, as someone editing it on the server would.
     static SetAppSetting(file, key, value) {
         this.PowerShell("
@@ -168,71 +182,71 @@ class Check {
 
     ; A service can take a few seconds to start or go, so this waits a little for it.
     static Service(name, state) {
-        label := state = "" ? "There is no service " name : "The service " name " is " state
-        return this.Make(label, () => (found := Machine.ServiceState(name)) = state ? "" : "found: " (found = "" ? "no service" : found), 20000)
+        label := state = "" ? "There is no service called " name : "The service " name " is " StrLower(state)
+        return this.Make(label, () => (found := Machine.ServiceState(name)) = state ? "" : "it is " (found = "" ? "not there" : StrLower(found)), 20000)
     }
 
     static Task(path, exists := true) {
-        return this.Make((exists ? "The scheduled task " : "There is no scheduled task ") path,
+        return this.Make((exists ? "The scheduled task " path " is there" : "There is no scheduled task " path),
             () => Machine.TaskExists(path) = exists ? "" : exists ? "it isn't there" : "it is still there")
     }
 
-    static Exists(path) => this.Make(path " exists", () => FileExist(path) ? "" : "it isn't there")
+    static Exists(path) => this.Make(path " is there", () => FileExist(path) ? "" : "it isn't there")
 
-    static Missing(path) => this.Make(path " doesn't exist", () => FileExist(path) ? "it is there" : "")
+    static Missing(path) => this.Make(path " isn't there", () => FileExist(path) ? "it is there" : "")
 
     static Json(file, path, expected) {
         SplitPath(file, &name)
-        label := expected = "<absent>" ? name " has no " path : name ": " path " = " expected
-        return this.Make(label, () => (found := Machine.Json(file, path)) = expected ? "" : "found: " found)
+        label := expected = "<absent>" ? name " has no " path " setting" : "In " name ", " path " is " expected
+        return this.Make(label, () => (found := Machine.Json(file, path)) = expected ? "" : found = "<absent>" ? "it isn't in the file" : "it is " found)
     }
 
     static AppSetting(file, key, expected) {
         SplitPath(file, &name)
-        label := expected = "<absent>" ? name " has no appSetting " key : name ": " key " = " expected
-        return this.Make(label, () => (found := Machine.AppSetting(file, key)) = expected ? "" : "found: " found)
+        label := expected = "<absent>" ? name " has no " key " setting" : "In " name ", " key " is " expected
+        return this.Make(label, () => (found := Machine.AppSetting(file, key)) = expected ? "" : found = "<absent>" ? "it isn't in the file" : "it is " found)
     }
 
     static ConnectionString(file, connection) {
         SplitPath(file, &name)
-        return this.Make(name " has the connection string " connection,
+        return this.Make(name " has a connection string called " connection,
             () => Machine.ConnectionString(file, connection) != "<absent>" ? "" : "it isn't there")
     }
 
     static FileHas(file, text, label := "") {
         SplitPath(file, &name)
-        return this.Make(label ? label : name " contains " text,
+        return this.Make(label ? label : name " has " text " in it",
             () => !FileExist(file) ? "the file isn't there" : InStr(FileRead(file), text) ? "" : "it doesn't")
     }
 
     ; A line in the log of the deploy that just ran.
-    static Logged(log, text) => this.FileHas(log, text, "The log says " text)
+    static Logged(log, text) => this.FileHas(log, text, 'The log says "' text '"')
 
     static Count(folder, pattern, expected, mode := "F") {
-        return this.Make(expected " " (mode = "D" ? "folder" : pattern) " in " folder,
-            () => (found := Machine.Count(folder, pattern, mode)) = expected ? "" : "found " found)
+        return this.Make(folder " has " expected " " (mode = "D" ? "folder" : pattern " file") (expected = 1 ? "" : "s") " in it",
+            () => (found := Machine.Count(folder, pattern, mode)) = expected ? "" : "it has " found)
     }
 
     static Version(exe, expected) {
         SplitPath(exe, &name)
         return this.Make(name " is version " expected,
-            () => !FileExist(exe) ? "it isn't there" : InStr(FileGetVersion(exe), expected) = 1 ? "" : "found " FileGetVersion(exe))
+            () => !FileExist(exe) ? "it isn't there" : InStr(FileGetVersion(exe), expected) = 1 ? "" : "it is version " FileGetVersion(exe))
     }
 
     static Output(program, arguments, text) {
         SplitPath(program, &name)
-        return this.Make(name " " arguments " prints " text,
+        return this.Make('Running "' name " " arguments '" says ' text,
             () => InStr(output := Machine.Run(program, arguments), text) ? "" : "it printed: " Trim(output, " `r`n"))
     }
 
     ; The service writes a heartbeat every 10 seconds, so this waits for the next one.
     static Heartbeat(file, text) {
-        return this.Make("The service's heartbeat says " text,
-            () => InStr(line := Machine.LastLine(file), text) ? "" : "last heartbeat: " line, 30000)
+        return this.Make("The service's latest heartbeat says " text,
+            () => InStr(line := Machine.LastLine(file), text) ? "" : "the latest one says: " line, 30000)
     }
 
     static Clean() {
-        return this.Make("Nothing from the test packages is left on this machine",
+        return this.Make("Nothing from the test packages is left on this computer",
             () => (found := Machine.Leftovers()).Length = 0 ? "" : "still there: " Join(found, ", "))
     }
 }

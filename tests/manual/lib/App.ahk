@@ -84,6 +84,20 @@ class App {
 
     static Exists(condition, root := "") => IsObject(this.TryFind(condition, root))
 
+    ; Waits for a control to go, such as the bar of changes waiting to be written.
+    static WaitGone(condition, what, timeoutMs := 10000) {
+        Loop {
+            end := A_TickCount + timeoutMs * Runner.TimeoutScale
+            while A_TickCount < end {
+                Runner.Gate()
+                if !this.Exists(condition)
+                    return
+                Sleep(200)
+            }
+            Runner.Stuck("see " what " go")
+        }
+    }
+
     static IsShown(element) {
         try {
             box := element.BoundingRectangle
@@ -180,7 +194,7 @@ class App {
         this.Marked := this.TryStatusText()
         this.Point(element, what)
         while !element.IsEnabled
-            Runner.Stuck(StrLower(SubStr(what, 1, 1)) SubStr(what, 2), "It is disabled.")
+            Runner.Stuck(LowerFirst(what), "It's greyed out, so it can't be used yet.")
         if how != "mouse" {
             for pattern in ["Invoke", "Toggle", "SelectionItem"]
                 if element.GetPropertyValue(UIA.Property.Is%pattern%PatternAvailable) {
@@ -258,7 +272,7 @@ class App {
         Runner.Wait(Runner.Pace // 2)
     }
 
-    static Tab(name) => this.Click({Type: "TabItem", Name: name}, "Open the " name " tab")
+    static Tab(name, what := "") => this.Click({Type: "TabItem", Name: name}, what ? what : "Open the " name " tab")
 
     ; ===== Other windows: message boxes, file pickers, step inputs and removal steps =====
 
@@ -346,8 +360,10 @@ class App {
         WinWaitClose(hwnd, , 10)
     }
 
-    ; Runs every removal step NetDeploy asks about, ticking "I understand" and running each, until it says it is done.
-    static RunRemoval(timeoutMs := 300000) {
+    ; Goes through the steps NetDeploy asks about one at a time while it removes an install, until it says it is done.
+    ; choose(number, total, title) says what to do with each: "run" (ticking "I understand" first), "skip" or "stop".
+    ; Without it, every step runs.
+    static RunRemoval(choose := "", timeoutMs := 300000) {
         end := A_TickCount + timeoutMs * Runner.TimeoutScale
         Loop {
             Runner.Gate()
@@ -359,15 +375,22 @@ class App {
                 counter := this.Find({AutomationId: "Counter"}, "the step counter", 10000, window).Name
                 stepTitle := this.Find({AutomationId: "StepTitle"}, "the step title", 10000, window).Name
                 Runner.Say(counter ": " stepTitle "`n" this.Find({AutomationId: "Explanation"}, "the explanation", 10000, window).Name)
-                this.Click(this.Find({Type: "CheckBox"}, "the I understand box", 10000, window), "Tick 'I understand'", , window)
-                this.Click(this.Find({AutomationId: "RunButton"}, "the Run this step button", 10000, window), "Run this step", , window)
+                RegExMatch(counter, "(\d+) of (\d+)", &step)
+                choice := choose ? choose(Integer(step[1]), Integer(step[2]), stepTitle) : "run"
+                if choice = "run" {
+                    this.Click(this.Find({Type: "CheckBox"}, "the I understand box", 10000, window), "Tick “I understand”", , window)
+                    this.Click(this.Find({AutomationId: "RunButton"}, "the Run this step button", 10000, window), "Run this step", , window)
+                } else {
+                    button := choice = "skip" ? "Skip this step" : "Stop removing"
+                    this.Click(this.Find({Type: "Button", Name: button}, "the " button " button", 10000, window), button, , window)
+                }
                 WinWaitClose(hwnd, , 60)
                 continue
             }
             if other := this.OtherWindow()
                 Runner.Stuck("finish removing the install", "NetDeploy is showing another window: " this.Describe(other))
             if A_TickCount > end
-                Runner.Stuck("see the removal finish", "The status still says: " status)
+                Runner.Stuck("see the removal finish", "The bar at the bottom of NetDeploy still says: " status)
             Sleep(300)
         }
     }
@@ -396,10 +419,10 @@ class App {
                             return status
                         }
                 if other := this.OtherWindow()
-                    Runner.Stuck('see "' prefixes[1] '" in the status bar', "NetDeploy is showing another window: " this.Describe(other))
+                    Runner.Stuck('see "' prefixes[1] '" in the bar at the bottom of NetDeploy', "NetDeploy is showing another window: " this.Describe(other))
                 Sleep(300)
             }
-            Runner.Stuck('see "' prefixes[1] '" in the status bar', "It says: " status)
+            Runner.Stuck('see "' prefixes[1] '" in the bar at the bottom of NetDeploy', "It says: " status)
         }
     }
 
@@ -446,15 +469,19 @@ class App {
         SplitPath(path, &name)
         row := this.FolderRow(path)
         this.Hover(row, "Point at " name " to show its buttons")
-        this.Click(this.Find({Type: "Button", HelpText: tooltip}, "the button to " StrLower(what), 10000, row), what)
+        this.Click(this.Find({Type: "Button", HelpText: tooltip}, "the button to " LowerFirst(what), 10000, row), what)
     }
 
-    static RemoveInstall(path) {
+    ; Removes an install from its hover button. choose says what to do with each step, as in RunRemoval.
+    static RemoveInstall(path, choose := "") {
         SplitPath(path, &name)
         this.InstallButton(path, "Remove this install, confirming each step", "Remove " name)
         this.Answer("Remove install", "Yes", "Yes, remove " name, "Remove " name)
-        return this.RunRemoval()
+        return this.RunRemoval(choose)
     }
+
+    ; Has NetDeploy look at the install folder again, for changes made outside it, such as a service stopped by hand.
+    static Refresh(what) => this.Click({Type: "Button", HelpText: "Refresh"}, what)
 
     ; ===== The Files tab =====
 
@@ -521,7 +548,7 @@ class App {
     ; One of the buttons on a file's row. In the Files tab they show when the mouse is over the row.
     static FileButton(path, tooltip, what) {
         name := this.Hover(this.FileName(path), "Point at " path)
-        this.Click(this.FindInRow(name, {Type: "Button", HelpText: tooltip}, "the button to " StrLower(what)), what)
+        this.Click(this.FindInRow(name, {Type: "Button", HelpText: tooltip}, "the button to " LowerFirst(what)), what)
     }
 
     static EditFile(path) => this.FileButton(path, "Edit", "Edit " path)
@@ -551,7 +578,7 @@ class App {
     static ReplaceOnce(text, pattern, replacement, what) {
         changed := RegExReplace(text, pattern, replacement, &count, 1)
         if !count
-            Runner.Fail("The file's text has nothing matching " pattern ", so I couldn't " StrLower(what))
+            Runner.Fail("The file's text has nothing matching " pattern ", so I couldn't " LowerFirst(what))
         return changed
     }
 
@@ -593,3 +620,6 @@ class App {
         return text
     }
 }
+
+; "Click Add" as "click Add", to go on the end of a sentence.
+LowerFirst(text) => StrLower(SubStr(text, 1, 1)) SubStr(text, 2)
