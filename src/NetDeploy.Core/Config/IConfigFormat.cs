@@ -33,6 +33,11 @@ public interface IConfigFormat
 
 public static class ConfigFormats
 {
+    /// <summary>True for the files NetDeploy treats as settings: appsettings*.json and *.config.</summary>
+    public static bool IsConfig(string fileName) =>
+        fileName.EndsWith(".config", StringComparison.OrdinalIgnoreCase)
+        || fileName.StartsWith("appsettings", StringComparison.OrdinalIgnoreCase) && fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+
     public static IConfigFormat For(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {
         ".json" => new JsonConfigFormat(),

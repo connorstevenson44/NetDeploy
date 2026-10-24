@@ -20,7 +20,11 @@ public partial class MainWindow : Window
         viewModel.Log.CollectionChanged += (_, e) =>
         {
             if (e.NewItems is { Count: > 0 } added)
-                Dispatcher.InvokeAsync(() => LogList.ScrollIntoView(added[0]!), DispatcherPriority.Background);
+                Dispatcher.InvokeAsync(() =>
+                {
+                    LogList.ScrollIntoView(added[0]!);
+                    FolderLogList.ScrollIntoView(added[0]!);
+                }, DispatcherPriority.Background);
         };
         Closed += (_, _) => viewModel.Dispose();
     }

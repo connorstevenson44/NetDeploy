@@ -58,6 +58,7 @@ public class MainWindowTests
                     await SaveDialogScreenshotsAsync();
                     await SaveFilesScreenshotAsync(window, viewModel);
                     await SaveInstallScreenshotAsync(window, viewModel);
+                    await SaveFolderScreenshotAsync(window, viewModel);
                 }
                 catch (Exception ex)
                 {
@@ -173,6 +174,37 @@ public class MainWindowTests
         Assert.Equal(InstallPlan.Convert, viewModel.Install.Plan);
         Assert.Contains(viewModel.Steps, step => step.Title == "Stop service OrdersService-main");
         await SaveScreenshotAsync(window, "7-install");
+    }
+
+    /// <summary>Opens an install folder from the home screen, edits a setting and stages a delete.</summary>
+    private static async Task SaveFolderScreenshotAsync(Window window, MainViewModel viewModel)
+    {
+        var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "folder", Path.GetRandomFileName())).FullName;
+        void Write(string path, string text)
+        {
+            var full = Path.Combine(root, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            File.WriteAllText(full, text);
+        }
+        Write("OrdersService.exe", "");
+        Write("OrdersService.dll", "");
+        Write("appsettings.json", """{ "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" }, "Smtp": { "Host": "mail", "Port": 25 }, "Cleanup": { "KeepDays": 30 } }""");
+        Write("OrdersService.exe.config", "<configuration><appSettings><add key=\"Region\" value=\"East\" /></appSettings></configuration>");
+        Write("tools/migrate.ps1", "Write-Output done");
+        Write("tools/reindex.bat", "@echo done");
+        Write("logs/2026-10-01.log", "x");
+        Write("east/OrdersService.exe", "");
+
+        viewModel.HomeCommand.Execute(null);
+        await SaveScreenshotAsync(window, "9-home");
+        viewModel.FolderPath = root;
+        viewModel.OpenFolderCommand.Execute(null);
+        var folder = viewModel.Folder!;
+        var settings = folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "appsettings.json");
+        folder.OpenCommand.Execute(settings);
+        folder.OpenFile!.Items.OfType<SettingViewModel>().Single(setting => setting.Key == "KeepDays").Value = "14";
+        folder.ToggleDeleteCommand.Execute(folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "2026-10-01.log"));
+        await SaveScreenshotAsync(window, "10-folder");
     }
 
     /// <summary>A server running version 2.3 with its own override, and a package for 2.4 that renames a setting and adds one.</summary>
