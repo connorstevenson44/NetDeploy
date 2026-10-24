@@ -12,7 +12,7 @@ public sealed class AppLogTests : IDisposable
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
-    private string Config(string targets, string extra = "") => _folder.File("app/nlog.config", $"""
+    private string Config(string targets, string extra = "") => Write("app/nlog.config", $"""
         <?xml version="1.0" encoding="utf-8"?>
         <nlog xmlns="http://www.nlog-project.org/schemas/NLog.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           {extra}
@@ -23,13 +23,16 @@ public sealed class AppLogTests : IDisposable
         </nlog>
         """);
 
+    // With the path's separators as Windows writes them, as the logs are found.
+    private string Write(string relativePath, string content) => Path.GetFullPath(_folder.File(relativePath, content));
+
     private string App(string relative) => Path.Combine(_folder.Path, "app", relative.Replace('/', Path.DirectorySeparatorChar));
 
     private string Zip(string relativePath, params (string Name, string Text)[] entries) => Zip(relativePath, 0, entries);
 
     private string Zip(string relativePath, int days, params (string Name, string Text)[] entries)
     {
-        var path = _folder.Combine(relativePath);
+        var path = Path.GetFullPath(_folder.Combine(relativePath));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         using var zip = ZipFile.Open(path, ZipArchiveMode.Create);
         foreach (var (name, text) in entries)
@@ -85,7 +88,7 @@ public sealed class AppLogTests : IDisposable
     [Fact]
     public void Default_target_parameters_and_included_files_count_and_what_changes_at_run_time_is_a_star()
     {
-        _folder.File("app/nlog.targets.config", """
+        Write("app/nlog.targets.config", """
             <nlog>
               <targets>
                 <target xsi:type="File" name="trace" fileName="${basedir}/trace/${processid}/${date:format=yyyy\:MM}.log" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" />
@@ -108,7 +111,7 @@ public sealed class AppLogTests : IDisposable
     [Fact]
     public void An_nlog_config_is_found_whatever_its_case_and_one_that_isnt_xml_says_so()
     {
-        var path = _folder.File("app/NLog.config", "<nlog><targets>");
+        var path = Write("app/NLog.config", "<nlog><targets>");
 
         Assert.Equal(path, NLogConfig.Find(_folder.Combine("app")));
         Assert.Null(NLogConfig.Find(_folder.Path));
@@ -120,8 +123,8 @@ public sealed class AppLogTests : IDisposable
     [Fact]
     public void The_newest_file_is_live_and_the_rest_and_the_zipped_archives_are_listed_newest_first()
     {
-        var today = _folder.File("app/logs/2026-10-24.log", "today");
-        Age(_folder.File("app/logs/2026-10-23.log", "yesterday"), 1);
+        var today = Write("app/logs/2026-10-24.log", "today");
+        Age(Write("app/logs/2026-10-23.log", "yesterday"), 1);
         // Zipped logs keep the time they were last written.
         var zip = Zip("app/logs/archive/app.1.zip", 3, ("2026-10-20.log", "old"), ("2026-10-21.log", "older"));
         var targets = new[] { new NLogFileTarget("file", App("logs/*.log"), [App("logs/archive/app.*.zip")]) };
@@ -167,7 +170,7 @@ public sealed class AppLogTests : IDisposable
     [Fact]
     public void A_log_is_read_whole_and_a_long_one_from_the_first_whole_line_near_its_end()
     {
-        var path = _folder.File("app/app.log", "line one\nline two\nline three\n");
+        var path = Write("app/app.log", "line one\nline two\nline three\n");
         var log = new AppLog(path, null, "file", true, DateTime.Now, new FileInfo(path).Length);
 
         var whole = LogReader.Read(log, cancellation: Token);
@@ -205,7 +208,7 @@ public sealed class AppLogTests : IDisposable
     [Fact]
     public void The_tail_reads_what_the_app_adds_even_a_character_split_between_writes()
     {
-        var path = _folder.File("app.log", "first\n");
+        var path = Write("app.log", "first\n");
         var tail = LogReader.Read(new AppLog(path, null, "file", true, DateTime.Now, 6), cancellation: Token).Tail!;
         Assert.Equal("", tail.ReadNew());
 
@@ -258,9 +261,9 @@ public sealed class AppLogTests : IDisposable
     [Fact]
     public async Task Searching_every_log_counts_the_matches_in_each_including_zipped_ones()
     {
-        var live = _folder.File("app/logs/app.log", "ORD-1 placed\nORD-2 placed\n");
+        var live = Write("app/logs/app.log", "ORD-1 placed\nORD-2 placed\n");
         Zip("app/logs/app.1.zip", ("app.1.log", "ORD-1 shipped\nnothing\n"));
-        _folder.File("app/logs/app.2.log", "nothing here\n");
+        Write("app/logs/app.2.log", "nothing here\n");
         var logs = AppLogs.Find([new NLogFileTarget("file", live, [App("logs/app.*")])], cancellation: Token);
         var reports = new List<LogSearchProgress>();
 
@@ -276,7 +279,7 @@ public sealed class AppLogTests : IDisposable
     [Fact]
     public async Task A_search_of_every_log_can_be_cancelled()
     {
-        var live = _folder.File("app/app.log", "x\n");
+        var live = Write("app/app.log", "x\n");
         var logs = AppLogs.Find([new NLogFileTarget("file", live, [])], cancellation: Token);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();

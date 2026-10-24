@@ -144,7 +144,7 @@ public static class AppLogs
         try
         {
             if (wild < 0)
-                return File.Exists(pattern) ? [pattern] : [];
+                return File.Exists(pattern) ? [Path.GetFullPath(pattern)] : [];
             // Everything before the first * is a folder to look in; the rest is matched below it.
             var root = string.Join(Path.DirectorySeparatorChar, parts[..wild]);
             // C: alone is the current folder on drive C, not its top.
