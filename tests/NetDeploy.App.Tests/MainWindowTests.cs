@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls;
@@ -72,6 +73,7 @@ public class MainWindowTests
                     await SaveDialogScreenshotsAsync();
                     await SaveFilesScreenshotAsync(window, viewModel);
                     await SaveInstallScreenshotsAsync(window, viewModel);
+                    await CheckNewInstallBoxStaysReachableAsync(window, viewModel);
                     await SaveFolderScreenshotAsync(window, viewModel, history);
                     await CheckLongTextStaysInViewAsync();
                     await SaveEditorScreenshotsAsync(window, viewModel);
@@ -233,6 +235,39 @@ public class MainWindowTests
         Assert.Contains("appsettings.json", tree.Items.OfType<FolderFileViewModel>().Select(file => file.Name));
         await SaveScreenshotAsync(window, "10b-in-an-install");
     }
+
+    /// <summary>
+    /// The folder list is built again when the folder is read again. A screen reader or the manual tests reading the
+    /// list while that happened once kept the new install's row without its name box, so the manual test couldn't type
+    /// a name there.
+    /// </summary>
+    private static async Task CheckNewInstallBoxStaysReachableAsync(Window window, MainViewModel viewModel)
+    {
+        viewModel.Load(SamplePath);
+        viewModel.FolderField!.Value = Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "reachable", Path.GetRandomFileName());
+        var tree = viewModel.Folder!;
+        await tree.Listing;
+        await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+        var list = Descendants(window).OfType<ItemsControl>().Single(control => control.ItemsSource == tree.Rows);
+        var peer = UIElementAutomationPeer.CreatePeerForElement(list);
+        Assert.NotNull(NewInstallBox(window, peer));
+
+        tree.ReloadCommand.Execute(null);
+        _ = Peers(peer).ToList();
+        await tree.Listing;
+        await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+        Assert.NotNull(NewInstallBox(window, peer));
+    }
+
+    // The peer of the name box on screen, as UI Automation reaches it through the list's rows.
+    private static AutomationPeer? NewInstallBox(Window window, AutomationPeer list)
+    {
+        var box = Descendants(window).OfType<TextBox>().Single(text => text.IsVisible && AutomationProperties.GetName(text) == "New install name");
+        return Peers(list).FirstOrDefault(peer => (peer as UIElementAutomationPeer)?.Owner == box);
+    }
+
+    private static IEnumerable<AutomationPeer> Peers(AutomationPeer parent) =>
+        (parent.GetChildren() ?? []).SelectMany(child => Peers(child).Prepend(child));
 
     /// <summary>Opens an install folder on its own, edits a setting and stages a delete.</summary>
     private static async Task SaveFolderScreenshotAsync(Window window, MainViewModel viewModel, DeployHistory history)
