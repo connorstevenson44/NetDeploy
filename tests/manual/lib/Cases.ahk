@@ -527,8 +527,11 @@ RemoveAll() {
     App.RemoveInstall(ReportsDir "\main")
     App.OpenPackage(Package("Contoso.Orders-1.1.0"))
     App.WaitHeader("Contoso.Orders 1.1.0")
-    for name in ["qa", "green", "main"]
+    ; A removal can leave the folder list inside the next install, so each starts from the top.
+    for name in ["qa", "green", "main"] {
+        App.GoToRoot()
         App.RemoveInstall(OrdersDir "\" name)
+    }
     Runner.Checkpoint("Every install is gone", [
         Check.Service("Contoso.Orders-main", ""),
         Check.Service("Contoso.Orders-green", ""),
