@@ -58,7 +58,7 @@ Secret values are masked in the log.
 | `checkPrerequisite` | Checks for a .NET runtime, an installed program, a registry value, a file, or a PowerShell test; runs `installer` if missing |
 | `copyFiles` | Copies a package folder to the server and merges its config files (see below); `preserve` keeps existing files such as logs, `deleteExtra` mirrors |
 | `runExe` | Runs an exe, such as a database migrator, and checks its exit code |
-| `powershell` | Runs a .ps1 file or an inline script in Windows PowerShell or `pwsh` |
+| `powershell` | Runs a .ps1 file or an inline script in Windows PowerShell or `pwsh`. A file's `args` are passed as with `-File`, so quote paths with double quotes: `"-InstallDir \"{InstallDir}\""` |
 | `backup` | Copies a folder to `<folder>.backups\<timestamp>` for rollback, keeping the newest `keep` |
 | `service` | Installs or updates, starts, stops or uninstalls a Windows service |
 | `scheduledTask` | Creates or updates, enables, disables, runs or deletes a scheduled task |

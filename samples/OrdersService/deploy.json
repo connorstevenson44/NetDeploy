@@ -46,7 +46,7 @@
       "type": "if",
       "condition": { "powershell": "Test-Path 'D:\\OrdersArchive'" },
       "then": [
-        { "type": "powershell", "file": "scripts/link-archive.ps1", "args": "-InstallDir '{InstallDir}'" }
+        { "type": "powershell", "file": "scripts/link-archive.ps1", "args": "-InstallDir \"{InstallDir}\"" }
       ]
     },
     { "type": "service", "action": "start", "service": "OrdersService" }

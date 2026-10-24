@@ -52,6 +52,7 @@ public sealed class ServiceStep : DeployStep
 
             case ServiceAction.Start:
                 WindowsServices.Start(name, timeout);
+                context.Rollback.StartedServices.Add(name);
                 break;
 
             case ServiceAction.Install:

@@ -495,7 +495,7 @@
         },
         "args": {
           "type": "string",
-          "description": "Arguments for a script file."
+          "description": "Arguments for a script file, passed as with powershell -File. Quote paths with double quotes, not single quotes."
         },
         "edition": {
           "enum": [
