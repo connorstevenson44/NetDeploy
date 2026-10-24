@@ -98,6 +98,12 @@
         <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
 
+    <!-- Every plain list, such as the folder list or the package's settings, keeps its rows readable by UI Automation
+         when its items are replaced. -->
+    <Style TargetType="ItemsControl">
+        <Setter Property="app:ListAutomation.RefreshRows" Value="True" />
+    </Style>
+
     <!-- A long list that only builds the rows on screen. Every list of files, settings or log lines uses it, so a
          folder with thousands of files scrolls as smoothly as one with ten. The lists mix row types (folder headings
          and files, sections and settings), so rows are not recycled: a recycled row briefly binds its old template to

@@ -10,6 +10,7 @@ namespace NetDeploy.App;
 /// Keeps a list's rows readable by screen readers and UI tests after its items are replaced. WPF reuses the
 /// automation peer of an item that is in both the old and the new items, but keeps the children it read from the
 /// item's old row, so the row's text and buttons drop out of UI Automation. Folding a folder in a file tree does that.
+/// A row read before it is laid out, such as while the folder list is built again, keeps no children at all.
 /// </summary>
 public static class ListAutomation
 {
