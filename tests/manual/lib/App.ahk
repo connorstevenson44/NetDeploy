@@ -124,6 +124,7 @@ class App {
     ; Scrolls a control into view, moves the mouse to it and outlines it, so the person sees what is next.
     static Point(element, what := "") {
         try element.ScrollIntoView()
+        this.BringIntoView(element)
         box := element.BoundingRectangle
         Runner.KeepClear(box)
         x := (box.l + box.r) // 2, y := (box.t + box.b) // 2
@@ -137,6 +138,40 @@ class App {
             Runner.Wait(Runner.Pace)
             ToolTip()
         }
+    }
+
+    ; Wheels the list a control is in until the control's middle is in view, for rows that can't scroll themselves
+    ; into view, such as the folders beside the package.
+    static BringIntoView(element) {
+        CoordMode("Mouse", "Screen")
+        Loop 60 {
+            try {
+                view := this.VisibleArea(element)
+                box := element.BoundingRectangle
+            } catch
+                return
+            middle := (box.t + box.b) // 2
+            if view.b - view.t < 10 || middle >= view.t && middle <= view.b
+                return
+            spot := {l: view.l + 20, t: (view.t + view.b) // 2 - 5, r: view.l + 40, b: (view.t + view.b) // 2 + 5}
+            Runner.KeepClear(spot)
+            MouseMove(spot.l + 10, spot.t + 5, Runner.MouseSpeed)
+            Send(middle > view.b ? "{WheelDown}" : "{WheelUp}")
+            Sleep(120)
+        }
+    }
+
+    ; The part of the screen a control's containers leave room for it to show in.
+    static VisibleArea(element) {
+        area := {l: -100000, t: -100000, r: 100000, b: 100000}
+        parent := element
+        while (parent := parent.Parent) {
+            box := parent.BoundingRectangle
+            area := {l: Max(area.l, box.l), t: Max(area.t, box.t), r: Min(area.r, box.r), b: Min(area.b, box.b)}
+            if parent.Type = UIA.Type.Window
+                break
+        }
+        return area
     }
 
     ; Clicks a control: invokes, toggles or selects it through UI Automation, or with the mouse when it has none of

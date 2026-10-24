@@ -53,6 +53,11 @@ jobs:
           name: ManualTestBundle
           path: ${{ runner.temp }}/bundle/
 
+      # The runner's screen is 1024x768, which leaves the folder list beside the package a row or less.
+      - name: Use a 1920x1080 screen
+        continue-on-error: true
+        run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
+
       # Waits for AutoHotkey itself, not Start-Process -Wait, which also waits for every process it started, such as
       # a NetDeploy left open by a failed case. The log is printed as it is written, so a slow step shows while it runs.
       - name: Run the manual tests unattended
