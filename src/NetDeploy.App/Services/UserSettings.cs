@@ -80,8 +80,10 @@ public sealed class UserSettings
     public string? LastFolder(string app) => _data.Apps.GetValueOrDefault(app)?.LastFolder;
 
     /// <summary>The values an app was last deployed with into this install folder ("" for an app without one).</summary>
+    // A dictionary read back from the file compares names with case, so the copy is what lets them match without it.
     public IReadOnlyDictionary<string, string> Values(string app, string folder) =>
-        _data.Apps.GetValueOrDefault(app)?.Folders.GetValueOrDefault(Key(folder)) ?? new Dictionary<string, string>();
+        new Dictionary<string, string>(
+            _data.Apps.GetValueOrDefault(app)?.Folders.GetValueOrDefault(Key(folder)) ?? [], StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Remembers the values an app is deployed with. The caller leaves secrets out.</summary>
     public void SaveValues(string app, string folder, IReadOnlyDictionary<string, string> values)
