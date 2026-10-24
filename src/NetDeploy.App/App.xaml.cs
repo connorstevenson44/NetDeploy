@@ -16,7 +16,7 @@ public partial class App : Application
         DispatcherUnhandledException += OnUnhandledException;
 
         var user = new WpfUserInteraction();
-        var viewModel = new MainViewModel(user);
+        var viewModel = new MainViewModel(user, UserSettings.Load(UserSettings.DefaultPath));
         user.ReviewConfigs = viewModel.ReviewConfigsInPaneAsync;
         MainWindow = new MainWindow(viewModel);
         MainWindow.Show();

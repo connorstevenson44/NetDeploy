@@ -30,7 +30,8 @@ public sealed partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     [NotifyCanExecuteChangedFor(nameof(OpenPackageCommand), nameof(OpenFolderCommand), nameof(DryRunCommand), nameof(DeployCommand),
         nameof(CancelCommand), nameof(RollBackCommand), nameof(RemoveInstallCommand), nameof(CloneInstallCommand), nameof(RunFileCommand),
-        nameof(FinalizeFolderCommand), nameof(NewConfigCommand), nameof(OpenConfigCommand))]
+        nameof(FinalizeFolderCommand), nameof(NewConfigCommand), nameof(OpenConfigCommand), nameof(OpenRecentCommand),
+        nameof(StartServicesCommand), nameof(StopServicesCommand), nameof(RestartServicesCommand), nameof(RestoreBackupCommand))]
     public partial bool IsRunning { get; private set; }
 
     public bool IsIdle => !IsRunning;
@@ -42,6 +43,13 @@ public sealed partial class MainViewModel
     /// <summary>How far the run is, from 0 to 100.</summary>
     [ObservableProperty]
     public partial double Progress { get; private set; }
+
+    /// <summary>What the last dry run found the deploy would change, above the log; null otherwise.</summary>
+    [ObservableProperty]
+    public partial RunSummaryViewModel? Summary { get; private set; }
+
+    [RelayCommand]
+    private void CloseSummary() => Summary = null;
 
     private bool CanRun => HasPackage && !IsRunning;
     private bool CanRollBack => _rollback is { IsAvailable: true } && !IsRunning;
@@ -119,6 +127,8 @@ public sealed partial class MainViewModel
             return;
         }
 
+        RememberValues();
+        Summary = null;
         IsRunning = true;
         _cancellation = new CancellationTokenSource();
         try
@@ -177,10 +187,14 @@ public sealed partial class MainViewModel
         var outcome = await Task.Run(() => runner.RunAsync(package, values, dryRun, options, token));
 
         Progress = 100;
+        if (dryRun && outcome.Result == DeployResult.Succeeded)
+            Summary = RunSummaryViewModel.For(plans.OfType<FilePlanViewModel>(), Steps);
         Status = outcome.Result switch
         {
             DeployResult.Succeeded => dryRun ? "Dry run finished. Nothing was changed." : "Deploy finished.",
-            DeployResult.Failed => $"Failed at \"{outcome.FailedStep!.Title}\": {outcome.Error!.Message}",
+            // A failure before the first step, such as a new install's folder already having files, has no step.
+            DeployResult.Failed when outcome.FailedStep is { } failed => $"Failed at \"{failed.Title}\": {outcome.Error?.Message}",
+            DeployResult.Failed => $"Failed: {outcome.Error?.Message}",
             _ => "Cancelled.",
         } + $" Log: {log.FilePath}";
 

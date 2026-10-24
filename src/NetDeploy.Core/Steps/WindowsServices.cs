@@ -78,13 +78,15 @@ internal static class WindowsServices
         return true;
     }
 
-    public static void Start(string name, TimeSpan timeout)
+    /// <summary>Returns true if the service was not running and has been started.</summary>
+    public static bool Start(string name, TimeSpan timeout)
     {
         using var service = new ServiceController(name);
         if (service.Status == ServiceControllerStatus.Running)
-            return;
+            return false;
         if (service.Status != ServiceControllerStatus.StartPending)
             service.Start();
         service.WaitForStatus(ServiceControllerStatus.Running, timeout);
+        return true;
     }
 }

@@ -73,6 +73,19 @@ public sealed class InstallTests : IDisposable
     }
 
     [Fact]
+    public async Task A_copy_of_an_install_that_cant_be_made_fails_the_deploy()
+    {
+        await DeployAsync("east");
+        _server.File("west", "a file where the new install's folder goes");
+
+        var outcome = await DeployAsync("west", seedFrom: _server.Combine("east"));
+
+        Assert.Equal(DeployResult.Failed, outcome.Result);
+        Assert.Null(outcome.FailedStep);
+        Assert.Contains(_log.Entries, entry => entry.Level == LogLevel.Error);
+    }
+
+    [Fact]
     public void Services_and_tasks_undo_themselves_with_the_install_name_filled_in()
     {
         var values = new Dictionary<string, string> { ["InstanceSuffix"] = "-east", ["InstanceDir"] = @"C:\Apps\Orders\east" };
@@ -154,6 +167,32 @@ public sealed class InstallTests : IDisposable
         Assert.Contains("prod-east", _server.Read("west/appsettings.json"));
         Assert.Equal("rows", _server.Read("west/data/orders.db"));
     }
+
+    [Fact]
+    public async Task A_backup_from_an_earlier_deploy_can_be_put_back()
+    {
+        await DeployAsync("east");
+        Assert.Empty(Installations.Backups(_server.Combine("east")));
+        _server.File("east/Orders.exe", "edited on the server");
+        await DeployAsync("east");
+        Assert.Equal("v2", _server.Read("east/Orders.exe"));
+
+        var backup = Assert.Single(Installations.Backups(_server.Combine("east")));
+        Installations.Restore(backup, _server.Combine("east"), _log);
+
+        Assert.Equal("edited on the server", _server.Read("east/Orders.exe"));
+        Assert.True((DateTime.Now - backup.Taken).Duration() < TimeSpan.FromMinutes(5));
+    }
+
+    [Theory]
+    [InlineData("2.0.0", "2.5.0", VersionChange.Upgrade)]
+    [InlineData("2.5", "2.5.0.0", VersionChange.Same)]
+    [InlineData("v3.1.0", "2.5.0", VersionChange.Downgrade)]
+    [InlineData("2.5.0-preview.1", "2.5.0", VersionChange.Same)]
+    [InlineData("custom build", "2.5.0", null)]
+    [InlineData(null, "2.5.0", null)]
+    public void A_package_version_is_compared_with_the_install_it_updates(string? installed, string package, VersionChange? change) =>
+        Assert.Equal(change, Installations.Compare(installed, package));
 
     [Fact]
     public async Task A_new_install_needs_an_empty_folder_and_a_plain_name()

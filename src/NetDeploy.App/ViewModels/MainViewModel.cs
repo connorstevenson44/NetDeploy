@@ -24,13 +24,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public const int LogTab = 3;
 
     private readonly IUserInteraction _user;
+    private readonly UserSettings _settings;
     private DeployPackage? _package;
     private IReadOnlyCollection<string> _appFiles = [];
     private string? _installFolder;
 
-    public MainViewModel(IUserInteraction user)
+    /// <param name="settings">What to remember between runs; without it, nothing outlives the window.</param>
+    public MainViewModel(IUserInteraction user, UserSettings? settings = null)
     {
         _user = user;
+        _settings = settings ?? UserSettings.InMemory();
+        RefreshRecent();
         Title = "";
         Status = "Open a package, an install folder or a deploy.json, or drop one onto this window.";
         Editor.PropertyChanged += (_, e) =>
@@ -136,8 +140,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (ManifestException) when (File.Exists(manifestPath))
         {
             ClosePackage();
-            OpenInEditor(manifestPath);
-            Status = "deploy.json has problems, listed under the form. Fix them and save to open the package.";
+            if (OpenInEditor(manifestPath))
+                Status = "deploy.json has problems, listed under the form. Fix them and save to open the package.";
             return;
         }
         catch (Exception ex) when (ex is ManifestException or IOException or InvalidDataException or UnauthorizedAccessException)
@@ -168,6 +172,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             else
                 Parameters.Add(parameter);
         }
+        // The install folder last used brings that folder's settings with it once it is read (RefreshInstalls); a
+        // package that doesn't install into a folder has one set of settings.
+        RestoreFolder();
+        if (manifest.Install is null)
+            RestoreValues("");
 
         Install = manifest.Install is not null ? new InstallViewModel(manifest.App.Version, _appFiles) : null;
         if (Install is not null)
@@ -195,6 +204,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         Log.Clear();
+        Remember(path, RecentKind.Package);
         SelectedTab = Folder is not null ? FilesTab : StepsTab;
         Status = PackageWarning is null
             ? $"Opened {Words.Count(manifest.Steps.Count, "step", "steps")}. Start with a dry run to see what will change."
@@ -226,6 +236,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ClosePackage();
         SetFolder(path);
         Log.Clear();
+        Remember(path, RecentKind.Folder);
         SelectedTab = FilesTab;
         Status = "Go into a folder on the left to see its files. Nothing is changed until you finalize.";
     }
@@ -255,6 +266,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         PackagePath = null;
         NeedsElevation = false;
         PackageWarning = null;
+        Summary = null;
     }
 
     private void OnParameterChanged()
@@ -284,6 +296,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (folder == _installFolder)
             return;
         _installFolder = folder;
+        RestoreValues(folder);
+        // A value just filled in can move the install folder itself, which the refresh that caused has dealt with.
+        if (_installFolder != folder)
+            return;
         Install.Refresh(folder);
         var usable = Placeholders.Unresolved(folder).Count == 0 && Path.IsPathFullyQualified(folder);
         if (!usable)

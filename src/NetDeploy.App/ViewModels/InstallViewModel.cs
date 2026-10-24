@@ -32,6 +32,9 @@ public sealed partial class InstallViewModel(string version, IReadOnlyCollection
     private string _folder = "";
     private bool _refreshing;
 
+    /// <summary>The package's version, which the installs are compared with.</summary>
+    public string Version => version;
+
     public ObservableCollection<InstallTarget> Targets { get; } = [];
 
     /// <summary>What a new install can start from: nothing, or a copy of an install.</summary>
@@ -94,11 +97,16 @@ public sealed partial class InstallViewModel(string version, IReadOnlyCollection
         }
     }
 
-    /// <summary>The plan in a few words, above its detail in the install folder.</summary>
+    /// <summary>The plan in a few words, above its detail in the install folder. An older package is called out.</summary>
     public string Headline => Plan switch
     {
         InstallPlan.New => $"New install: {Name}",
-        InstallPlan.Update => $"Update {Name}",
+        InstallPlan.Update => Installations.Compare(Selected?.Install?.Version, version) switch
+        {
+            VersionChange.Downgrade => $"Downgrade {Name}",
+            VersionChange.Same => $"Reinstall {Name}",
+            _ => $"Update {Name}",
+        },
         _ => $"Rename {Selected!.Install!.Name} to {Name}",
     };
 
@@ -113,7 +121,8 @@ public sealed partial class InstallViewModel(string version, IReadOnlyCollection
             {
                 InstallPlan.New when CopyFrom?.Install is { } source => $"Starts from a copy of {source.Name} in {target}",
                 InstallPlan.New => target,
-                InstallPlan.Update => $"{old!.Version ?? "Unknown version"} → {version}",
+                InstallPlan.Update => $"{old!.Version ?? "Unknown version"} → {version}"
+                    + (Installations.Compare(old.Version, version) == VersionChange.Downgrade ? ", an older version than the one installed" : ""),
                 _ => $"Deploys {version} to {target}, then offers to remove {old!.Name}",
             };
         }

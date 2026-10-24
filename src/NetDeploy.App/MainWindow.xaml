@@ -117,9 +117,30 @@
                 <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="4" />
             </Style>
 
-            <!-- Clone and remove for an install, shown on hover -->
+            <!-- Start, stop and restart its services, clone and remove for an install, shown on hover -->
             <DataTemplate x:Key="InstallActions">
                 <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding HasServices, Converter={StaticResource BoolToVisibility}}">
+                        <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Success}" ToolTip="Start its services"
+                                AutomationProperties.Name="Start services"
+                                Command="{Binding DataContext.StartServicesCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}">
+                            <materialDesign:PackIcon Kind="Play" Width="14" Height="14" />
+                        </Button>
+                        <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Danger}" ToolTip="Stop its services"
+                                AutomationProperties.Name="Stop services"
+                                Command="{Binding DataContext.StopServicesCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}">
+                            <materialDesign:PackIcon Kind="Stop" Width="14" Height="14" />
+                        </Button>
+                        <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}" ToolTip="Restart its services"
+                                AutomationProperties.Name="Restart services"
+                                Command="{Binding DataContext.RestartServicesCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}">
+                            <materialDesign:PackIcon Kind="Restart" Width="14" Height="14" />
+                        </Button>
+                        <Rectangle Width="1" Height="14" Fill="{StaticResource Hairline}" Margin="3,0" VerticalAlignment="Center" />
+                    </StackPanel>
                     <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}"
                             ToolTip="Clone: deploy as a new install that starts from a copy of this one"
                             Command="{Binding DataContext.CloneInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -162,6 +183,29 @@
                 </DataTemplate.Triggers>
             </DataTemplate>
 
+            <!-- How the open package's version compares with an install's: up when it's newer, down when it's older -->
+            <DataTemplate x:Key="VersionChange">
+                <materialDesign:PackIcon x:Name="Arrow" Width="14" Height="14" Margin="4,0,0,0" VerticalAlignment="Center" Background="Transparent"
+                                         ToolTip="{Binding ChangeTip}" AutomationProperties.Name="{Binding ChangeTip}" Visibility="Collapsed" />
+                <DataTemplate.Triggers>
+                    <DataTrigger Binding="{Binding Change}" Value="{x:Static core:VersionChange.Upgrade}">
+                        <Setter TargetName="Arrow" Property="Kind" Value="ArrowUpBold" />
+                        <Setter TargetName="Arrow" Property="Foreground" Value="{StaticResource Success}" />
+                        <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Change}" Value="{x:Static core:VersionChange.Downgrade}">
+                        <Setter TargetName="Arrow" Property="Kind" Value="ArrowDownBold" />
+                        <Setter TargetName="Arrow" Property="Foreground" Value="{StaticResource Warning}" />
+                        <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Change}" Value="{x:Static core:VersionChange.Same}">
+                        <Setter TargetName="Arrow" Property="Kind" Value="EqualBox" />
+                        <Setter TargetName="Arrow" Property="Foreground" Value="{StaticResource InkFaint}" />
+                        <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                </DataTemplate.Triggers>
+            </DataTemplate>
+
             <!-- A folder: clicking it goes into it. Installs show their version, kind and how their services are doing. -->
             <DataTemplate DataType="{x:Type vm:FolderNodeViewModel}">
                 <Button x:Name="Row" Style="{StaticResource FolderRow}" ToolTip="{Binding FullPath}"
@@ -181,6 +225,7 @@
                                     Visibility="{Binding Detail.Length, Converter={StaticResource NonZeroToVisible}}">
                                 <TextBlock Text="{Binding Detail}" />
                             </Border>
+                            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource VersionChange}" />
                             <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource ServiceDot}" />
                         </StackPanel>
                         <ContentControl x:Name="Actions" Grid.Column="2" Content="{Binding}" ContentTemplate="{StaticResource InstallActions}"
@@ -499,6 +544,30 @@
                         <Button Style="{StaticResource QuietButton}" Command="{Binding NewConfigCommand}"
                                 Content="New config" Tag="{x:Static materialDesign:PackIconKind.FilePlusOutline}" ContentTemplate="{StaticResource IconLabel}" />
                     </StackPanel>
+
+                    <!-- What was opened lately, to open again in one click -->
+                    <StackPanel Margin="0,30,0,0" Visibility="{Binding Recent.Count, Converter={StaticResource NonZeroToVisible}}">
+                        <TextBlock Text="RECENT" Style="{StaticResource SectionLabel}" Margin="8,0,0,6" />
+                        <ItemsControl ItemsSource="{Binding Recent}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:RecentItemViewModel}">
+                                    <Button Style="{StaticResource FolderRow}" Height="44" ToolTip="{Binding Path}" AutomationProperties.Name="{Binding Name}"
+                                            Command="{Binding DataContext.OpenRecentCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                        <DockPanel>
+                                            <materialDesign:PackIcon Kind="{Binding Icon}" Width="20" Height="20" Foreground="{StaticResource Brand}"
+                                                                     VerticalAlignment="Center" Margin="0,0,12,0" />
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding KindLabel}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Path}" Style="{StaticResource Caption}" FontFamily="{StaticResource Code}" FontSize="11"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
 
@@ -715,6 +784,7 @@
                                                     Visibility="{Binding CurrentFolder.Detail.Length, Converter={StaticResource NonZeroToVisible}, FallbackValue=Collapsed}">
                                                 <TextBlock Text="{Binding CurrentFolder.Detail}" />
                                             </Border>
+                                            <ContentPresenter Content="{Binding CurrentFolder}" ContentTemplate="{StaticResource VersionChange}" />
                                             <ContentPresenter Content="{Binding CurrentFolder}" ContentTemplate="{StaticResource ServiceDot}" />
                                         </StackPanel>
                                         <ContentControl Grid.Column="3" Content="{Binding CurrentFolder}" ContentTemplate="{StaticResource InstallActions}" Focusable="False">
@@ -740,6 +810,31 @@
                                         <ItemsControl ItemsSource="{Binding Folder.Rows}" Focusable="False" />
                                         <TextBlock Text="No folders in here." Style="{StaticResource Caption}" Margin="8,6,0,0"
                                                    Visibility="{Binding Folder.Rows.Count, Converter={StaticResource ZeroToVisible}}" />
+
+                                        <!-- Backups a deploy made of this folder, to put one back -->
+                                        <StackPanel Margin="0,14,0,0" Visibility="{Binding Folder.HasBackups, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                                            <StackPanel Orientation="Horizontal" Margin="6,0,0,4">
+                                                <materialDesign:PackIcon Kind="ArchiveOutline" Width="14" Height="14" Foreground="{StaticResource Brand}"
+                                                                         VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <TextBlock Text="BACKUPS" Style="{StaticResource SectionLabel}" />
+                                            </StackPanel>
+                                            <ItemsControl ItemsSource="{Binding Folder.Backups}" Focusable="False">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:BackupViewModel}">
+                                                        <DockPanel Height="30" Margin="6,0,0,0" ToolTip="{Binding Path}">
+                                                            <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Height="26" Padding="8,0"
+                                                                    Content="Restore" Tag="{x:Static materialDesign:PackIconKind.Restore}" ContentTemplate="{StaticResource IconLabel}"
+                                                                    ToolTip="Put this backup back in place of the folder's files"
+                                                                    Command="{Binding DataContext.RestoreBackupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}" />
+                                                            <materialDesign:PackIcon Kind="History" Width="14" Height="14" Foreground="{StaticResource InkMuted}"
+                                                                                     VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                            <TextBlock Text="{Binding Label}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                        </DockPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
                             </DockPanel>
@@ -881,11 +976,37 @@
                             </TabItem>
 
                             <TabItem Header="Log" Tag="{x:Static materialDesign:PackIconKind.ConsoleLine}" HeaderTemplate="{StaticResource TabHeader}">
+                                <DockPanel>
+                                    <!-- After a dry run: what the deploy would change, so the log needn't be read for it -->
+                                    <Border DockPanel.Dock="Top" DataContext="{Binding Summary}" Visibility="{Binding Converter={StaticResource NullToCollapsed}}"
+                                            Background="{StaticResource BrandTint}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="16,10,8,12">
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Style="{StaticResource PaneButton}" VerticalAlignment="Top" ToolTip="Close the summary"
+                                                    Command="{Binding DataContext.CloseSummaryCommand, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                <materialDesign:PackIcon Kind="Close" Width="16" Height="16" />
+                                            </Button>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                                <ItemsControl ItemsSource="{Binding Lines}" Focusable="False">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:SummaryLine}">
+                                                            <DockPanel Margin="0,2">
+                                                                <materialDesign:PackIcon Kind="{Binding Icon}" Width="15" Height="15" Foreground="{StaticResource Brand}"
+                                                                                         VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                                <TextBlock Text="{Binding Text}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                            </DockPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
                                 <Grid>
                                     <ListBox x:Name="LogList" Style="{StaticResource LogList}" />
                                     <TextBlock Text="Dry runs, deploys and tools you run from the folder are logged here." Style="{StaticResource Caption}"
                                                Margin="20,16" Visibility="{Binding Log.Count, Converter={StaticResource ZeroToVisible}}" />
                                 </Grid>
+                                </DockPanel>
                             </TabItem>
                         </TabControl>
 

@@ -14,7 +14,7 @@ public static class FileRunner
     {
         var startInfo = Path.GetExtension(path).ToLowerInvariant() switch
         {
-            ".ps1" => new ProcessStartInfo("powershell.exe", $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{path}\" {arguments}"),
+            ".ps1" => PowerShellRunner.ForFile(path, arguments, PowerShellEdition.Windows),
             // cmd /c strips the outer quotes, so the whole command line is quoted once more.
             ".bat" or ".cmd" => new ProcessStartInfo("cmd.exe", $"/d /c \"\"{path}\" {arguments}\""),
             _ => new ProcessStartInfo(path, arguments),

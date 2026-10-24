@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using NetDeploy.App.Services;
 using NetDeploy.Core;
 
 namespace NetDeploy.App.ViewModels;
@@ -51,8 +52,10 @@ public sealed partial class MainViewModel
         if (!CanReplaceConfig())
             return;
         ClosePackage();
-        if (OpenInEditor(path))
-            ShowEditor(Editor.VersionWarning ?? "Select a step on the left to edit it. Problems are checked as you type.");
+        if (!OpenInEditor(path))
+            return;
+        Remember(path, RecentKind.Config);
+        ShowEditor(Editor.VersionWarning ?? "Select a step on the left to edit it. Problems are checked as you type.");
     }
 
     [RelayCommand]
