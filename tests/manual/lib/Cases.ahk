@@ -447,6 +447,7 @@ AddReports() {
     App.ContinueStage()
     App.WaitStage("Check the config")
     App.ConfigFile("Fabrikam.Reports.exe.config")
+    App.SetSetting("appSettings:SmtpPassword", "smtp-test-123", "Fill in SmtpPassword, empty in the package, so it needs a value")
     App.ConfigFile("web.config")
     Runner.Say("A .NET Framework app's .exe.config and its site's web.config, both new here.")
     App.ContinueStage()
