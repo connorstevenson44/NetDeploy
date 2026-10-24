@@ -59,7 +59,7 @@ jobs:
         run: |
           $out = "$env:RUNNER_TEMP\ahk-out.txt"; $err = "$env:RUNNER_TEMP\ahk-err.txt"
           $ahk = Start-Process "$env:RUNNER_TEMP\ahk\AutoHotkey64.exe" -PassThru -RedirectStandardOutput $out -RedirectStandardError $err `
-            -ArgumentList '/ErrorStdOut', 'tests\manual\NetDeployManualTests.ahk', '--unattended', '--results', 'tests\manual\results'
+            -ArgumentList '/ErrorStdOut', 'tests\manual\NetDeployManualTests.ahk', '--unattended', '--results', "$env:GITHUB_WORKSPACE\tests\manual\results"
           $null = $ahk.Handle
           $printed = 0; $end = (Get-Date).AddMinutes(40)
           while (-not $ahk.WaitForExit(5000) -and (Get-Date) -lt $end) {

@@ -426,7 +426,41 @@ class App {
     ; ===== The Files tab =====
 
     ; A file's name in the Files tab or the files review, by its path from the folder, which is the name's tooltip.
-    static FileName(path) => this.Find({Type: "Text", HelpText: path}, path " in the file list")
+    ; A file's name in a file list. The lists only build the rows in view, so it scrolls them until the file shows.
+    static FileName(path) {
+        condition := {Type: "Text", HelpText: path}
+        end := A_TickCount + 20000 * Runner.TimeoutScale
+        while A_TickCount < end {
+            Runner.Gate()
+            if found := this.ScrollTo(condition)
+                return found
+            Sleep(500)
+        }
+        return this.Find(condition, path " in the file list")
+    }
+
+    ; Scrolls each list in the window from the top, a page at a time, until something that matches condition is built.
+    static ScrollTo(condition) {
+        if found := this.TryFind(condition)
+            return found
+        for list in this.Main().FindElements({IsScrollPatternAvailable: true}) {
+            try {
+                scroll := list.ScrollPattern
+                if !scroll.VerticallyScrollable
+                    continue
+                scroll.SetScrollPercent(0)
+                Loop 200 {
+                    Sleep(100)
+                    if found := this.TryFind(condition, list)
+                        return found
+                    if scroll.VerticalScrollPercent >= 100
+                        break
+                    scroll.Scroll(UIA.ScrollAmount.LargeIncrement)
+                }
+            }
+        }
+        return ""
+    }
 
     ; One of the buttons on a file's row. In the Files tab they show when the mouse is over the row.
     static FileButton(path, tooltip, what) {
