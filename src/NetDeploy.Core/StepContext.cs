@@ -12,6 +12,9 @@ public sealed class StepContext
     public required IDeployLog Log { get; init; }
     public required IUserInteraction User { get; init; }
 
+    /// <summary>Choices made before the deploy started, such as file actions picked in the file view.</summary>
+    public DeployOptions Options { get; init; } = DeployOptions.Default;
+
     /// <summary>Parameter and input values, used to resolve {Name} placeholders.</summary>
     public Dictionary<string, string> Variables { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -21,10 +24,13 @@ public sealed class StepContext
     public string Resolve(string text) => Placeholders.Resolve(text, Variables);
 
     /// <summary>Resolves a path inside the package. Throws if it points outside the package.</summary>
-    public string PackagePath(string relativePath)
+    public string PackagePath(string relativePath) => InsidePackage(PackageDirectory, Resolve(relativePath));
+
+    /// <summary>Resolves an already resolved path inside a package folder. Throws if it points outside it.</summary>
+    internal static string InsidePackage(string packageDirectory, string relativePath)
     {
-        var root = Path.GetFullPath(PackageDirectory).TrimEnd(Path.DirectorySeparatorChar);
-        var full = Path.GetFullPath(Path.Combine(root, Resolve(relativePath))).TrimEnd(Path.DirectorySeparatorChar);
+        var root = Path.GetFullPath(packageDirectory).TrimEnd(Path.DirectorySeparatorChar);
+        var full = Path.GetFullPath(Path.Combine(root, relativePath)).TrimEnd(Path.DirectorySeparatorChar);
         var isInside = full.Equals(root, StringComparison.OrdinalIgnoreCase)
             || full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
         if (!isInside)

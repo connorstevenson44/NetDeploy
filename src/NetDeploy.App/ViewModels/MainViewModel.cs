@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using NetDeploy.App.Services;
 using NetDeploy.Core;
+using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.ViewModels;
 
@@ -27,6 +28,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<InputFieldViewModel> Parameters { get; } = [];
     public ObservableCollection<StepViewModel> Steps { get; } = [];
     public ObservableCollection<LogEntry> Log { get; } = [];
+
+    /// <summary>One FilePlanViewModel per copy step, or a FilePlanError when its files can't be listed yet.</summary>
+    public ObservableCollection<object> FilePlans { get; } = [];
+
+    public const int StepsTab = 0;
+    public const int FilesTab = 1;
+
+    [ObservableProperty]
+    public partial int SelectedTab { get; set; }
+
+    /// <summary>True when the settings changed after the files were listed.</summary>
+    [ObservableProperty]
+    public partial bool FilesAreStale { get; set; }
+
+    [ObservableProperty]
+    public partial bool ShowUnchangedFiles { get; set; }
 
     [ObservableProperty]
     public partial string Title { get; set; }
@@ -83,7 +100,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         foreach (var (name, field) in manifest.Parameters)
         {
             var parameter = new InputFieldViewModel(name, field);
-            parameter.PropertyChanged += (_, _) => RefreshSteps();
+            parameter.PropertyChanged += (_, _) => OnParameterChanged();
             Parameters.Add(parameter);
         }
 
@@ -92,6 +109,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Steps.Add(step);
         _stepsByDefinition = Steps.ToDictionary(step => step.Step);
         RefreshSteps();
+        FilePlans.Clear();
+        FilesAreStale = false;
+        if (SelectedTab == FilesTab)
+            RefreshFiles();
 
         Log.Clear();
         Status = $"{manifest.Steps.Count} steps. Try a dry run first to see what will change.";
@@ -178,7 +199,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var values = Parameters.ToDictionary(parameter => parameter.Name, parameter => parameter.Value);
             var token = _cancellation.Token;
-            var outcome = await Task.Run(() => runner.RunAsync(package, values, dryRun, token));
+            var options = new DeployOptions
+            {
+                FileActions = FilePlans.OfType<FilePlanViewModel>().ToDictionary(plan => (DeployStep)plan.Step, plan => plan.ChosenActions),
+            };
+            var outcome = await Task.Run(() => runner.RunAsync(package, values, dryRun, options, token));
 
             Status = outcome.Result switch
             {
@@ -216,6 +241,56 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             log.Error($"Rollback failed: {ex.Message}");
             MessageBox.Show(ex.Message, "Rollback failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    /// <summary>
+    /// Lists every copy step's files against the server. It reads the disk, so it runs when the Files tab opens or
+    /// on refresh, never on each keystroke: a half-typed folder such as C:\ would list the whole drive.
+    /// </summary>
+    [RelayCommand]
+    private void RefreshFiles()
+    {
+        if (_package is null)
+            return;
+
+        var values = Parameters.ToDictionary(parameter => parameter.Name, parameter => parameter.Value, StringComparer.OrdinalIgnoreCase);
+        var earlier = FilePlans.OfType<FilePlanViewModel>().ToDictionary(plan => plan.Step);
+        FilePlans.Clear();
+        foreach (var step in Steps.Where(step => step.Step is CopyFilesStep))
+        {
+            var copy = (CopyFilesStep)step.Step;
+            var title = step.Branch + step.Title;
+            try
+            {
+                var plan = new FilePlanViewModel(copy, title, copy.PlanFiles(_package.RootPath, values));
+                plan.CopyChoicesFrom(earlier.GetValueOrDefault(copy));
+                plan.ShowUnchanged(ShowUnchangedFiles);
+                FilePlans.Add(plan);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                FilePlans.Add(new FilePlanError(title, ex.Message));
+            }
+        }
+        FilesAreStale = false;
+    }
+
+    partial void OnSelectedTabChanged(int value)
+    {
+        if (value == FilesTab && (FilesAreStale || FilePlans.Count == 0))
+            RefreshFiles();
+    }
+
+    partial void OnShowUnchangedFilesChanged(bool value)
+    {
+        foreach (var plan in FilePlans.OfType<FilePlanViewModel>())
+            plan.ShowUnchanged(value);
+    }
+
+    private void OnParameterChanged()
+    {
+        RefreshSteps();
+        FilesAreStale = FilePlans.Count > 0;
     }
 
     private void RefreshSteps()

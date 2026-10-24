@@ -3,6 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:core="clr-namespace:NetDeploy.Core;assembly=NetDeploy.Core"
+        xmlns:app="clr-namespace:NetDeploy.App"
+        xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
         Style="{StaticResource AppWindow}"
         Title="NetDeploy" Height="800" Width="1240" MinWidth="960" MinHeight="600"
         WindowStartupLocation="CenterScreen" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
@@ -109,67 +111,143 @@
                             <RowDefinition Height="4*" MinHeight="140" />
                         </Grid.RowDefinitions>
 
-                        <!-- The plan -->
+                        <!-- The plan: the steps, and the files the copy steps will change -->
                         <materialDesign:Card Style="{StaticResource Panel}" Padding="0">
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Top" Text="Steps" Style="{StaticResource PanelTitle}" Margin="20,18,20,8" />
-                                <ListBox ItemsSource="{Binding Steps}" HorizontalContentAlignment="Stretch" Padding="8,0,8,8"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                                    <ListBox.ItemContainerStyle>
-                                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
-                                            <Setter Property="Padding" Value="10,2" />
-                                            <Setter Property="Focusable" Value="False" />
-                                            <Setter Property="materialDesign:ListBoxItemAssist.ShowSelection" Value="False" />
-                                        </Style>
-                                    </ListBox.ItemContainerStyle>
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <!-- State icon, step-type icon, title; the condition shows on hover -->
-                                            <Grid Margin="{Binding Indent}" Height="26">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <materialDesign:PackIcon Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
-                                                    <materialDesign:PackIcon.Style>
-                                                        <Style TargetType="materialDesign:PackIcon">
-                                                            <Setter Property="Kind" Value="CircleOutline" />
-                                                            <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Running}">
-                                                                    <Setter Property="Kind" Value="PlayCircle" />
-                                                                    <Setter Property="Foreground" Value="{StaticResource Brand}" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Succeeded}">
-                                                                    <Setter Property="Kind" Value="CheckCircle" />
-                                                                    <Setter Property="Foreground" Value="{StaticResource Success}" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Skipped}">
-                                                                    <Setter Property="Kind" Value="MinusCircleOutline" />
-                                                                    <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Failed}">
-                                                                    <Setter Property="Kind" Value="CloseCircle" />
-                                                                    <Setter Property="Foreground" Value="{StaticResource Danger}" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </materialDesign:PackIcon.Style>
-                                                </materialDesign:PackIcon>
-                                                <materialDesign:PackIcon Grid.Column="1" Kind="{Binding Icon}" Width="16" Height="16" Margin="0,0,10,0"
-                                                                         Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" />
-                                                <!-- Runs on one line: whitespace between them would show as a leading space. -->
-                                                <TextBlock Grid.Column="2" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"><Run Text="{Binding Branch, Mode=OneWay}" Foreground="{StaticResource Brand}" FontWeight="SemiBold" /><Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Ink}" /></TextBlock>
-                                                <materialDesign:PackIcon Grid.Column="3" Kind="HelpCircleOutline" Width="16" Height="16" Margin="8,0,0,0"
-                                                                         Foreground="{StaticResource Brand}" VerticalAlignment="Center" Background="Transparent"
-                                                                         ToolTip="{Binding Detail}" Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                            </DockPanel>
+                            <TabControl SelectedIndex="{Binding SelectedTab}" HorizontalContentAlignment="Left" Margin="8,4,8,0"
+                                        materialDesign:ColorZoneAssist.Mode="Standard">
+                                <TabItem>
+                                    <TabItem.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="FormatListChecks" Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <TextBlock Text="Steps" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </TabItem.Header>
+                                    <ListBox ItemsSource="{Binding Steps}" HorizontalContentAlignment="Stretch" Padding="8,0,8,8"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
+                                                <Setter Property="Padding" Value="10,2" />
+                                                <Setter Property="Focusable" Value="False" />
+                                                <Setter Property="materialDesign:ListBoxItemAssist.ShowSelection" Value="False" />
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <!-- State icon, step-type icon, title; the condition shows on hover -->
+                                                <Grid Margin="{Binding Indent}" Height="26">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <materialDesign:PackIcon Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                        <materialDesign:PackIcon.Style>
+                                                            <Style TargetType="materialDesign:PackIcon">
+                                                                <Setter Property="Kind" Value="CircleOutline" />
+                                                                <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Running}">
+                                                                        <Setter Property="Kind" Value="PlayCircle" />
+                                                                        <Setter Property="Foreground" Value="{StaticResource Brand}" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Succeeded}">
+                                                                        <Setter Property="Kind" Value="CheckCircle" />
+                                                                        <Setter Property="Foreground" Value="{StaticResource Success}" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Skipped}">
+                                                                        <Setter Property="Kind" Value="MinusCircleOutline" />
+                                                                        <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Failed}">
+                                                                        <Setter Property="Kind" Value="CloseCircle" />
+                                                                        <Setter Property="Foreground" Value="{StaticResource Danger}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </materialDesign:PackIcon.Style>
+                                                    </materialDesign:PackIcon>
+                                                    <materialDesign:PackIcon Grid.Column="1" Kind="{Binding Icon}" Width="16" Height="16" Margin="0,0,10,0"
+                                                                             Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" />
+                                                    <!-- Runs on one line: whitespace between them would show as a leading space. -->
+                                                    <TextBlock Grid.Column="2" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"><Run Text="{Binding Branch, Mode=OneWay}" Foreground="{StaticResource Brand}" FontWeight="SemiBold" /><Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Ink}" /></TextBlock>
+                                                    <materialDesign:PackIcon Grid.Column="3" Kind="HelpCircleOutline" Width="16" Height="16" Margin="8,0,0,0"
+                                                                             Foreground="{StaticResource Brand}" VerticalAlignment="Center" Background="Transparent"
+                                                                             ToolTip="{Binding Detail}" Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </TabItem>
+
+                                <TabItem>
+                                    <TabItem.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="FileTreeOutline" Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <TextBlock Text="Files" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </TabItem.Header>
+                                    <DockPanel Margin="8,6,8,8">
+                                        <!-- Legend, refresh and show-unchanged -->
+                                        <DockPanel DockPanel.Dock="Top" Margin="4,0,0,4">
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                <Button Style="{StaticResource MaterialDesignIconButton}" Width="32" Height="32" Command="{Binding RefreshFilesCommand}"
+                                                        ToolTip="Compare again" Foreground="{StaticResource InkMuted}">
+                                                    <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18" />
+                                                </Button>
+                                                <ToggleButton Style="{StaticResource MaterialDesignFlatToggleButton}" IsChecked="{Binding ShowUnchangedFiles}"
+                                                              Width="32" Height="32" ToolTip="Show identical files">
+                                                    <materialDesign:PackIcon Kind="EyeOutline" Width="18" Height="18" />
+                                                </ToggleButton>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <StackPanel.Resources>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+                                                        <Setter Property="Margin" Value="4,0,14,0" />
+                                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                                    </Style>
+                                                </StackPanel.Resources>
+                                                <materialDesign:PackIcon Kind="FilePlusOutline" Foreground="{StaticResource Success}" Width="14" Height="14" VerticalAlignment="Center" />
+                                                <TextBlock Text="new" />
+                                                <materialDesign:PackIcon Kind="FileSyncOutline" Foreground="{StaticResource Brand}" Width="14" Height="14" VerticalAlignment="Center" />
+                                                <TextBlock Text="changed" />
+                                                <materialDesign:PackIcon Kind="FileCheckOutline" Foreground="{StaticResource InkFaint}" Width="14" Height="14" VerticalAlignment="Center" />
+                                                <TextBlock Text="same" />
+                                                <materialDesign:PackIcon Kind="FileQuestionOutline" Foreground="{StaticResource Warning}" Width="14" Height="14" VerticalAlignment="Center" />
+                                                <TextBlock Text="only on server" />
+                                            </StackPanel>
+                                        </DockPanel>
+
+                                        <!-- The settings changed since the files were compared -->
+                                        <Border DockPanel.Dock="Top" Background="{StaticResource WarningTint}" CornerRadius="6" Padding="10,4" Margin="0,0,0,6"
+                                                Visibility="{Binding FilesAreStale, Converter={StaticResource BoolToVisibility}}">
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Command="{Binding RefreshFilesCommand}"
+                                                        Content="Compare again" Tag="{x:Static materialDesign:PackIconKind.Refresh}" ContentTemplate="{StaticResource IconLabel}" />
+                                                <materialDesign:PackIcon Kind="AlertOutline" Foreground="{StaticResource Warning}" Width="16" Height="16" VerticalAlignment="Center" />
+                                                <TextBlock Text="Settings changed since this list was made." FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </Border>
+
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <ItemsControl ItemsSource="{Binding FilePlans}" IsEnabled="{Binding IsIdle}" Focusable="False">
+                                                <ItemsControl.Resources>
+                                                    <DataTemplate DataType="{x:Type vm:FilePlanViewModel}">
+                                                        <app:FilePlanView Margin="0,0,0,12" />
+                                                    </DataTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:FilePlanError}">
+                                                        <DockPanel Margin="4,8,4,12">
+                                                            <materialDesign:PackIcon Kind="FolderAlertOutline" Foreground="{StaticResource Warning}" Width="16" Height="16"
+                                                                                     VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="{Binding Title}" Background="Transparent" />
+                                                            <TextBlock Text="{Binding Message}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                        </DockPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.Resources>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </DockPanel>
+                                </TabItem>
+                            </TabControl>
                         </materialDesign:Card>
 
                         <!-- The log -->

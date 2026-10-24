@@ -45,7 +45,7 @@ public sealed class DeployRunnerTests : IDisposable
         runner.StepChanged += (step, state) => _states[step] = state;
 
         var allValues = new Dictionary<string, string>(values ?? []) { ["Target"] = _target.Path };
-        var outcome = await runner.RunAsync(package, allValues, dryRun, TestContext.Current.CancellationToken);
+        var outcome = await runner.RunAsync(package, allValues, dryRun, null, TestContext.Current.CancellationToken);
         return (outcome, package.Manifest);
     }
 

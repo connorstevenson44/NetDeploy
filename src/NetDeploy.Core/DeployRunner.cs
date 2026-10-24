@@ -13,7 +13,7 @@ public sealed class DeployRunner(IUserInteraction user, IDeployLog log)
     public event Action<DeployStep, StepState>? StepChanged;
 
     public async Task<DeployOutcome> RunAsync(
-        DeployPackage package, IReadOnlyDictionary<string, string> parameters, bool dryRun, CancellationToken cancellationToken)
+        DeployPackage package, IReadOnlyDictionary<string, string> parameters, bool dryRun, DeployOptions? options, CancellationToken cancellationToken)
     {
         var maskingLog = new MaskingLog(log);
         var context = new StepContext(this)
@@ -22,6 +22,7 @@ public sealed class DeployRunner(IUserInteraction user, IDeployLog log)
             DryRun = dryRun,
             Log = maskingLog,
             User = user,
+            Options = options ?? DeployOptions.Default,
         };
 
         context.Variables["PackageDir"] = package.RootPath;
