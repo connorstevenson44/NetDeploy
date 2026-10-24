@@ -111,7 +111,10 @@ public static class ConfigMerger
             return (MergeChoice.TakeIncoming, "Unchanged");
 
         if (options.TakeNew.Any(prefix => IsUnder(path, prefix)))
-            return incoming is null ? (MergeChoice.Remove, "In takeNew") : (MergeChoice.TakeIncoming, "In takeNew");
+        {
+            const string AlwaysNew = "Always taken from the package (takeNew)";
+            return incoming is null ? (MergeChoice.Remove, AlwaysNew) : (MergeChoice.TakeIncoming, AlwaysNew);
+        }
 
         if (baseValues is null)
         {
@@ -120,7 +123,7 @@ public static class ConfigMerger
                 return (MergeChoice.TakeIncoming, "New in the package");
             if (incoming is null)
                 return Removed();
-            return (MergeChoice.KeepCurrent, "Differs; no earlier package to compare with");
+            return (MergeChoice.KeepCurrent, "Different on the server, and no earlier package to compare with");
         }
 
         var original = baseValues.GetValueOrDefault(path);

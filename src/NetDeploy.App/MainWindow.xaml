@@ -64,7 +64,7 @@
                         <materialDesign:PackIcon Kind="ShieldAlertOutline" Foreground="{StaticResource Warning}" Width="22" Height="22"
                                                  VerticalAlignment="Center" Margin="0,0,12,0" />
                         <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{StaticResource Ink}"
-                                   Text="This package needs administrator rights to deploy. A dry run works without them." />
+                                   Text="Deploying needs administrator rights. A dry run doesn't." />
                     </DockPanel>
                 </Border>
 
@@ -78,15 +78,13 @@
                     <!-- Parameters and actions -->
                     <materialDesign:Card Style="{StaticResource Panel}">
                         <DockPanel>
-                            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-                                <TextBlock Text="Parameters" Style="{StaticResource PanelTitle}" />
-                                <TextBlock Text="Used by the steps on the right. You can change them before each run." Style="{StaticResource Caption}" Margin="0,2,0,0" />
-                            </StackPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Settings" Style="{StaticResource PanelTitle}" Margin="0,0,0,16" />
 
                             <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
                                 <UniformGrid Columns="2">
                                     <Button Style="{StaticResource SecondaryButton}" Command="{Binding DryRunCommand}" Margin="0,0,6,0"
-                                            Content="Dry run" Tag="{x:Static materialDesign:PackIconKind.PlayOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                                            Content="Dry run" Tag="{x:Static materialDesign:PackIconKind.PlayOutline}" ContentTemplate="{StaticResource IconLabel}"
+                                            ToolTip="Walk through every step without changing anything" />
                                     <Button Style="{StaticResource PrimaryButton}" Command="{Binding DeployCommand}" Margin="6,0,0,0"
                                             Content="Deploy" Tag="{x:Static materialDesign:PackIconKind.CloudUpload}" ContentTemplate="{StaticResource IconLabel}" />
                                 </UniformGrid>
@@ -119,19 +117,22 @@
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" Focusable="False">
                                     <ListBox.ItemContainerStyle>
                                         <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
-                                            <Setter Property="Padding" Value="12,8" />
+                                            <Setter Property="Padding" Value="10,2" />
                                             <Setter Property="Focusable" Value="False" />
                                             <Setter Property="materialDesign:ListBoxItemAssist.ShowSelection" Value="False" />
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Margin="{Binding Indent}">
+                                            <!-- State icon, step-type icon, title; the condition shows on hover -->
+                                            <Grid Margin="{Binding Indent}" Height="26">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <materialDesign:PackIcon Width="22" Height="22" Margin="0,0,14,0" VerticalAlignment="Top">
+                                                <materialDesign:PackIcon Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
                                                     <materialDesign:PackIcon.Style>
                                                         <Style TargetType="materialDesign:PackIcon">
                                                             <Setter Property="Kind" Value="CircleOutline" />
@@ -157,12 +158,13 @@
                                                         </Style>
                                                     </materialDesign:PackIcon.Style>
                                                 </materialDesign:PackIcon>
-                                                <StackPanel Grid.Column="1">
-                                                    <!-- Runs on one line: whitespace between them would show as a leading space. -->
-                                                    <TextBlock TextWrapping="Wrap" FontSize="13"><Run Text="{Binding Branch, Mode=OneWay}" Foreground="{StaticResource Brand}" FontWeight="SemiBold" /><Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Ink}" /></TextBlock>
-                                                    <TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" Margin="0,2,0,0"
-                                                               Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
-                                                </StackPanel>
+                                                <materialDesign:PackIcon Grid.Column="1" Kind="{Binding Icon}" Width="16" Height="16" Margin="0,0,10,0"
+                                                                         Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" />
+                                                <!-- Runs on one line: whitespace between them would show as a leading space. -->
+                                                <TextBlock Grid.Column="2" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"><Run Text="{Binding Branch, Mode=OneWay}" Foreground="{StaticResource Brand}" FontWeight="SemiBold" /><Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Ink}" /></TextBlock>
+                                                <materialDesign:PackIcon Grid.Column="3" Kind="HelpCircleOutline" Width="16" Height="16" Margin="8,0,0,0"
+                                                                         Foreground="{StaticResource Brand}" VerticalAlignment="Center" Background="Transparent"
+                                                                         ToolTip="{Binding Detail}" Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
                                             </Grid>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
