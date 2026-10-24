@@ -85,9 +85,11 @@
         </Border>
 
         <Grid>
-            <!-- Home: deploy a package, or manage an app that is already installed -->
+            <!-- Home: deploy a package, manage an app that is already installed, or edit a deploy config -->
             <Grid Visibility="{Binding IsHome, Converter={StaticResource BoolToVisibility}}" Margin="24">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="20" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="20" />
                     <ColumnDefinition Width="*" />
@@ -133,7 +135,48 @@
                                 Content="Browse" Tag="{x:Static materialDesign:PackIconKind.FolderSearchOutline}" ContentTemplate="{StaticResource IconLabel}" />
                     </StackPanel>
                 </materialDesign:Card>
+
+                <materialDesign:Card Grid.Column="4" Style="{StaticResource Panel}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="380" Margin="24">
+                        <Border Width="88" Height="88" CornerRadius="44" Background="{StaticResource BrandTint}" HorizontalAlignment="Center">
+                            <materialDesign:PackIcon Kind="FileDocumentEditOutline" Width="44" Height="44" Foreground="{StaticResource Brand}"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="Edit a deploy config" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,20,0,6" />
+                        <TextBlock Text="Build a deploy.json step by step, or change one you have. Drop a .json here to open it." Style="{StaticResource Caption}"
+                                   FontSize="13" TextAlignment="Center" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
+                            <Button Style="{StaticResource PrimaryButton}" Command="{Binding NewConfigCommand}" Margin="0,0,8,0"
+                                    Content="New" Tag="{x:Static materialDesign:PackIconKind.FilePlusOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                            <Button Style="{StaticResource SecondaryButton}" Command="{Binding OpenConfigCommand}"
+                                    Content="Open" Tag="{x:Static materialDesign:PackIconKind.FolderOpenOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                        </StackPanel>
+                        <Button Style="{StaticResource QuietButton}" Command="{Binding ResumeEditingCommand}" HorizontalAlignment="Center" Margin="0,8,0,0"
+                                Content="Back to the config" Tag="{x:Static materialDesign:PackIconKind.ArrowRight}" ContentTemplate="{StaticResource IconLabel}"
+                                Visibility="{Binding HasEditor, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </materialDesign:Card>
             </Grid>
+
+            <!-- Edit: a visual editor for deploy.json -->
+            <DockPanel Visibility="{Binding IsEdit, Converter={StaticResource BoolToVisibility}}" Margin="24,20,24,20">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Command="{Binding TryConfigCommand}"
+                            Content="Save and try it" Tag="{x:Static materialDesign:PackIconKind.PlayCircleOutline}" ContentTemplate="{StaticResource IconLabel}"
+                            ToolTip="Saves the config, then opens its folder as a package so you can do a dry run." />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource SecondaryButton}" Command="{Binding NewConfigCommand}" Margin="0,0,8,0"
+                                Content="New" Tag="{x:Static materialDesign:PackIconKind.FilePlusOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                        <Button Style="{StaticResource SecondaryButton}" Command="{Binding OpenConfigCommand}" Margin="0,0,8,0"
+                                Content="Open" Tag="{x:Static materialDesign:PackIconKind.FolderOpenOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                        <Button Style="{StaticResource SecondaryButton}" Command="{Binding SaveConfigCommand}" Margin="0,0,8,0"
+                                Content="Save" Tag="{x:Static materialDesign:PackIconKind.ContentSaveOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                        <Button Style="{StaticResource QuietButton}" Command="{Binding SaveConfigAsCommand}"
+                                Content="Save as" Tag="{x:Static materialDesign:PackIconKind.ContentSaveEditOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </DockPanel>
+                <app:EditorView x:Name="Editor" DataContext="{Binding Editor}" />
+            </DockPanel>
 
             <DockPanel Visibility="{Binding IsDeploy, Converter={StaticResource BoolToVisibility}}" Margin="24,20,24,20">
                 <!-- Needs administrator rights -->

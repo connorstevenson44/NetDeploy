@@ -45,6 +45,12 @@ OrdersService-2.4.0.zip
 `"$schema": "<path>/deploy.schema.json"` to a manifest to get autocomplete and validation in Visual Studio and VS Code
 from [schema/deploy.schema.json](schema/deploy.schema.json).
 
+To write one without editing JSON by hand, pick **Edit a deploy config** on the home screen (or drop a `.json` onto the
+window). It lists the steps on the left, with the steps of an `if` under its Then and Else, and shows a form for the
+selected one, built from the schema. Problems NetDeploy would report are listed as you type; click one to go to its
+step. **Save and try it** saves the file and opens its folder as a package, ready for a dry run. Settings the form
+doesn't show, such as `$schema`, are saved as they were.
+
 ### Parameters, inputs and placeholders
 
 `parameters` are asked once before the run. Any step can also have `inputs`, asked just before it runs.
