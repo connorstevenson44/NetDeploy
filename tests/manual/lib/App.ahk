@@ -160,38 +160,73 @@ class App {
         }
     }
 
-    ; Wheels the list a control is in until the control's middle is in view, for rows that can't scroll themselves
-    ; into view, such as the folders beside the package.
+    ; Scrolls the list a control is in until all of the control is in view, or its middle when it is taller than the
+    ; list, for rows that can't scroll themselves into view, such as the folders beside the package. Half a row isn't
+    ; enough: the buttons that show when the mouse is over a row sit in its middle.
     static BringIntoView(element) {
-        CoordMode("Mouse", "Screen")
-        Loop 60 {
+        last := "", still := 0
+        Loop 120 {
             try {
-                view := this.VisibleArea(element)
+                view := this.VisibleArea(element, &list)
                 box := element.BoundingRectangle
             } catch
                 return
-            middle := (box.t + box.b) // 2
-            if view.b - view.t < 10 || middle >= view.t && middle <= view.b
+            if view.b - view.t < 10 || this.Fits(box, view)
                 return
-            spot := {l: view.l + 20, t: (view.t + view.b) // 2 - 5, r: view.l + 40, b: (view.t + view.b) // 2 + 5}
-            Runner.KeepClear(spot)
-            MouseMove(spot.l + 10, spot.t + 5, Runner.MouseSpeed)
-            Send(middle > view.b ? "{WheelDown}" : "{WheelUp}")
-            Sleep(120)
+            ; At the list's end, or in something that doesn't scroll
+            still := box.t = last ? still + 1 : 0
+            if still = 3
+                return
+            last := box.t
+            this.ScrollStep(list, box.b > view.b, view)
         }
     }
 
-    ; The part of the screen a control's containers leave room for it to show in.
-    static VisibleArea(element) {
+    static Fits(box, view) {
+        if box.b - box.t > view.b - view.t
+            return (box.t + box.b) // 2 >= view.t && (box.t + box.b) // 2 <= view.b
+        return box.t >= view.t && box.b <= view.b
+    }
+
+    ; The part of the screen a control's containers leave room for it to show in, and the innermost of them that
+    ; scrolls up and down.
+    static VisibleArea(element, &list := "") {
         area := {l: -100000, t: -100000, r: 100000, b: 100000}
+        list := ""
         parent := element
         while (parent := parent.Parent) {
             box := parent.BoundingRectangle
             area := {l: Max(area.l, box.l), t: Max(area.t, box.t), r: Min(area.r, box.r), b: Min(area.b, box.b)}
+            if !list
+                try list := parent.GetPropertyValue(UIA.Property.ScrollVerticallyScrollable) ? parent : ""
             if parent.Type = UIA.Type.Window
                 break
         }
         return area
+    }
+
+    ; Scrolls a list a line, or a page when page is set. Through UI Automation when the list can, so it works whatever
+    ; window has the focus: Windows sends the mouse wheel to the focused window when it isn't set to scroll the one
+    ; under the mouse. Otherwise with the wheel over area, with NetDeploy in front.
+    static ScrollStep(list, down, area, page := false) {
+        if IsObject(list) {
+            if page
+                amount := down ? UIA.ScrollAmount.LargeIncrement : UIA.ScrollAmount.LargeDecrement
+            else
+                amount := down ? UIA.ScrollAmount.SmallIncrement : UIA.ScrollAmount.SmallDecrement
+            try {
+                list.ScrollPattern.Scroll(amount)
+                Sleep(120)
+                return
+            }
+        }
+        spot := {l: area.l + 20, t: (area.t + area.b) // 2 - 5, r: area.l + 40, b: (area.t + area.b) // 2 + 5}
+        Runner.KeepClear(spot)
+        CoordMode("Mouse", "Screen")
+        MouseMove(spot.l + 10, spot.t + 5, Runner.MouseSpeed)
+        WinActivate(this.Hwnd)
+        Send(down ? "{WheelDown}" : "{WheelUp}")
+        Sleep(120)
     }
 
     ; Clicks a control: invokes, toggles or selects it through UI Automation, or with the mouse when it has none of
@@ -520,23 +555,21 @@ class App {
         return this.Find(condition, what)
     }
 
-    ; Scrolls each list in the window with the mouse wheel, up to its top and then down to its end, until something
-    ; that matches condition is built.
+    ; Scrolls each list in the window, up to its top and then down to its end, until something that matches condition
+    ; is built.
     static ScrollTo(condition) {
         if found := this.TryFind(condition)
             return found
-        CoordMode("Mouse", "Screen")
         for list in this.Main().FindElements({Type: "List"}) {
             try box := list.BoundingRectangle
             catch
                 continue
             if box.b - box.t < 120
                 continue
-            spot := {l: box.l + 40, t: (box.t + box.b) // 2 - 20, r: box.l + 80, b: (box.t + box.b) // 2 + 20}
-            Runner.KeepClear(spot)
-            MouseMove(spot.l + 20, spot.t + 20, Runner.MouseSpeed)
-            ; A list is at its end once a few turns of the wheel build no new rows.
-            for wheel in ["WheelUp", "WheelDown"] {
+            scroller := ""
+            try scroller := list.GetPropertyValue(UIA.Property.ScrollVerticallyScrollable) ? list : ""
+            ; A list is at its end once a few steps build no new rows.
+            for down in [false, true] {
                 last := "", still := 0
                 Loop 400 {
                     if found := this.TryFind(condition, list)
@@ -546,8 +579,7 @@ class App {
                     if still = 5
                         break
                     last := shown
-                    Send("{" wheel "}")
-                    Sleep(120)
+                    this.ScrollStep(scroller, down, box, true)
                 }
             }
         }
