@@ -46,11 +46,11 @@
         </DataTemplate>
 
         <!-- A log: click it to open it. After a search of every log, a count of its matches shows, and a log
-             without any fades. -->
+             without any fades. Its height is its two lines', not a button's usual 32. -->
         <DataTemplate DataType="{x:Type vm:AppLogViewModel}">
             <Button x:Name="Row" Command="{Binding DataContext.OpenLogCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                     CommandParameter="{Binding}" ToolTip="{Binding Where}" AutomationProperties.Name="{Binding AutomationName}"
-                    Cursor="Hand" Focusable="False">
+                    Cursor="Hand" Focusable="False" Height="Auto">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Back" Background="Transparent" CornerRadius="4" Margin="6,1" Padding="8,5">
@@ -77,7 +77,7 @@
                     <StackPanel>
                         <TextBlock x:Name="Name" Text="{Binding Name}" FontFamily="{StaticResource Code}" FontSize="12"
                                    Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{StaticResource InkMuted}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="Detail" Text="{Binding Detail}" FontSize="11" Foreground="{StaticResource InkMuted}" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                 </DockPanel>
             </Button>

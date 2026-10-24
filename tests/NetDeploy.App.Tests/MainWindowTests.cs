@@ -442,6 +442,13 @@ public class MainWindowTests
         Assert.True(logs.Open!.IsLive);
         Assert.Equal(5, logs.Logs.Count());
         await SaveScreenshotAsync(window, "15-app-logs");
+        // A log's row once kept a button's usual height, which cut off the line under its name.
+        foreach (var row in Descendants(window).OfType<Button>().Where(button => button.DataContext is AppLogViewModel && button.IsVisible))
+        {
+            var detail = Descendants(row).OfType<TextBlock>().Single(block => block.Name == "Detail");
+            Assert.True(detail.TransformToAncestor(row).TransformBounds(new Rect(detail.RenderSize)).Bottom <= row.ActualHeight + 1,
+                $"The line under {((AppLogViewModel)row.DataContext).Name} is cut off");
+        }
 
         logs.Query = "ORD-2002";
         await logs.Finding;
