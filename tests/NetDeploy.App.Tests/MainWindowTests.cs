@@ -320,7 +320,8 @@ public class MainWindowTests
     /// </summary>
     private static async Task CheckLongTextStaysInViewAsync()
     {
-        var path = Path.Combine(Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "long")).FullName, $"{Path.GetRandomFileName()}.json");
+        // Named like a settings file, so it is read setting by setting and a bad word is an error.
+        var path = Path.Combine(Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "long", Path.GetRandomFileName())).FullName, "appsettings.json");
         var options = string.Concat(Enumerable.Range(1, 30).Select(i => $";Option{i}=value{i}"));
         var more = string.Concat(Enumerable.Range(1, 40).Select(i => $",\n  \"Key{i}\": \"value {i}\""));
         File.WriteAllText(path, $"{{\n  \"Db\": \"Server=sql01{options}\",\n  \"Port\": 25{more}\n}}\n");
