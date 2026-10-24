@@ -256,7 +256,8 @@ UpgradeMain() {
     App.ConfigFile("appsettings.Production.json")
     Runner.Say("This override is only on the server now, so its settings are checked against the new appsettings.json.")
     App.ConfigFile("Contoso.Orders.Export.exe.config")
-    Runner.Say("The export tool keeps the server's BatchSize of 750, and takes the package's new and removed settings.")
+    Runner.Say("BatchSize changed on both sides, 500 to 750 here and to 1000 in the package, so it needs a value. The other settings take the package's.")
+    App.KeepNow("appSettings:BatchSize", "Keep the server's BatchSize of 750")
     App.ContinueStage()
     log := App.LogFile(App.WaitStatus(["Deploy finished."], 300000))
     settings := main "\appsettings.json", export := main "\export\Contoso.Orders.Export.exe.config"

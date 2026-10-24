@@ -509,6 +509,15 @@ class App {
     ; Shows one config file's diff in the config review, by clicking its chip.
     static ConfigFile(name) => this.Click({Type: "Text", Name: name}, "Show " name, "mouse")
 
+    ; Copies a setting's value on the server across to the file after the deploy. Focusing the setting scrolls the
+    ; diff to it.
+    static KeepNow(path, what) {
+        setting := this.FindInList({Type: "Edit", Name: path}, path)
+        try setting.SetFocus()
+        this.Point(setting, path)
+        this.Click(this.FindInRow(setting, {Type: "Button", AutomationId: "KeepNow"}, "the button to keep " path "'s value"), what)
+    }
+
     ; Types a setting's value on the right of a diff. path is the setting's path, such as Orders:Region.
     static SetSetting(path, value, what) => this.Type(this.FindInList({Type: "Edit", Name: path}, path), value, what)
 
