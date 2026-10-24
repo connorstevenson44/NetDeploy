@@ -8,7 +8,8 @@ public class InPlaceWriteTests
     private static readonly IConfigFormat Json = ConfigFormats.For("appsettings.json");
     private static readonly IConfigFormat Xml = ConfigFormats.For("Orders.exe.config");
 
-    private const string Settings = """
+    // The tests' texts use \n whatever line endings the files were checked out with.
+    private static readonly string Settings = """
         {
             // Where orders go
             "ConnectionStrings": { "Orders": "Server=sql01" },
@@ -17,7 +18,7 @@ public class InPlaceWriteTests
                 "Port": 25
             }
         }
-        """;
+        """.ReplaceLineEndings("\n");
 
     private static string Set(IConfigFormat format, string text, string path, string? value) =>
         format.Write(text, [KeyValuePair.Create(path, value)]);
@@ -66,7 +67,7 @@ public class InPlaceWriteTests
         Assert.Equal("\"Server=sql01\"", Settings[spans["ConnectionStrings:Orders"].Start..spans["ConnectionStrings:Orders"].End]);
     }
 
-    private const string Config = """
+    private static readonly string Config = """
         <?xml version="1.0" encoding="utf-8"?>
         <configuration>
           <startup><supportedRuntime version="v4.0"/></startup>
@@ -75,7 +76,7 @@ public class InPlaceWriteTests
             <add key='Region' value='East'/>
           </appSettings>
         </configuration>
-        """;
+        """.ReplaceLineEndings("\n");
 
     [Fact]
     public void An_xml_element_is_swapped_and_the_rest_keeps_its_quotes_and_spacing()

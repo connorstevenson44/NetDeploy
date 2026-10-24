@@ -6,33 +6,35 @@ namespace NetDeploy.App.Tests;
 
 public class ConfigFileViewModelTests
 {
-    private const string Base = """
+    // The texts use \n whatever line endings the files were checked out with.
+    private static readonly string Base = """
         {
           "Db": "local",
           "Timeout": 30,
           "Smtp": { "Host": "localhost", "Port": 25 }
         }
-        """;
+        """.ReplaceLineEndings("\n");
 
-    private const string Server = """
+    private static readonly string Server = """
         {
           "Db": "prod",
           "Timeout": 30,
           "Smtp": { "Host": "localhost", "Port": 25 }
         }
-        """;
+        """.ReplaceLineEndings("\n");
 
-    private const string Package = """
+    private static readonly string Package = """
         {
           "Db": "local",
           "Timeout": 60,
           "Smtp": { "Host": "localhost", "Port": 587 },
           "ApiKey": ""
         }
-        """;
+        """.ReplaceLineEndings("\n");
 
-    private static ConfigFileViewModel Review(string package = Package, Action<MergePlan>? adjust = null, Action? changed = null)
+    private static ConfigFileViewModel Review(string? package = null, Action<MergePlan>? adjust = null, Action? changed = null)
     {
+        package ??= Package;
         var plan = ConfigMerger.Plan(Base, Server, package, ConfigFormats.For("appsettings.json"), new MergeOptions([]));
         adjust?.Invoke(plan);
         return new ConfigFileViewModel(new ConfigFileUpdate(@"C:\App\appsettings.json", ConfigFileKind.Update, plan, package), changed ?? (() => { }));
