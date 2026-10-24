@@ -149,17 +149,6 @@ public sealed partial class FilePlanViewModel : ObservableObject
         Items = BuildItems();
     }
 
-    /// <summary>Carries the user's choices over to a fresh plan of the same step.</summary>
-    public void CopyChoicesFrom(FilePlanViewModel? earlier)
-    {
-        if (earlier is null)
-            return;
-        var chosen = earlier.ChosenActions;
-        foreach (var row in _rows)
-            if (chosen.TryGetValue(row.Path, out var action) && row.Options.Any(option => option.Action == action && option.IsAvailable))
-                row.Action = action;
-    }
-
     private void OnCountsChanged()
     {
         OnPropertyChanged(nameof(NewCount));

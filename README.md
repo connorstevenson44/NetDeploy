@@ -1,8 +1,9 @@
 # NetDeploy
 
 A portable Windows app for deploying, updating and configuring .NET apps. It opens a deploy package
-(a zip holding the app and a `deploy.json` manifest), shows the plan, asks for any values it needs,
-and runs the steps with a live log. Every deploy can back up first, so a failure can be rolled back.
+(a zip holding the app and a `deploy.json` manifest) beside the folder it installs into, shows exactly which files
+and settings will change, and runs the steps with a live log. Every deploy can back up first, so a failure can be
+rolled back.
 
 ## Build and run
 
@@ -25,6 +26,24 @@ CI uploads a `Screenshots` artifact with each window, so a design change can be 
 
 Logs are written to a `logs` folder next to the exe, or to `%LOCALAPPDATA%\NetDeploy\logs` if that folder is read-only.
 
+## The workspace
+
+Everything happens in one window. Open or drop a package, an install folder, or a `deploy.json`.
+
+- **Left:** the package's settings with **Dry run** and **Deploy**, and below them the install folder as a tree of
+  folders. Installs are marked with their version; the one the deploy will update says **Deploy here**. Click an
+  install to deploy to it, or use the **New install** row at the bottom of the tree and type a name, so the installs
+  already there stay in view. Hover an install to clone or remove it.
+- **Right:** tabs for **Files** (every file in the folder picked in the tree: edit a settings file side by side, run
+  a script, or stage a delete, all written together with **Finalize**), **Steps**, **deploy.json** (the visual
+  editor) and **Log**.
+- **Deploy** first shows every file it will add, replace, merge, keep or delete in the right-hand pane, so you can
+  change any of them. **Continue** runs the steps; when the copy step gets to the config files, their review shows in
+  the same pane, then the rest of the deploy runs with its log.
+
+An install folder opened on its own, without a package, works the same way for managing it: edit settings, run tools,
+clone or remove installs.
+
 ## Packages
 
 A package is a zip with `deploy.json` at its root. Paths in steps are relative to the zip unless they are absolute.
@@ -45,11 +64,11 @@ OrdersService-2.4.0.zip
 `"$schema": "<path>/deploy.schema.json"` to a manifest to get autocomplete and validation in Visual Studio and VS Code
 from [schema/deploy.schema.json](schema/deploy.schema.json).
 
-To write one without editing JSON by hand, pick **Edit a deploy config** on the home screen (or drop a `.json` onto the
-window). It lists the steps on the left, with the steps of an `if` under its Then and Else, and shows a form for the
-selected one, built from the schema. Problems NetDeploy would report are listed as you type; click one to go to its
-step. **Save and try it** saves the file and opens its folder as a package, ready for a dry run. Settings the form
-doesn't show, such as `$schema`, are saved as they were.
+To write one without editing JSON by hand, use the **deploy.json** tab: it shows the open package's config, or use
+**New config** or **Open config** (or drop a `.json` onto the window). It lists the steps, with the steps of an `if`
+under its Then and Else, and shows a form for the selected one, built from the schema. Problems NetDeploy would report
+are listed as you type; click one to go to its step. Saving a `deploy.json` opens its folder as the package, ready for
+a dry run. Settings the form doesn't show, such as `$schema`, are saved as they were.
 
 ### Parameters, inputs and placeholders
 
@@ -119,9 +138,10 @@ so their scripts should only read state.
 
 Config files are never copied over the server's copy. `copyFiles` treats every file matching `configs`
 (default `**/appsettings*.json` and `**/*.config`) as config. After the other files are copied, it works out how each
-config file should change and opens the **config review**. The review shows each file the way it will be written,
-with changes marked like a GitHub diff. Nothing is written until you confirm. A dry run shows the same review
-without writing anything.
+config file should change and shows the **config review** in the right-hand pane. Like Visual Studio's diff, each
+file is shown side by side with line numbers: the file now on the left, the file as it will be written on the right,
+with added, removed and changed lines coloured and unchanged lines folded away. Values are edited in place on the
+right. Nothing is written until you continue. A dry run shows the same review without writing anything.
 
 How the tool decides, following how .NET layers configuration:
 

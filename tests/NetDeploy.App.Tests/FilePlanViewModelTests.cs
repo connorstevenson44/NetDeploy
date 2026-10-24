@@ -48,7 +48,7 @@ public class FilePlanViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Only_changed_choices_go_to_the_deploy_and_survive_a_refresh()
+    public void Only_changed_choices_go_to_the_deploy()
     {
         var plan = Plan();
         var old = Row(plan, "old.dll");
@@ -60,9 +60,5 @@ public class FilePlanViewModelTests : IDisposable
         Assert.True(old.IsChosen);
         Assert.Equal((0, 2), (plan.DeleteCount, plan.KeepCount));
         Assert.Equal(new Dictionary<string, FileAction> { ["old.dll"] = FileAction.Keep }, plan.ChosenActions);
-
-        var refreshed = Plan();
-        refreshed.CopyChoicesFrom(plan);
-        Assert.Equal(FileAction.Keep, Row(refreshed, "old.dll").Action);
     }
 }
