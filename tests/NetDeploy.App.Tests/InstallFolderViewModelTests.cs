@@ -218,6 +218,24 @@ public class InstallFolderViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task An_installs_deploys_are_listed_under_it()
+    {
+        var history = new DeployHistory(Path.Combine(_root, "history"));
+        var east = Path.Combine(_root, "east");
+        history.TryAdd(new DeployRecord("Orders", "2.4.0", "east", east, DateTimeOffset.Now.AddDays(-1), @"CONTOSO\dana", DeployResult.Succeeded, false, null));
+        history.TryAdd(new DeployRecord("Orders", "2.5.0", "east", east, DateTimeOffset.Now, @"CONTOSO\dana", DeployResult.Failed, true, null));
+        var folder = new InstallFolderViewModel(_root, null, ["Orders.exe"], history);
+        await folder.Listing;
+        Assert.False(folder.HasHistory);
+
+        await GoIntoAsync(folder, "east");
+
+        Assert.Equal(["2.5.0 failed, rolled back", "2.4.0 deployed"], folder.History.Select(entry => entry.Label));
+        Assert.EndsWith(@"by CONTOSO\dana", folder.History[0].Detail);
+        Assert.False(folder.History[0].HasLog);
+    }
+
+    [Fact]
     public async Task Edits_and_deletes_wait_for_finalize_then_are_made_together()
     {
         var folder = await OpenAsync();

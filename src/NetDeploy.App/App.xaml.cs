@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Threading;
 using NetDeploy.App.Services;
 using NetDeploy.App.ViewModels;
+using NetDeploy.Core;
+using NetDeploy.Core.Cli;
 
 namespace NetDeploy.App;
 
@@ -13,10 +15,16 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (CliOptions.IsCommand(e.Args))
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            _ = RunCommandAsync(e.Args);
+            return;
+        }
         DispatcherUnhandledException += OnUnhandledException;
 
         var user = new WpfUserInteraction();
-        var viewModel = new MainViewModel(user, UserSettings.Load(UserSettings.DefaultPath));
+        var viewModel = new MainViewModel(user, UserSettings.Load(UserSettings.DefaultPath), DeployHistory.Machine);
         user.ReviewConfigs = viewModel.ReviewConfigsInPaneAsync;
         MainWindow = new MainWindow(viewModel);
         MainWindow.Show();
@@ -24,6 +32,34 @@ public partial class App : Application
         // A package path on the command line, used when relaunching as administrator.
         if (e.Args.Length > 0)
             viewModel.Load(e.Args[0]);
+    }
+
+    /// <summary>
+    /// Runs a command such as "deploy" without the window, writing to the console it was started from, and exits
+    /// with its exit code. A bug is reported there too, rather than in a dialog nobody may be there to close. Ctrl+C
+    /// cancels the deploy, which then rolls back, rather than killing it halfway.
+    /// </summary>
+    private async Task RunCommandAsync(string[] args)
+    {
+        ParentConsole.Attach();
+        using var cancel = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cancel.Cancel();
+        };
+        int exitCode;
+        try
+        {
+            exitCode = await Task.Run(() => new CliRunner(Console.Out, DeployHistory.Machine, Elevation.IsAdministrator).RunAsync(args, cancel.Token));
+        }
+        catch (Exception ex)
+        {
+            Console.Out.WriteLine($"NetDeploy hit an unexpected error: {ex}");
+            exitCode = CliRunner.Failed;
+        }
+        Console.Out.Flush();
+        Shutdown(exitCode);
     }
 
     /// <summary>

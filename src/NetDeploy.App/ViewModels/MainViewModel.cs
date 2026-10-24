@@ -25,15 +25,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private readonly IUserInteraction _user;
     private readonly UserSettings _settings;
+    private readonly DeployHistory? _history;
     private DeployPackage? _package;
     private IReadOnlyCollection<string> _appFiles = [];
     private string? _installFolder;
 
     /// <param name="settings">What to remember between runs; without it, nothing outlives the window.</param>
-    public MainViewModel(IUserInteraction user, UserSettings? settings = null)
+    /// <param name="history">Where deploys are recorded and the folder view reads them; without it, they aren't.</param>
+    public MainViewModel(IUserInteraction user, UserSettings? settings = null, DeployHistory? history = null)
     {
         _user = user;
         _settings = settings ?? UserSettings.InMemory();
+        _history = history;
         RefreshRecent();
         Title = "";
         Status = "Open a package, an install folder or a deploy.json, or drop one onto this window.";
@@ -319,7 +322,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void SetFolder(string? path)
     {
         Folder?.Dispose();
-        Folder = path is null ? null : new InstallFolderViewModel(path, Install, _appFiles);
+        Folder = path is null ? null : new InstallFolderViewModel(path, Install, _appFiles, _history);
         OnPropertyChanged(nameof(FolderNote));
         // The Files tab hides without a folder; don't leave it showing.
         if (Folder is null && SelectedTab == FilesTab)
