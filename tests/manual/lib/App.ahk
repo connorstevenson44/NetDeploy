@@ -427,8 +427,10 @@ class App {
 
     ; A file's name in the Files tab or the files review, by its path from the folder, which is the name's tooltip.
     ; The lists only build the rows in view, so it scrolls them until the file shows.
-    static FileName(path) {
-        condition := {Type: "Text", HelpText: path}
+    static FileName(path) => this.FindInList({Type: "Text", HelpText: path}, path " in the file list")
+
+    ; Waits for a row of a long list, such as a file or a setting, scrolling the lists to build it.
+    static FindInList(condition, what) {
         end := A_TickCount + 20000 * Runner.TimeoutScale
         while A_TickCount < end {
             Runner.Gate()
@@ -436,7 +438,7 @@ class App {
                 return found
             Sleep(500)
         }
-        return this.Find(condition, path " in the file list")
+        return this.Find(condition, what)
     }
 
     ; Scrolls each list in the window with the mouse wheel, up to its top and then down to its end, until something
@@ -508,7 +510,7 @@ class App {
     static ConfigFile(name) => this.Click({Type: "Text", Name: name}, "Show " name, "mouse")
 
     ; Types a setting's value on the right of a diff. path is the setting's path, such as Orders:Region.
-    static SetSetting(path, value, what) => this.Type({Type: "Edit", Name: path}, value, what)
+    static SetSetting(path, value, what) => this.Type(this.FindInList({Type: "Edit", Name: path}, path), value, what)
 
     ; ===== Diagnostics =====
 
