@@ -14,11 +14,11 @@ class Cases {
         {Name: "Dry run a new install", Run: DryRun, Needs: "Case 1",
             Covers: "Naming a new install, Dry run, the files and config reviews in a dry run, nothing written"},
         {Name: "Add the first install (main)", Run: AddMain, Needs: "Case 2",
-            Covers: "Add: service, scheduled task, SQLite database, settings script, if/else on Staging"},
+            Covers: "Add: service, scheduled task, SQLite database, settings script, if/else on Staging, the service's dot in the folder list"},
         {Name: "Add a second install (blue) for Production", Run: AddBlue, Needs: "Case 3",
             Covers: "A choice parameter, a second install beside the first, the Production branch"},
         {Name: "Change settings on the server in the Files tab", Run: EditOnServer, Needs: "Case 3",
-            Covers: "Going into an install, editing appsettings.json and an .exe.config side by side, staging and unstaging a delete, Finalize"},
+            Covers: "Going into an install, folding a folder and filtering the files, editing appsettings.json side by side and as text, an .exe.config, staging and unstaging a delete, Finalize"},
         {Name: "Cancel an upgrade at the config check, then roll back", Run: CancelAndRollBack, Needs: "Case 4",
             Covers: "A secret parameter, the files review of an upgrade, a when question, Cancel during a deploy, Roll back"},
         {Name: "Upgrade main to 1.1.0", Run: UpgradeMain, Needs: "Case 5",
@@ -109,6 +109,8 @@ AddMain() {
     Runner.Say("This time the values on the right could be changed before they are written.")
     App.ContinueStage()
     log := App.LogFile(App.WaitStatus(["Deploy finished."], 300000))
+    App.GoToRoot()
+    App.Hover({Type: "Text", Name: "Contoso.Orders-main: running", mm: 2}, "The green dot beside main says its service is running")
     Runner.Checkpoint("main is installed and running", [
         Check.Service("Contoso.Orders-main", "Running"),
         Check.Task("\Contoso\Orders Export-main"),
@@ -119,7 +121,7 @@ AddMain() {
         Check.Logged(log, "Not production (Staging)"),
         Check.Logged(log, "Check passed."),
     ], [
-        "The folder list shows main with v1.0.0.",
+        "The folder list shows main with v1.0.0 and a green dot, whose tooltip says its service is running.",
         "Services: Contoso Orders main is running, starting Automatic (Delayed Start).",
         "Task Scheduler: \Contoso\Orders Export-main runs daily at 02:00 as SYSTEM.",
         "The database is in C:\ProgramData\Contoso.Orders\db-main, outside the install folder, at schema 1 with 4 orders.",
@@ -168,29 +170,39 @@ AddBlue() {
 
 EditOnServer() {
     main := OrdersDir "\main"
+    alerts := '"Alerts": { "Emails": [ "ops@contoso.local", "oncall@contoso.local" ] },'
     App.GoToRoot()
     App.GoInto(main)
     Runner.Say("Going into main makes it the deploy's target, so the button now says Update, and lists its files on the right.")
     App.Tab("Files")
+    App.ToggleFolder("templates", "Fold the templates folder, as in File Explorer")
+    App.ToggleFolder("templates", "And open it again")
     App.EditSettings("appsettings.json")
     App.SetSetting("Orders:Region", "west", "Change Orders:Region to west, as someone might on the server")
+    App.EditAsText((text) => RegExReplace(text, "^\s*\{", "{`r`n  " alerts, , 1),
+        "Add an Alerts section with a list of emails, which the lines can't add, by editing the file as text")
+    App.FindInList({Type: "Edit", Name: "Alerts:Emails"}, "the new Alerts:Emails setting in the diff")
+    Runner.Say("The diff shows the new Alerts section the text added, beside Region's change.")
+    App.FilterFiles("config", "Filter the files to the ones with config in their path")
     App.EditSettings("export/Contoso.Orders.Export.exe.config")
     App.SetSetting("appSettings:BatchSize", "750", "Change the export's BatchSize to 750")
-    App.Find({Type: "Text", Name: "2 settings changed"}, "the bar saying 2 settings changed")
+    App.FilterFiles("", "Clear the filter")
+    App.Find({Type: "Text", Name: "3 settings changed"}, "the bar saying 3 settings changed")
     App.FileButton("README.txt", "Delete when finalized", "Stage README.txt to be deleted")
-    App.Find({Type: "Text", Name: "2 settings changed, 1 file to delete"}, "the bar saying a file will be deleted")
+    App.Find({Type: "Text", Name: "3 settings changed, 1 file to delete"}, "the bar saying a file will be deleted")
     App.FileButton("README.txt", "Keep this file", "Change your mind and keep README.txt")
     App.ClickButton("Finalize")
-    App.Answer("Finalize", "Yes", "Write the two changes", "changed setting(s)")
+    App.Answer("Finalize", "Yes", "Write the changes", "changed setting(s)")
     App.WaitStatus(["Changes written."])
     Runner.Checkpoint("The server's settings changed", [
         Check.Json(main "\appsettings.json", "Orders:Region", "west"),
+        Check.Json(main "\appsettings.json", "Alerts:Emails", "ops@contoso.local oncall@contoso.local"),
         Check.AppSetting(main "\export\Contoso.Orders.Export.exe.config", "BatchSize", "750"),
         Check.Exists(main "\README.txt"),
     ], [
         "The Finalize message listed exactly the two settings files.",
         "README.txt is still in the list, not struck through.",
-        "appsettings.json kept its layout: only the Region line changed.",
+        "appsettings.json has the Alerts section as it was typed, and Region west.",
     ], [
         Tool.File(main "\appsettings.json"),
         Tool.File(main "\export\Contoso.Orders.Export.exe.config", "Open the export's config"),

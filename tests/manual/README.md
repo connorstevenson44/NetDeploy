@@ -2,9 +2,11 @@
 
 An [AutoHotkey v2](https://www.autohotkey.com/) script that runs NetDeploy's manual test on your computer at a pace
 you can watch. It moves the mouse to each control, outlines it in orange and says what it is doing in a panel beside
-the app. At each checkpoint it stops, checks what it can by itself (services, scheduled tasks, files, settings, the
-database, the log), and lists what to look at by hand, with buttons that open it: the install folder, the services,
-the tasks, the database, a settings file. Press **Continue** when you're happy.
+the app. Nothing needs you to type or click while it runs. At each checkpoint it checks what it can by itself
+(services, scheduled tasks, files, settings, the database, the log) and lists what to look at by hand, with buttons that
+open it: the install folder, the services, the tasks, the database, a settings file. It shows them for a few seconds
+and carries on; press **F8** to hold it there and look closer, or tick **Stop at each checkpoint** in the launcher to
+have it wait every time.
 
 It installs real services and scheduled tasks, so run it on a test machine or one where you don't mind
 `C:\Apps\Contoso.Orders`, `C:\Apps\Fabrikam.Reports` and `C:\ProgramData\Contoso.Orders` coming and going.
@@ -17,11 +19,12 @@ It installs real services and scheduled tasks, so run it on a test machine or on
 3. Check where NetDeploy.exe and the test packages are. It looks next to the script first (the bundle), then where a
    build of this repository puts them (`artifacts\portable\NetDeploy.exe` and `testpackages\dist`). **Build them**
    runs both builds if they are missing.
-4. Pick the cases and the speed, then **Start**. Leave the mouse and keyboard alone while it runs, or pause first.
+4. Pick the cases and the speed, then **Start**. Starting from case 1 cleans up anything an earlier run left first.
+   Leave the mouse and keyboard alone while it runs, or pause first.
 
 | Key | What it does |
 | --- | --- |
-| **F8** | Pause, or continue from a pause or a checkpoint |
+| **F8** | Pause (or hold at a checkpoint), and continue |
 | **F12** | Stop the run (asks first) |
 
 **Note a problem…** saves what you type, with a screenshot, against the case that is running. If the runner can't
@@ -40,9 +43,9 @@ ones leave (the launcher's Needs column).
 | --- | --- | --- |
 | 1 | Open a package | The package's settings, Steps and deploy.json tabs |
 | 2 | Dry run a new install | Nothing was created |
-| 3 | Add the first install (main) | Service running, task, database, settings, log |
+| 3 | Add the first install (main) | Service running (and its green dot in the folder list), task, database, settings, log |
 | 4 | Add a second install (blue) for Production | Both services, Production branch, separate databases |
-| 5 | Change settings on the server in the Files tab | Region and BatchSize written, README kept |
+| 5 | Change settings on the server in the Files tab | Region, an Alerts section added as text, and BatchSize written, README kept |
 | 6 | Cancel an upgrade at the config check, then roll back | blue back on 1.0.0 and running |
 | 7 | Upgrade main to 1.1.0 | The three-way merge, rename, override check, heartbeat on 1.1.0, database schema 2 |
 | 8 | Rename blue to green | green running, blue's service, task, database and folder gone |

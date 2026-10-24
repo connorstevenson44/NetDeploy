@@ -32,11 +32,9 @@ class App {
         WinActivate(this.Hwnd)
     }
 
+    ; Closes any NetDeploy that is open, so the tests start it fresh.
     static CloseAll() {
         while WinExist("ahk_exe NetDeploy.exe") {
-            if !Runner.Unattended && A_Index = 1
-                && MsgBox("NetDeploy is open. Close it so the tests can start it fresh?", "NetDeploy tests", "OKCancel Icon? 0x40000") != "OK"
-                throw StopRun("NetDeploy was left open.")
             ProcessClose("NetDeploy.exe")
             ProcessWaitClose("NetDeploy.exe", 10)
         }
@@ -527,6 +525,24 @@ class App {
     }
 
     static EditSettings(path) => this.FileButton(path, "Edit settings", "Edit the settings in " path)
+
+    ; Types into the filter box over the file list; "" clears it.
+    static FilterFiles(text, what) => this.Type({Type: "Edit", Name: "Filter files"}, text, what)
+
+    ; Folds or opens a folder in the file list, by its path from the folder being listed, which is the row's tooltip.
+    static ToggleFolder(path, what) => this.Click(this.FindInList({Type: "Button", HelpText: path}, "the " path " folder in the file list"), what)
+
+    ; Edits the open settings file as text: change(text) returns the new text, which is put in the box in one go, then
+    ; Show changes goes back to the diff of what it changes.
+    static EditAsText(change, what) {
+        this.ClickButton("Edit as text")
+        box := this.Find({Type: "Edit", Name: "The file after the change"}, "the settings file's text")
+        Runner.Step(what)
+        this.Point(box, what)
+        box.Value := change(box.Value)
+        Runner.Wait(Runner.Pace)
+        this.ClickButton("Show changes", "Show what the text changes")
+    }
 
     ; ===== The deploy's reviews =====
 

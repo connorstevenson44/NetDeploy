@@ -149,8 +149,8 @@ class Launcher {
         ui.SetFont("s14 c004B87 bold", "Segoe UI")
         ui.Add("Text", "w720", "NetDeploy manual tests")
         ui.SetFont("s9 c5B6B7C norm")
-        ui.Add("Text", "w720 y+4", "Runs the manual test on this computer at a pace you can follow. It stops at each checkpoint so you can look "
-            . "at the files, services, tasks and databases. F8 pauses and continues, F12 stops.")
+        ui.Add("Text", "w720 y+4", "Runs the manual test on this computer at a pace you can follow, with nothing for you to type or click. "
+            . "At each checkpoint it shows what it checked for a few seconds, then carries on. F8 pauses and continues, F12 stops.")
 
         ui.SetFont("s9 c1A2633 bold")
         ui.Add("Text", "w720 y+14", "NetDeploy.exe")
@@ -184,8 +184,9 @@ class Launcher {
         ui.Add("Text", "xm w50 h26 y+12 0x200", "Speed")
         this.Speed := ui.Add("DropDownList", "x+4 yp w120", ["Slow", "Modest", "Fast"])
         this.Speed.Choose(Settings.Speed)
+        this.StopAt := ui.Add("CheckBox", "x+20 yp+4 w170", "Stop at each checkpoint")
         ui.SetFont("s10 bold")
-        start := ui.Add("Button", "x+300 yp-4 w120 h34 Default", "Start")
+        start := ui.Add("Button", "x+110 yp-8 w120 h34 Default", "Start")
         start.OnEvent("Click", (*) => Launcher.Start())
         ui.SetFont("s9 norm")
         ui.Add("Button", "x+8 yp w110 h34", "Close").OnEvent("Click", (*) => ExitApp())
@@ -206,7 +207,7 @@ class Launcher {
 
         leftovers := Machine.Leftovers()
         this.MachineNote.Text := leftovers.Length
-            ? "Left from an earlier run: " Join(leftovers, ", ") ". The first case needs a clean computer."
+            ? "Left from an earlier run: " Join(leftovers, ", ") ". Starting from case 1 cleans it up first."
             : "Clean: none of the test packages' services, tasks or folders are here."
         this.CleanButton.Visible := leftovers.Length > 0
     }
@@ -254,18 +255,16 @@ class Launcher {
             return MsgBox("Tick at least one case.", "NetDeploy tests")
         if !FileExist(Settings.Exe) || Settings.MissingPackages().Length
             return MsgBox("NetDeploy.exe or a test package is missing. Use Browse, or Build them.", "NetDeploy tests", "Icon!")
-        if picked[1] = Cases.All[1] && Machine.Leftovers().Length {
-            answer := MsgBox("Things from an earlier run are still on this computer, and the first case expects a clean one. Clean up first?",
-                "NetDeploy tests", "YesNoCancel Icon?")
-            if answer = "Cancel"
-                return
-            if answer = "Yes"
-                App.CloseAll(), Machine.Reset()
-        }
         speed := this.Speed.Text
+        Runner.StopAtCheckpoints := this.StopAt.Value
         this.Ui.Destroy()
         Runner.Init(false, speed, Settings.Results)
         Runner.Log("START", "NetDeploy " Settings.Exe ", packages " Settings.Packages)
+        ; The first case expects a clean computer, so anything an earlier run left is removed first, as CI does.
+        if picked[1] = Cases.All[1] && (leftovers := Machine.Leftovers()).Length {
+            Runner.Step("Clean up what an earlier run left: " Join(leftovers, ", "))
+            App.CloseAll(), Machine.Reset()
+        }
         Runner.RunCases(picked)
         ExitApp()
     }

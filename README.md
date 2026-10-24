@@ -35,10 +35,14 @@ Everything happens in one window. Open or drop a package, an install folder, or 
   and **Up** to come back. Going into an install makes it the deploy's target, and the **Deploy** button says what it
   will do (**Add**, **Update** or **Rename**). For a new install, use the **New install** row at the
   bottom of the install folder and type a name, so the installs already there stay in view. Hover an install to clone
-  or remove it.
-- **Right:** tabs for **Files** (every file in the folder you are in: edit a settings file side by side, run
-  a script, or stage a delete, all written together with **Finalize**), **Steps**, **deploy.json** (the visual
-  editor) and **Log**.
+  or remove it. The dot beside an install says whether its Windows services are running (green), stopped (red) or in
+  between (amber); hover it for each service. A question mark means no service runs from that install.
+- **Right:** tabs for **Files** (every file in the folder you are in, as a tree whose folders fold, with a filter box:
+  edit a settings file side by side, run a script, or stage a delete, all written together with **Finalize**),
+  **Steps**, **deploy.json** (the visual editor) and **Log**.
+- **Settings files** show as a side-by-side diff. Drag the bars between the panes to resize them; each side of the diff
+  scrolls sideways on its own when its lines are long. Values are edited in place, or use **Edit as text** to edit the
+  whole file, for arrays, new sections or anything else; **Show changes** then shows what the text changes.
 - **Deploy** first shows every file it will add, replace, merge, keep or delete in the right-hand pane, so you can
   change any of them. **Continue** runs the steps; when the copy step gets to the config files, their review shows in
   the same pane, then the rest of the deploy runs with its log.

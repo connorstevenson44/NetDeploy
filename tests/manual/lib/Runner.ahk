@@ -10,6 +10,7 @@ class StopRun extends Error {
 
 class Runner {
     static Unattended := false
+    static StopAtCheckpoints := false  ; true waits at each checkpoint until the person continues
     static Pace := 1100          ; ms spent on each action, so it can be followed
     static MouseSpeed := 15      ; 0 is instant, 100 the slowest
     static KeyDelay := 60        ; ms between typed keys
@@ -230,8 +231,9 @@ class Runner {
 
     ; ===== Checkpoints =====
 
-    ; Runs the automatic checks, lists what to look at by hand, and in an attended run waits until the person continues.
-    ; checks are made with Check.*, tools (buttons that open what to inspect) with Tool.*.
+    ; Runs the automatic checks and lists what to look at by hand. In an attended run it then shows them for a few
+    ; seconds and carries on by itself: F8 holds the run there to look closer. With StopAtCheckpoints it waits until
+    ; the person continues. checks are made with Check.*, tools (buttons that open what to inspect) with Tool.*.
     static Checkpoint(title, checks := [], look := [], tools := []) {
         this.Step("Checkpoint: " title)
         this.CheckTitle.Text := "CHECKPOINT: " StrUpper(title)
@@ -253,6 +255,12 @@ class Runner {
         if this.Unattended
             return
 
+        if !this.StopAtCheckpoints {
+            this.SetState("Checkpoint: carrying on by itself. F8 holds it here", "2E7D32")
+            this.Wait(Max(this.Pace * 5, 4000))
+            this.SetState("Running", "004B87")
+            return
+        }
         this.Waiting := "checkpoint"
         this.SetState("Your turn: check the list, then press F8 or Continue", "2E7D32")
         this.MainButton.Text := "Continue  (F8)"
