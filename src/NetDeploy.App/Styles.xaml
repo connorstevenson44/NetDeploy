@@ -103,6 +103,7 @@
         <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Standard" />
         <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
         <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Setter Property="app:ListAutomation.RefreshRows" Value="True" />
         <Setter Property="ItemsPanel">
             <Setter.Value>
                 <ItemsPanelTemplate>
