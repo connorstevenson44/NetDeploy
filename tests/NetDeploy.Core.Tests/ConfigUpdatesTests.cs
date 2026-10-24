@@ -109,5 +109,25 @@ public class ConfigUpdatesTests
         Assert.All(updates, update => Assert.Equal(ConfigFileKind.Update, update.Kind));
     }
 
+    [Fact]
+    public void An_opened_file_is_only_rewritten_when_a_setting_changes()
+    {
+        using var folder = new TempFolder();
+        var path = folder.File("appsettings.json", """{ "Db": "prod",   "Timeout": 30 }""");
+
+        var unchanged = ConfigUpdates.Open(path);
+        ConfigUpdates.Write([unchanged]);
+        Assert.Equal("""{ "Db": "prod",   "Timeout": 30 }""", File.ReadAllText(path));
+
+        var edited = ConfigUpdates.Open(path);
+        var db = Row(edited.Plan, "Db");
+        db.EditedValue = "\"staging\"";
+        db.Choice = MergeChoice.Edit;
+        ConfigUpdates.Write([edited]);
+
+        Assert.Equal("""{"Db":"staging","Timeout":30}""", Compact(File.ReadAllText(path)));
+        Assert.False(Directory.Exists(Path.Combine(folder.Path, ConfigUpdates.StateFolder)));
+    }
+
     private static string Compact(string json) => System.Text.Json.Nodes.JsonNode.Parse(json)!.ToJsonString();
 }

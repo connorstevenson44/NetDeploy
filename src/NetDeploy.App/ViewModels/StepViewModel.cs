@@ -1,5 +1,6 @@
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
+using MaterialDesignThemes.Wpf;
 using NetDeploy.Core;
 using NetDeploy.Core.Steps;
 
@@ -11,7 +12,7 @@ public sealed partial class StepViewModel : ObservableObject
     private StepViewModel(DeployStep step, int depth, string branch)
     {
         Step = step;
-        Indent = new Thickness(depth * 20, 3, 0, 3);
+        Indent = new Thickness(depth * 20, 0, 0, 0);
         Branch = branch;
         Title = step.Title;
         Detail = "";
@@ -20,12 +21,27 @@ public sealed partial class StepViewModel : ObservableObject
     public DeployStep Step { get; }
     public Thickness Indent { get; }
 
+    /// <summary>What kind of step this is, at a glance.</summary>
+    public PackIconKind Icon => Step switch
+    {
+        CheckPrerequisiteStep => PackIconKind.ClipboardCheckOutline,
+        ServiceStep => PackIconKind.CogOutline,
+        BackupStep => PackIconKind.ArchiveOutline,
+        CopyFilesStep => PackIconKind.ContentCopy,
+        RunExeStep => PackIconKind.Play,
+        PowerShellStep => PackIconKind.Console,
+        ScheduledTaskStep => PackIconKind.CalendarClock,
+        IfStep => PackIconKind.SourceBranch,
+        _ => PackIconKind.CircleSmall,
+    };
+
     /// <summary>"Then" or "Else" for steps inside an if, otherwise empty.</summary>
     public string Branch { get; }
 
     [ObservableProperty]
     public partial string Title { get; set; }
 
+    /// <summary>The step's condition, shown on hover.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDetail))]
     public partial string Detail { get; set; }
@@ -39,7 +55,7 @@ public sealed partial class StepViewModel : ObservableObject
     public void Refresh(IReadOnlyDictionary<string, string> values)
     {
         Title = Placeholders.Resolve(Step.Title, values);
-        Detail = Step.When is { } when ? "When " + Placeholders.Resolve(when.Describe(), values) : "";
+        Detail = Step.When is { } when ? "Only when " + Placeholders.Resolve(when.Describe(), values) : "";
     }
 
     public static IEnumerable<StepViewModel> Flatten(IEnumerable<DeployStep> steps, int depth = 0, string branch = "")

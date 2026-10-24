@@ -3,6 +3,7 @@
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
                     xmlns:converters="clr-namespace:MaterialDesignThemes.Wpf.Converters;assembly=MaterialDesignThemes.Wpf"
                     xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
+                    xmlns:app="clr-namespace:NetDeploy.App"
                     xmlns:core="clr-namespace:NetDeploy.Core;assembly=NetDeploy.Core">
     <ResourceDictionary.MergedDictionaries>
         <!-- Material Design styles every control; Pantone 301 is the primary colour. -->
@@ -27,6 +28,8 @@
 
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
     <converters:BooleanToVisibilityConverter x:Key="InverseBoolToVisibility" TrueValue="Collapsed" FalseValue="Visible" />
+    <app:CountToVisibilityConverter x:Key="ZeroToVisible" ShowWhenZero="True" />
+    <app:CountToVisibilityConverter x:Key="NonZeroToVisible" />
 
     <!-- Thin scroll bars without arrow buttons. -->
     <Style TargetType="ScrollBar" BasedOn="{StaticResource MaterialDesignScrollBarMinimal}" />

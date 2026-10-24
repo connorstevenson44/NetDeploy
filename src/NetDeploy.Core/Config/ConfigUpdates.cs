@@ -12,6 +12,9 @@ public enum ConfigFileKind
 
     /// <summary>A server-only override, such as appsettings.Production.json, checked against the new appsettings.json.</summary>
     Override,
+
+    /// <summary>A file on the server opened for editing, outside any deploy.</summary>
+    Edit,
 }
 
 /// <summary>A config file the deploy will write, with the merge to review.</summary>
@@ -60,12 +63,21 @@ public static partial class ConfigUpdates
         return updates;
     }
 
+    /// <summary>Opens a config file on the server for editing. Every setting starts as it is.</summary>
+    public static ConfigFileUpdate Open(string path)
+    {
+        var text = File.ReadAllText(path);
+        var plan = ConfigMerger.Plan(null, text, text, ConfigFormats.For(path), new MergeOptions([]));
+        return new ConfigFileUpdate(path, ConfigFileKind.Edit, plan, null);
+    }
+
     /// <summary>Writes each file and remembers the package's copy as the base for the next merge.</summary>
     public static void Write(IEnumerable<ConfigFileUpdate> updates)
     {
         foreach (var update in updates)
         {
-            if (update.Kind == ConfigFileKind.Override)
+            // Files already on the server are only rewritten when something in them changes.
+            if (update.Kind is ConfigFileKind.Override or ConfigFileKind.Edit)
             {
                 if (update.Plan.ChangesStartFile)
                     File.WriteAllText(update.TargetPath, update.Plan.BuildResult());
@@ -129,14 +141,14 @@ public static partial class ConfigUpdates
 
             if (newBase.Keys.Any(key => key.StartsWith(path + ":", StringComparison.OrdinalIgnoreCase)))
             {
-                rows.Add(new MergeRow(path, null, value, null, null, "appsettings.json now has a section here, so this value no longer fits"));
+                rows.Add(new MergeRow(path, null, value, null, null, "appsettings.json now has a section here, so the app likely no longer reads this value"));
                 continue;
             }
 
             if (oldBase?.ContainsKey(path) != true)
             {
                 rows.Add(new MergeRow(path, null, value, null, MergeChoice.KeepCurrent,
-                    "Not in appsettings.json. Keep it only if the app reads it"));
+                    "Not in appsettings.json; keep it only if the app reads it"));
                 continue;
             }
 

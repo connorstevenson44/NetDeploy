@@ -3,193 +3,126 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
+        xmlns:config="clr-namespace:NetDeploy.Core.Config;assembly=NetDeploy.Core"
+        xmlns:app="clr-namespace:NetDeploy.App"
         Style="{StaticResource AppWindow}"
-        Title="Review config changes" Height="780" Width="1280" MinWidth="900" MinHeight="480"
+        Title="Config files" Height="780" Width="1280" MinWidth="900" MinHeight="480"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
-    <Window.Resources>
-        <!-- GitHub's diff colours, so changes read the way they do in a pull request. -->
-        <SolidColorBrush x:Key="AddedLine" Color="#E6FFEC" />
-        <SolidColorBrush x:Key="AddedGutter" Color="#CCFFD8" />
-        <SolidColorBrush x:Key="RemovedLine" Color="#FFEBE9" />
-        <SolidColorBrush x:Key="RemovedGutter" Color="#FFD7D5" />
-        <SolidColorBrush x:Key="ConflictLine" Color="#FFF8C5" />
-        <SolidColorBrush x:Key="ConflictGutter" Color="#F2E28C" />
-        <SolidColorBrush x:Key="ControlsLine" Color="#F6F8FA" />
-
-        <DataTemplate x:Key="DiffLineTemplate" DataType="{x:Type vm:DiffLine}">
-            <Border x:Name="Line" Background="{StaticResource Surface}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="32" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Border x:Name="Gutter">
-                        <TextBlock x:Name="Marker" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   FontFamily="Cascadia Mono, Consolas" FontWeight="Bold" Foreground="{StaticResource InkMuted}" />
-                    </Border>
-
-                    <!-- A line of the file -->
-                    <DockPanel x:Name="Code" Grid.Column="1" Margin="12,3,12,3">
-                        <Border x:Name="Badge" DockPanel.Dock="Right" CornerRadius="10" Padding="8,1" Margin="12,0,0,0"
-                                Background="{StaticResource BrandTint}" VerticalAlignment="Center" Visibility="Collapsed">
-                            <TextBlock Text="{Binding Label}" FontSize="11" Foreground="{StaticResource Brand}" />
-                        </Border>
-                        <TextBlock x:Name="CodeText" Text="{Binding Text}" Margin="{Binding IndentMargin}" TextWrapping="Wrap"
-                                   FontFamily="Cascadia Mono, Consolas" FontSize="13" Foreground="{StaticResource Ink}" />
-                    </DockPanel>
-
-                    <!-- Why the setting changed, and the choices for it -->
-                    <StackPanel x:Name="Controls" Grid.Column="1" Margin="12,4,12,10" Visibility="Collapsed">
-                        <WrapPanel Margin="{Binding IndentMargin}">
-                            <TextBlock Text="{Binding Text}" Foreground="{StaticResource InkMuted}" FontSize="12"
-                                       VerticalAlignment="Center" Margin="0,0,14,0" />
-                            <ListBox Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineListBox}"
-                                     ItemsSource="{Binding Row.Choices}" DisplayMemberPath="Label" SelectedValuePath="Value"
-                                     SelectedValue="{Binding Row.Choice}"
-                                     IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=Window}}" />
-                        </WrapPanel>
-                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" materialDesign:HintAssist.Hint="Value for this server"
-                                 Text="{Binding Row.EditText}" FontFamily="Cascadia Mono, Consolas" MaxWidth="640" HorizontalAlignment="Left"
-                                 MinWidth="360" Margin="{Binding IndentMargin}"
-                                 Visibility="{Binding Row.IsEditing, Converter={StaticResource BoolToVisibility}}" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-            <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding Kind}" Value="Section">
-                    <Setter TargetName="CodeText" Property="Foreground" Value="{StaticResource InkMuted}" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="Note">
-                    <Setter TargetName="CodeText" Property="FontFamily" Value="{x:Static SystemFonts.MessageFontFamily}" />
-                    <Setter TargetName="CodeText" Property="Foreground" Value="{StaticResource InkMuted}" />
-                    <Setter TargetName="Code" Property="Margin" Value="12,16" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="Added">
-                    <Setter TargetName="Line" Property="Background" Value="{StaticResource AddedLine}" />
-                    <Setter TargetName="Gutter" Property="Background" Value="{StaticResource AddedGutter}" />
-                    <Setter TargetName="Marker" Property="Text" Value="+" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="Removed">
-                    <Setter TargetName="Line" Property="Background" Value="{StaticResource RemovedLine}" />
-                    <Setter TargetName="Gutter" Property="Background" Value="{StaticResource RemovedGutter}" />
-                    <Setter TargetName="Marker" Property="Text" Value="−" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="Kept">
-                    <Setter TargetName="Line" Property="Background" Value="{StaticResource BrandTint}" />
-                    <Setter TargetName="Marker" Property="Text" Value="=" />
-                    <Setter TargetName="Marker" Property="Foreground" Value="{StaticResource Brand}" />
-                    <Setter TargetName="Badge" Property="Visibility" Value="Visible" />
-                    <Setter TargetName="Badge" Property="Background" Value="{StaticResource Surface}" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="Conflict">
-                    <Setter TargetName="Line" Property="Background" Value="{StaticResource ConflictLine}" />
-                    <Setter TargetName="Gutter" Property="Background" Value="{StaticResource ConflictGutter}" />
-                    <Setter TargetName="Marker" Property="Text" Value="?" />
-                    <Setter TargetName="Badge" Property="Visibility" Value="Visible" />
-                    <Setter TargetName="Badge" Property="Background" Value="{StaticResource Surface}" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="Controls">
-                    <Setter TargetName="Line" Property="Background" Value="{StaticResource ControlsLine}" />
-                    <Setter TargetName="Code" Property="Visibility" Value="Collapsed" />
-                    <Setter TargetName="Controls" Property="Visibility" Value="Visible" />
-                </DataTrigger>
-            </DataTemplate.Triggers>
-        </DataTemplate>
-    </Window.Resources>
-
     <DockPanel>
-        <Border DockPanel.Dock="Top" Background="{StaticResource Brand}" Padding="24,16">
+        <Border DockPanel.Dock="Top" Background="{StaticResource Brand}" Padding="24,14">
             <DockPanel>
-                <materialDesign:PackIcon Kind="SourceMerge" Foreground="White" Width="30" Height="30" VerticalAlignment="Center" Margin="0,0,16,0" />
-                <StackPanel>
-                    <TextBlock Text="REVIEW CONFIG CHANGES" Foreground="White" Opacity="0.75" FontSize="11" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding Title}" Foreground="White" FontSize="18" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding Summary}" Foreground="White" Opacity="0.85" TextWrapping="Wrap" />
+                <materialDesign:PackIcon Kind="FileCogOutline" Foreground="White" Width="26" Height="26" VerticalAlignment="Center" Margin="0,0,14,0" />
+                <!-- Counts for the whole review -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" TextElement.Foreground="White">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,18,0" ToolTip="Settings that need you before the files can be written"
+                                Visibility="{Binding ConflictCount, Converter={StaticResource NonZeroToVisible}}">
+                        <materialDesign:PackIcon Kind="AlertCircle" Foreground="#FFD54F" Width="18" Height="18" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ConflictCount}" FontSize="15" FontWeight="SemiBold" Margin="6,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" ToolTip="Settings that change">
+                        <materialDesign:PackIcon Kind="SyncCircle" Width="18" Height="18" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ChangeCount}" FontSize="15" FontWeight="SemiBold" Margin="6,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="CHECK CONFIG" Foreground="White" Opacity="0.75" FontSize="11" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Title}" Foreground="White" FontSize="17" FontWeight="SemiBold" />
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="24,12">
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="24,10">
             <DockPanel>
-                <CheckBox Content="Show unchanged settings" IsChecked="{Binding ShowUnchanged}" VerticalAlignment="Center" />
+                <ToggleButton Style="{StaticResource MaterialDesignFlatToggleButton}" IsChecked="{Binding ShowUnchanged}" Width="36" Height="36"
+                              ToolTip="Show unchanged settings">
+                    <materialDesign:PackIcon Kind="EyeOutline" Width="20" Height="20" />
+                </ToggleButton>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Style="{StaticResource QuietButton}" Content="Cancel deploy" IsCancel="True" Margin="0,0,8,0" />
                     <Button Style="{StaticResource PrimaryButton}" Content="{Binding ApplyText}" IsDefault="True" IsEnabled="{Binding CanApply}"
-                            Click="OnApply" Tag="{x:Static materialDesign:PackIconKind.ContentSaveCheck}" ContentTemplate="{StaticResource IconLabel}" />
+                            Click="OnApply" Tag="{x:Static materialDesign:PackIconKind.ContentSaveCheck}" ContentTemplate="{StaticResource IconLabel}"
+                            ToolTip="Every setting marked with a yellow icon needs a value first" ToolTipService.ShowOnDisabled="True" />
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <Border DockPanel.Dock="Top" Background="{StaticResource WarningTint}" CornerRadius="8" Padding="14,8" Margin="24,16,24,0"
+        <Border DockPanel.Dock="Top" Background="{StaticResource WarningTint}" CornerRadius="8" Padding="14,8" Margin="24,14,24,0"
                 Visibility="{Binding IsReadOnly, Converter={StaticResource BoolToVisibility}}">
-            <TextBlock Text="Dry run: this shows how the files would be merged. Nothing will be written." Foreground="{StaticResource Warning}" />
+            <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="EyeOutline" Foreground="{StaticResource Warning}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock Text="Dry run: nothing will be written." Foreground="{StaticResource Warning}" VerticalAlignment="Center" />
+            </StackPanel>
         </Border>
 
-        <Grid Margin="24,16,24,20">
+        <Grid Margin="24,14,24,18">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="300" />
-                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="250" />
+                <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <!-- The files -->
             <materialDesign:Card Style="{StaticResource Panel}" Padding="0">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Files" Style="{StaticResource PanelTitle}" Margin="20,18,20,8" />
-                    <ListBox ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" Padding="8,0,8,8"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
-                                <Setter Property="Padding" Value="12,10" />
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate DataType="{x:Type vm:MergeFileViewModel}">
-                                <DockPanel>
-                                    <materialDesign:PackIcon DockPanel.Dock="Left" Kind="FileCogOutline" Width="22" Height="22"
-                                                             Foreground="{StaticResource Brand}" Margin="0,0,12,0" VerticalAlignment="Top" />
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Text="{Binding KindText}" Style="{StaticResource Caption}" Margin="0,1,0,4" />
-                                        <Border x:Name="Status" CornerRadius="10" Padding="8,1" HorizontalAlignment="Left" Background="{StaticResource BrandTint}">
-                                            <TextBlock x:Name="StatusText" Text="{Binding StatusText}" FontSize="11" Foreground="{StaticResource Brand}" />
-                                        </Border>
+                <ListBox ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" Padding="6"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
+                            <Setter Property="Padding" Value="10,8" />
+                            <Setter Property="ToolTip" Value="{Binding Folder}" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ConfigFileViewModel}">
+                            <DockPanel>
+                                <materialDesign:PackIcon x:Name="KindIcon" DockPanel.Dock="Left" Kind="FileSyncOutline" Width="20" Height="20"
+                                                         Foreground="{StaticResource Brand}" Margin="0,0,10,0" VerticalAlignment="Center"
+                                                         Background="Transparent" ToolTip="{Binding KindTip}" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Margin="8,0,0,0" ToolTip="Need you"
+                                                Visibility="{Binding HasConflicts, Converter={StaticResource BoolToVisibility}}">
+                                        <materialDesign:PackIcon Kind="AlertCircle" Foreground="{StaticResource Warning}" Width="14" Height="14" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding ConflictCount}" FontSize="11" Foreground="{StaticResource Warning}" Margin="3,0,0,0" />
                                     </StackPanel>
-                                </DockPanel>
-                                <DataTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding HasConflicts}" Value="True">
-                                        <Setter TargetName="StatusText" Property="Foreground" Value="{StaticResource Danger}" />
-                                        <Setter TargetName="Status" Property="Background" Value="{StaticResource DangerTint}" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding StatusText}" Value="No changes">
-                                        <Setter TargetName="StatusText" Property="Foreground" Value="{StaticResource InkMuted}" />
-                                        <Setter TargetName="Status" Property="Background" Value="{StaticResource Canvas}" />
-                                    </DataTrigger>
-                                </DataTemplate.Triggers>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </DockPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="8,0,0,0" ToolTip="Changes"
+                                                Visibility="{Binding HasChanges, Converter={StaticResource BoolToVisibility}}">
+                                        <materialDesign:PackIcon Kind="SyncCircle" Foreground="{StaticResource Brand}" Width="14" Height="14" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding ChangeCount}" FontSize="11" Foreground="{StaticResource Brand}" Margin="3,0,0,0" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding Kind}" Value="{x:Static config:ConfigFileKind.New}">
+                                    <Setter TargetName="KindIcon" Property="Kind" Value="FilePlusOutline" />
+                                    <Setter TargetName="KindIcon" Property="Foreground" Value="{StaticResource Success}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Kind}" Value="{x:Static config:ConfigFileKind.Override}">
+                                    <Setter TargetName="KindIcon" Property="Kind" Value="LayersOutline" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </materialDesign:Card>
 
-            <!-- The selected file, as it will be written -->
+            <!-- The selected file, side by side -->
             <materialDesign:Card Grid.Column="2" Style="{StaticResource Panel}" Padding="0" DataContext="{Binding SelectedFile}">
                 <DockPanel>
-                    <DockPanel DockPanel.Dock="Top" Margin="20,16,16,12">
+                    <DockPanel DockPanel.Dock="Top" Margin="16,12,12,0">
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
-                                    IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=Window}}">
-                            <Button Style="{StaticResource QuietButton}" Command="{Binding KeepAllServerCommand}" Content="Keep all server values" />
-                            <Button Style="{StaticResource QuietButton}" Command="{Binding UseAllPackageCommand}" Content="Use all package values" />
+                                    Visibility="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
+                            <Button Style="{StaticResource MaterialDesignIconButton}" Command="{Binding KeepAllNowCommand}" Width="34" Height="34"
+                                    ToolTip="Keep every value that is there now">
+                                <materialDesign:PackIcon Kind="ChevronDoubleRight" Width="18" Height="18" />
+                            </Button>
+                            <Button Style="{StaticResource MaterialDesignIconButton}" Command="{Binding ResetAllCommand}" Width="34" Height="34"
+                                    ToolTip="Use every package value">
+                                <materialDesign:PackIcon Kind="Undo" Width="18" Height="18" />
+                            </Button>
                         </StackPanel>
-                        <StackPanel>
-                            <TextBlock Text="{Binding FileName}" Style="{StaticResource PanelTitle}" />
-                            <TextBlock Text="{Binding Folder}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-                        </StackPanel>
+                        <TextBlock Text="{Binding FileName}" Style="{StaticResource PanelTitle}" VerticalAlignment="Center" ToolTip="{Binding Folder}" />
                     </DockPanel>
-                    <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" />
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding Lines}" ItemTemplate="{StaticResource DiffLineTemplate}" Focusable="False" Margin="0,8,0,8" />
-                    </ScrollViewer>
+                    <app:ConfigFileView IsReadOnly="{Binding DataContext.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}" />
                 </DockPanel>
             </materialDesign:Card>
         </Grid>
