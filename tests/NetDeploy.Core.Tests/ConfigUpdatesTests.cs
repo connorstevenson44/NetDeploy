@@ -79,6 +79,60 @@ public class ConfigUpdatesTests
     }
 
     [Fact]
+    public void Every_setting_in_a_new_file_is_added()
+    {
+        using var package = new TempFolder();
+        using var target = new TempFolder();
+        package.File("appsettings.json", """{ "Db": "local", "Smtp": { "Port": 25 } }""");
+
+        var update = ConfigUpdates.Plan(package.Path, target.Path, ["appsettings.json"], new MergeOptions([])).Single();
+
+        Assert.Equal(ConfigFileKind.New, update.Kind);
+        Assert.All(update.Plan.Rows, row => Assert.Null(row.Current));
+        Assert.All(update.Plan.Rows, row => Assert.True(row.IsChanged));
+        Assert.False(update.Plan.ChangesStartFile);
+    }
+
+    [Fact]
+    public void Variables_in_the_package_are_filled_from_the_deploy_settings_or_their_default()
+    {
+        using var package = new TempFolder();
+        using var target = new TempFolder();
+        package.File("appsettings.json", """{ "Db": "{{DbConnection|Server=localhost}}", "Region": "{{Region|East}}", "Key": "{{ApiKey}}" }""");
+        package.File("Orders.exe.config", """<configuration><appSettings><add key="Db" value="{{DbConnection}}" /></appSettings></configuration>""");
+
+        var updates = ConfigUpdates.Plan(package.Path, target.Path, ["appsettings.json", "Orders.exe.config"], new MergeOptions([]),
+            new Dictionary<string, string> { ["DbConnection"] = "Server=sql01" });
+        var json = updates[0].Plan;
+
+        // The default stands in for the value before, so the review shows the change to the deploy's value.
+        Assert.Equal("\"Server=localhost\"", Row(json, "Db").Current);
+        Assert.Equal("\"Server=sql01\"", Row(json, "Db").Result);
+        Assert.Equal("Filled from the deploy setting DbConnection", Row(json, "Db").Reason);
+        Assert.Equal("\"East\"", Row(json, "Region").Result);
+        Assert.Null(Row(json, "Key").Choice);
+        Assert.Contains("Server=sql01", Row(updates[1].Plan, "appSettings:Db").Result);
+
+        Row(json, "Key").Choice = MergeChoice.Remove;
+        Assert.Equal("""{"Db":"Server=sql01","Region":"East"}""", Compact(json.BuildResult()));
+    }
+
+    [Fact]
+    public void A_server_value_wins_over_a_variable_the_package_already_had()
+    {
+        using var package = new TempFolder();
+        using var target = new TempFolder();
+        package.File("appsettings.json", """{ "Db": "{{DbConnection|Server=localhost}}" }""");
+        target.File("appsettings.json", """{ "Db": "Server=prod" }""");
+        target.File(".deploy/base/appsettings.json", """{ "Db": "{{DbConnection|Server=localhost}}" }""");
+
+        var update = ConfigUpdates.Plan(package.Path, target.Path, ["appsettings.json"], new MergeOptions([]),
+            new Dictionary<string, string> { ["DbConnection"] = "Server=sql01" }).Single();
+
+        Assert.Equal(MergeChoice.KeepCurrent, Row(update.Plan, "Db").Choice);
+    }
+
+    [Fact]
     public void A_placeholder_set_by_an_override_needs_nothing()
     {
         using var package = new TempFolder();

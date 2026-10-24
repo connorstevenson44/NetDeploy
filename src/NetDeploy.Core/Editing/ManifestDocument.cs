@@ -53,6 +53,16 @@ public sealed partial class ManifestDocument(JsonObject root)
 
     public string ToJson() => Root.ToJsonString(WriteOptions) + Environment.NewLine;
 
+    /// <summary>The NetDeploy that last saved the file, or null for one written by hand.</summary>
+    public string? SavedWith => Root["netdeployVersion"] is JsonValue version && version.TryGetValue(out string? text) ? text : null;
+
+    /// <summary>Records this NetDeploy as the one that saved the file, next to schemaVersion.</summary>
+    public void StampVersion()
+    {
+        Root.Remove("netdeployVersion");
+        Root.Insert(Root.IndexOf("schemaVersion") + 1, "netdeployVersion", ManifestLoader.NetDeployVersion);
+    }
+
     /// <summary>What would stop NetDeploy from reading this config, each with the step it is about when there is one.</summary>
     public IReadOnlyList<ManifestProblem> Problems()
     {
@@ -139,6 +149,19 @@ public sealed partial class ManifestDocument(JsonObject root)
         {
             // A step still being written may not read as a step yet, or describe itself; its type is enough then.
             return ManifestSchema.For(TypeOf(step))?.Label ?? "Unknown step";
+        }
+    }
+
+    /// <summary>What removing the install undoes for a step without being told, or nothing while it doesn't read yet.</summary>
+    public static IReadOnlyList<string> AutomaticCleanupOf(JsonObject step)
+    {
+        try
+        {
+            return step.Deserialize<DeployStep>(ManifestLoader.Options)!.AutomaticCleanup().ToList();
+        }
+        catch (Exception)
+        {
+            return [];
         }
     }
 

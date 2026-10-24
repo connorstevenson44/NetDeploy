@@ -78,6 +78,15 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
         _ => PackIconKind.PlusCircleOutline,
     };
 
+    /// <summary>The deploy button's word for the plan; the summary says the rest.</summary>
+    public string DeployLabel => Plan switch
+    {
+        InstallPlan.Update => "Update",
+        InstallPlan.Rename => "Rename",
+        InstallPlan.Convert => "Convert",
+        _ => "Add",
+    };
+
     /// <summary>One sentence on exactly what the deploy will do to the installs.</summary>
     public string Summary
     {
@@ -187,6 +196,7 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
     {
         OnPropertyChanged(nameof(Plan));
         OnPropertyChanged(nameof(PlanIcon));
+        OnPropertyChanged(nameof(DeployLabel));
         OnPropertyChanged(nameof(Summary));
         OnPropertyChanged(nameof(Problem));
         OnPropertyChanged(nameof(CanCopy));

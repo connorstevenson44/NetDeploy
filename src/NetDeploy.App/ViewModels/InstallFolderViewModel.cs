@@ -115,10 +115,6 @@ public sealed partial class FolderNodeViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
-    /// <summary>True when the deploy will update this install.</summary>
-    [ObservableProperty]
-    public partial bool IsTarget { get; set; }
-
     partial void OnIsExpandedChanged(bool value)
     {
         if (value)
@@ -380,7 +376,6 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         {
             _reloading = false;
         }
-        MarkTarget();
         NotifyPendingChanged();
     }
 
@@ -508,18 +503,20 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
             .ToList();
     }
 
+    // The tree's pick follows a target chosen elsewhere, such as the new row after Clone.
     private void OnTargetChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(InstallViewModel.Selected) or nameof(InstallViewModel.Name))
-            MarkTarget();
-    }
-
-    /// <summary>Marks the install the deploy will update. A rename or a new install marks none: their folder isn't there yet.</summary>
-    private void MarkTarget()
-    {
-        var target = _target?.Plan is InstallPlan.Update ? _target.Selected?.Install?.Directory : null;
-        foreach (var node in Tree.SelectMany(root => root.Loaded()))
-            node.IsTarget = target is not null && node.FullPath.Equals(Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase);
+        if (e.PropertyName != nameof(InstallViewModel.Selected) || _reloading || _target?.Selected is not { } choice)
+            return;
+        if (choice.Install is not { } install)
+        {
+            if (_newInstall is not null)
+                _newInstall.IsSelected = true;
+            return;
+        }
+        var node = Tree.SelectMany(root => root.Loaded()).FirstOrDefault(node => node.Target?.Install?.Directory == install.Directory);
+        if (node is not null)
+            node.IsSelected = true;
     }
 
     private void OnEdited(string path)

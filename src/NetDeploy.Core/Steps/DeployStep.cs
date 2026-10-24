@@ -31,11 +31,8 @@ public abstract class DeployStep
 
     public bool ContinueOnError { get; init; }
 
-    /// <summary>
-    /// Steps that undo this one when the install is removed. Replaces the built-in undo (see DefaultCleanup);
-    /// an empty list means nothing to undo.
-    /// </summary>
-    public List<DeployStep>? Cleanup { get; init; }
+    /// <summary>What removing the install runs for this step besides, or instead of, the built-in undo (see DefaultCleanup).</summary>
+    public Steps.StepCleanup? Cleanup { get; init; }
 
     [JsonIgnore]
     public string Title => Name ?? Describe();
@@ -49,8 +46,19 @@ public abstract class DeployStep
     /// <summary>The undo for what this step creates, such as removing a service it installed.</summary>
     protected internal virtual IEnumerable<DeployStep> DefaultCleanup() => [];
 
-    /// <summary>The steps that undo this one: its own cleanup when it has one, otherwise the built-in undo.</summary>
-    public IEnumerable<DeployStep> CleanupSteps() => Cleanup ?? DefaultCleanup();
+    /// <summary>
+    /// The steps that undo this one: the built-in undo, then the cleanup PowerShell. Cleanup written as steps
+    /// replaces the built-in undo.
+    /// </summary>
+    public IEnumerable<DeployStep> CleanupSteps() => Cleanup switch
+    {
+        { Steps: { } steps } => steps,
+        { PowerShell: { } script } => DefaultCleanup().Append(new Steps.PowerShellStep { Name = $"Clean up after: {Title}", Script = script }),
+        _ => DefaultCleanup(),
+    };
+
+    /// <summary>What removing the install undoes for this step without being told, such as removing a service it installed.</summary>
+    public IEnumerable<string> AutomaticCleanup() => DefaultCleanup().Select(step => step.Explain());
 
     /// <summary>
     /// A copy with {Name} placeholders filled in. It works on the step's JSON, so every option is covered without each
@@ -72,7 +80,7 @@ public abstract class DeployStep
     {
         var conditionErrors = When?.Validate() ?? [];
         var inputErrors = (Inputs ?? []).SelectMany(input => input.Value.Validate(input.Key));
-        var cleanupErrors = ManifestLoader.ValidateSteps(Cleanup ?? [], "cleanup");
+        var cleanupErrors = ManifestLoader.ValidateSteps(Cleanup?.Steps ?? [], "cleanup");
         return conditionErrors.Concat(inputErrors).Concat(ValidateOptions()).Concat(cleanupErrors);
     }
 

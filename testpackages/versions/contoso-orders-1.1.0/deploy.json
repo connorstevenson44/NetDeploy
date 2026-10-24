@@ -47,9 +47,7 @@
       "path": "{InstanceDir}\\Contoso.Orders.exe",
       "args": "migrate --db \"{DataDir}\\db{InstanceSuffix}\\orders.db\" --seed",
       "timeoutMinutes": 5,
-      "cleanup": [
-        { "type": "deleteFolder", "name": "Delete the database", "path": "{DataDir}\\db{InstanceSuffix}" }
-      ]
+      "cleanup": "Remove-Item -LiteralPath '{DataDir}\\db{InstanceSuffix}' -Recurse -Force -ErrorAction SilentlyContinue"
     },
     {
       "type": "scheduledTask",

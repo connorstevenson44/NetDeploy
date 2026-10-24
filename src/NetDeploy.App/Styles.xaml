@@ -54,11 +54,13 @@
     </Style>
 
     <!-- A long list that only builds the rows on screen. Every list of files, settings or log lines uses it, so a
-         folder with thousands of files scrolls as smoothly as one with ten. -->
+         folder with thousands of files scrolls as smoothly as one with ten. The lists mix row types (folder headings
+         and files, sections and settings), so rows are not recycled: a recycled row briefly binds its old template to
+         an item of another type, and a command typed for files then throws on a folder heading. -->
     <Style x:Key="VirtualList" TargetType="ItemsControl">
         <Setter Property="Focusable" Value="False" />
         <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
-        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Standard" />
         <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
         <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
         <Setter Property="ItemsPanel">
@@ -153,35 +155,47 @@
         </StackPanel>
     </DataTemplate>
 
+    <!-- Outlined inputs, tighter than Material's default (16 all round) so forms fit without scrolling. Every text box,
+         password box and drop-down in the app uses one of these. -->
+    <Style x:Key="InputBox" TargetType="TextBox" BasedOn="{StaticResource MaterialDesignOutlinedTextBox}">
+        <Setter Property="Padding" Value="10,8" />
+    </Style>
+    <Style x:Key="InputPassword" TargetType="PasswordBox" BasedOn="{StaticResource MaterialDesignOutlinedRevealPasswordBox}">
+        <Setter Property="Padding" Value="10,8" />
+    </Style>
+    <Style x:Key="InputChoice" TargetType="ComboBox" BasedOn="{StaticResource MaterialDesignOutlinedComboBox}">
+        <Setter Property="Padding" Value="10,8" />
+    </Style>
+
     <!-- Input editors, one per InputType. The form below picks one with the field's Type. -->
     <DataTemplate x:Key="TextInput">
-        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" materialDesign:HintAssist.Hint="{Binding Label}"
+        <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Label}"
                  Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
     </DataTemplate>
     <DataTemplate x:Key="SecretInput">
-        <PasswordBox Style="{StaticResource MaterialDesignOutlinedRevealPasswordBox}" materialDesign:HintAssist.Hint="{Binding Label}"
+        <PasswordBox Style="{StaticResource InputPassword}" materialDesign:HintAssist.Hint="{Binding Label}"
                      materialDesign:PasswordBoxAssist.Password="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
     </DataTemplate>
     <DataTemplate x:Key="YesNoInput">
-        <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" Margin="2,4,0,4" />
+        <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" Margin="2,2,0,2" />
     </DataTemplate>
     <DataTemplate x:Key="ChoiceInput">
-        <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}" materialDesign:HintAssist.Hint="{Binding Label}"
+        <ComboBox Style="{StaticResource InputChoice}" materialDesign:HintAssist.Hint="{Binding Label}"
                   ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" />
     </DataTemplate>
     <DataTemplate x:Key="PathInput">
         <Grid>
-            <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" materialDesign:HintAssist.Hint="{Binding Label}"
-                     Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Padding="16,16,44,16" />
+            <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Label}"
+                     Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Padding="10,8,40,8" />
             <Button Style="{StaticResource MaterialDesignIconButton}" Command="{Binding BrowseCommand}" ToolTip="Browse"
-                    HorizontalAlignment="Right" VerticalAlignment="Center" Width="36" Height="36" Margin="0,0,4,0">
-                <materialDesign:PackIcon Kind="FolderOpen" Width="20" Height="20" />
+                    HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="30" Margin="0,0,4,0">
+                <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" />
             </Button>
         </Grid>
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type vm:InputFieldViewModel}">
-        <ContentControl Content="{Binding}" Focusable="False" Margin="0,0,0,14">
+        <ContentControl Content="{Binding}" Focusable="False" Margin="0,0,0,10">
             <ContentControl.Style>
                 <Style TargetType="ContentControl">
                     <Setter Property="ContentTemplate" Value="{StaticResource TextInput}" />

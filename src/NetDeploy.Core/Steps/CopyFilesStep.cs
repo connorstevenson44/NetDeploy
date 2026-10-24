@@ -138,7 +138,7 @@ public sealed class CopyFilesStep : DeployStep
 
     private async Task MergeConfigsAsync(StepContext context, string source, string target, List<string> configFiles, CancellationToken cancellationToken)
     {
-        var updates = ConfigUpdates.Plan(source, target, configFiles, new MergeOptions(TakeNew));
+        var updates = ConfigUpdates.Plan(source, target, configFiles, new MergeOptions(TakeNew), context.Variables);
         foreach (var update in updates)
             context.Log.Info($"{update.FileName}: {update.Plan.Summary}");
 

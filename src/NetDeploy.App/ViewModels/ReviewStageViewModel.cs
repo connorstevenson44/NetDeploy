@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NetDeploy.Core.Config;
 
 namespace NetDeploy.App.ViewModels;
 
@@ -107,9 +108,14 @@ public sealed partial class ConfigStageViewModel : ReviewStageViewModel
     public MergeViewModel Review { get; }
     public override string Title => "Check the config";
 
-    public override string Description => IsDryRun
-        ? "Dry run: this is how the config files would be merged. Nothing is written."
-        : "Each file is the server's copy merged with the package's. Change any value on the right, then write the files.";
+    // A first install has nothing to merge with, so it doesn't talk about merging.
+    public override string Description => (IsDryRun, Review.Files.All(file => file.Kind == ConfigFileKind.New)) switch
+    {
+        (true, true) => "Dry run: these config files are new on this server and would be written like this. Nothing is written.",
+        (true, false) => "Dry run: this is how the config files would be merged. Nothing is written.",
+        (false, true) => "These config files are new on this server. Check the values on the right, then write the files.",
+        _ => "Each file is the server's copy merged with the package's. Change any value on the right, then write the files.",
+    };
 
     public override string ContinueText => IsDryRun ? "Continue the dry run" : "Write files and continue";
     public override bool CanContinue => Review.CanApply;

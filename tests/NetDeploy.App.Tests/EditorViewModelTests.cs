@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json.Nodes;
 using NetDeploy.App.ViewModels;
+using NetDeploy.Core;
 using NetDeploy.Core.Editing;
 
 namespace NetDeploy.App.Tests;
@@ -59,6 +60,44 @@ public sealed class EditorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void A_check_shows_only_the_settings_for_its_kind()
+    {
+        var editor = OpenSample();
+        editor.Selected = Row(editor, ".NET 10 runtime");
+        var check = Field<GroupFieldViewModel>(editor, "check");
+        EditorFieldViewModel Child(string name) => check.Fields.Single(field => field.Field.Name == name);
+        var kind = (ValueFieldViewModel)Child("kind");
+
+        Assert.Contains(kind.Options, option => option is { Value: "fileExists", Label: "File exists" });
+        Assert.True(Child("framework").IsShown);
+        Assert.False(Child("path").IsShown);
+
+        kind.Text = "fileExists";
+
+        Assert.False(Child("framework").IsShown);
+        Assert.True(Child("path").IsShown);
+        var saved = JsonNode.Parse(editor.Json)!["steps"]![0]!["check"]!;
+        Assert.Equal("""{"kind":"fileExists"}""", saved.ToJsonString());
+    }
+
+    [Fact]
+    public void Cleanup_shows_what_is_undone_by_itself_and_takes_powershell()
+    {
+        var editor = OpenSample();
+        editor.Selected = Row(editor, "Install service OrdersService{InstanceSuffix}");
+        var cleanup = Field<CleanupFieldViewModel>(editor, "cleanup");
+        Assert.Contains("sc.exe delete OrdersService{InstanceSuffix}", cleanup.Automatic);
+
+        cleanup.Script = "Remove-Item 'D:\\Data\\{Instance}' -Recurse";
+        Field<ValueFieldViewModel>(editor, "action").Text = "start";
+
+        var step = JsonNode.Parse(editor.Json)!["steps"]!.AsArray().Single(step => (string?)step!["action"] == "start" && step["binary"] is not null)!;
+        Assert.Equal(@"Remove-Item 'D:\Data\{Instance}' -Recurse", (string?)step["cleanup"]);
+        Assert.Equal("Nothing is undone by itself for this step.", cleanup.Automatic);
+        Assert.False(editor.HasProblems);
+    }
+
+    [Fact]
     public void Steps_are_added_after_the_selection_or_into_a_branch_and_can_be_moved_and_deleted()
     {
         var editor = OpenSample();
@@ -111,7 +150,8 @@ public sealed class EditorViewModelTests : IDisposable
 
         var expected = JsonNode.Parse(File.ReadAllText(SampleConfig))!;
         expected["app"]!["version"] = "2.5.0";
-        Assert.True(JsonNode.DeepEquals(expected, JsonNode.Parse(File.ReadAllText(path))));
+        expected.AsObject().Insert(2, "netdeployVersion", ManifestLoader.NetDeployVersion);
+        Assert.Equal(expected.ToJsonString(), JsonNode.Parse(File.ReadAllText(path))!.ToJsonString());
         Assert.Equal(path, editor.FilePath);
         Assert.False(editor.IsDirty);
     }

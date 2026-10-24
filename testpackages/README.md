@@ -11,7 +11,7 @@ A self-contained .NET 10 Windows service that can be installed several times sid
 
 | Area | What it exercises |
 | --- | --- |
-| Database | `Contoso.Orders.exe migrate --db <file> --seed` creates a SQLite database outside the install folder. 1.1 adds a table and a column. Removing the install deletes it through a `cleanup` step. |
+| Database | `Contoso.Orders.exe migrate --db <file> --seed` creates a SQLite database outside the install folder. 1.1 adds a table and a column. Removing the install deletes it with `cleanup` PowerShell (1.1), or with cleanup steps, the older form (1.0). |
 | appsettings.json | 1.1 renames `Smtp:Server` to `Smtp:Host`, removes `LegacyMode`, adds `Payments` and `Features`, changes `BatchSize`, and takes the new `Logging` (`takeNew`). |
 | appsettings.Production.json | In 1.0 only, so after the upgrade it is a config file that only the server has. |
 | .exe.config | `export\Contoso.Orders.Export.exe` is a .NET Framework 4.8 tool. 1.1 changes and removes appSettings and adds a connection string. |

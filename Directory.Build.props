@@ -4,5 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>latest</LangVersion>
+    <!-- Saved into each deploy.json the editor writes, so a file from another version can be spotted. -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
 </Project>

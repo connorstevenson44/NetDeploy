@@ -15,6 +15,10 @@
     "schemaVersion": {
       "const": 1
     },
+    "netdeployVersion": {
+      "type": "string",
+      "description": "The NetDeploy whose editor last saved this file. NetDeploy warns when it opens a file saved by another version."
+    },
     "app": {
       "type": "object",
       "required": [
@@ -297,7 +301,7 @@
         },
         "minVersion": {
           "type": "string",
-          "description": "Lowest acceptable version. For dotnetRuntime, the same major version is required."
+          "description": "dotnetRuntime, installedProgram: the lowest acceptable version. For a runtime, the same major version is also required."
         },
         "name": {
           "type": "string",
@@ -387,11 +391,11 @@
           "description": "Carry on with the next step if this one fails."
         },
         "cleanup": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/step"
-          },
-          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+          "description": "PowerShell run when the install is removed, after the step's built-in undo. The older form, a list of steps, replaces the built-in undo; [] means nothing to undo.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/step" } }
+          ]
         }
       }
     },
@@ -458,11 +462,11 @@
           "description": "Carry on with the next step if this one fails."
         },
         "cleanup": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/step"
-          },
-          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+          "description": "PowerShell run when the install is removed, after the step's built-in undo. The older form, a list of steps, replaces the built-in undo; [] means nothing to undo.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/step" } }
+          ]
         }
       }
     },
@@ -518,11 +522,11 @@
           "description": "Carry on with the next step if this one fails."
         },
         "cleanup": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/step"
-          },
-          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+          "description": "PowerShell run when the install is removed, after the step's built-in undo. The older form, a list of steps, replaces the built-in undo; [] means nothing to undo.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/step" } }
+          ]
         }
       }
     },
@@ -573,11 +577,11 @@
           "description": "Carry on with the next step if this one fails."
         },
         "cleanup": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/step"
-          },
-          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+          "description": "PowerShell run when the install is removed, after the step's built-in undo. The older form, a list of steps, replaces the built-in undo; [] means nothing to undo.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/step" } }
+          ]
         }
       }
     },
@@ -619,11 +623,11 @@
           "description": "Carry on with the next step if this one fails."
         },
         "cleanup": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/step"
-          },
-          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+          "description": "PowerShell run when the install is removed, after the step's built-in undo. The older form, a list of steps, replaces the built-in undo; [] means nothing to undo.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/step" } }
+          ]
         }
       }
     },
@@ -697,11 +701,11 @@
           "description": "Carry on with the next step if this one fails."
         },
         "cleanup": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/step"
-          },
-          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+          "description": "PowerShell run when the install is removed, after the step's built-in undo. The older form, a list of steps, replaces the built-in undo; [] means nothing to undo.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/step" } }
+          ]
         }
       }
     },
@@ -769,11 +773,11 @@
           "description": "Carry on with the next step if this one fails."
         },
         "cleanup": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/step"
-          },
-          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+          "description": "PowerShell run when the install is removed, after the step's built-in undo. The older form, a list of steps, replaces the built-in undo; [] means nothing to undo.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/step" } }
+          ]
         }
       }
     },
@@ -821,11 +825,11 @@
           "description": "Carry on with the next step if this one fails."
         },
         "cleanup": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/step"
-          },
-          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+          "description": "PowerShell run when the install is removed, after the step's built-in undo. The older form, a list of steps, replaces the built-in undo; [] means nothing to undo.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/step" } }
+          ]
         }
       }
     },
@@ -868,11 +872,11 @@
           "description": "Carry on with the next step if this one fails."
         },
         "cleanup": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/step"
-          },
-          "description": "Steps that undo this one when the install is removed, replacing the built-in undo. [] means nothing to undo."
+          "description": "PowerShell run when the install is removed, after the step's built-in undo. The older form, a list of steps, replaces the built-in undo; [] means nothing to undo.",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "$ref": "#/definitions/step" } }
+          ]
         }
       }
     }

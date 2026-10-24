@@ -70,6 +70,10 @@ under its Then and Else, and shows a form for the selected one, built from the s
 are listed as you type; click one to go to its step. Saving a `deploy.json` opens its folder as the package, ready for
 a dry run. Settings the form doesn't show, such as `$schema`, are saved as they were.
 
+The editor saves its version in `netdeployVersion`. Opening a package saved by another version shows a warning, and a
+setting this version doesn't know (from a newer NetDeploy, or one since removed) is left out with a warning instead of
+stopping the package from opening.
+
 ### Parameters, inputs and placeholders
 
 `parameters` are asked once before the run. Any step can also have `inputs`, asked just before it runs.
@@ -118,7 +122,10 @@ shown with exactly what it will do and needs its own OK. The built-in undo:
 - A `scheduledTask` createOrUpdate deletes the task.
 - A `backup` deletes the backups.
 
-Give a step `cleanup` steps to replace its undo, for example to drop a database, or `"cleanup": []` for none.
+Give a step `cleanup` PowerShell to run after its built-in undo, for example to drop a database:
+`"cleanup": "Remove-Item -LiteralPath '{DataDir}\\db{InstanceSuffix}' -Recurse -Force"`. The editor shows what each step
+undoes by itself above the box. The older form, a list of steps (`"cleanup": [ ... ]`), still works and replaces the
+built-in undo; `"cleanup": []` means nothing to undo.
 
 ### Conditions
 
@@ -171,9 +178,12 @@ How the tool decides, following how .NET layers configuration:
   | Never in appsettings.json (a typo, or a setting only the app's code reads) | Keep it, but show it |
 
   An override the package does ship is merged three ways like appsettings.json.
-- **A setting must not go live with a placeholder.** A new setting with an empty value, or any value such as
-  `CHANGE_ME`, `TODO`, `<your key>` or `__KEY__`, needs a value before the files can be written, unless an override
-  on the server already sets it.
+- **A value can come from the deploy.** A setting whose value in the package is `{{Name}}` or `{{Name|default}}`
+  takes the parameter or input called `Name`, or the default when there is none. In a new file the review shows the
+  default on the left and the value it becomes on the right. A value the server already has is kept as usual.
+- **A setting must not go live with a placeholder.** A new setting with an empty value, a `{{Name}}` with no value
+  or default, or any value such as `CHANGE_ME`, `TODO`, `<your key>` or `__KEY__`, needs a value before the files can
+  be written, unless an override on the server already sets it.
 
 Arrays are one value. In XML config files, `appSettings` and `connectionStrings` entries are merged and every other
 section comes from the new file.
