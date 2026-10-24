@@ -1,9 +1,10 @@
 ; NetDeploy's manual test, run by AutoHotkey at a pace you can watch. See README.md.
 ;
-;   Double-click it to pick the cases and the speed. F8 pauses and continues, F12 stops.
+;   Double-click it to pick the cases, the speed and how it runs. Space pauses and carries on, Enter does one step
+;   at a time, Esc stops.
 ;   Unattended, as CI runs it:
 ;     AutoHotkey64.exe NetDeployManualTests.ahk --unattended [--exe <NetDeploy.exe>] [--packages <folder>]
-;                      [--results <folder>] [--cases 1-14]
+;                      [--results <folder>] [--cases 1-18]
 
 #Requires AutoHotkey v2.0
 #SingleInstance Force
@@ -140,7 +141,7 @@ Main() {
     Launcher.Show()
 }
 
-; The window to pick the cases and the speed, and to clean up, before a run you watch.
+; The window to pick the cases, the speed and how it runs, and to clean up, before a run you watch.
 class Launcher {
     static Show() {
         ui := Gui("+MinSize", "NetDeploy manual tests")
@@ -149,8 +150,9 @@ class Launcher {
         ui.SetFont("s14 c004B87 bold", "Segoe UI")
         ui.Add("Text", "w720", "NetDeploy manual tests")
         ui.SetFont("s9 c5B6B7C norm")
-        ui.Add("Text", "w720 y+4", "Runs the manual test on this computer at a pace you can follow, with nothing for you to type or click. "
-            . "At each checkpoint it shows what it checked for a few seconds, then carries on. F8 pauses and continues, F12 stops.")
+        ui.Add("Text", "w720 y+4", "Runs NetDeploy's manual test on this computer while you watch: it clicks and types for you, "
+            . "says what it is doing, and checks the results. Space pauses and carries on, Enter does one step at a time, "
+            . "and Esc stops.")
 
         ui.SetFont("s9 c1A2633 bold")
         ui.Add("Text", "w720 y+14", "NetDeploy.exe")
@@ -174,19 +176,25 @@ class Launcher {
         this.CleanButton.OnEvent("Click", (*) => Launcher.CleanUp())
 
         ui.SetFont("bold")
-        ui.Add("Text", "xm w720 y+10", "Cases (each starts where the one before it ended)")
+        ui.Add("Text", "xm w720 y+10", "Cases (each one carries on from where the one before it ended)")
         ui.SetFont("norm")
-        this.List := ui.Add("ListView", "w720 r14 y+4 Checked -Multi", ["#", "Case", "Needs", "What it covers"])
+        this.List := ui.Add("ListView", "w720 r18 y+4 Checked -Multi", ["#", "Case", "Run after", "What it tries"])
         for index, testCase in Cases.All
             this.List.Add("Check", index, testCase.Name, testCase.Needs, testCase.Covers)
-        this.List.ModifyCol(1, 30), this.List.ModifyCol(2, 250), this.List.ModifyCol(3, 120), this.List.ModifyCol(4, 900)
+        this.List.ModifyCol(1, 30), this.List.ModifyCol(2, 300), this.List.ModifyCol(3, 140), this.List.ModifyCol(4, 900)
+
+        ui.SetFont("bold")
+        ui.Add("Text", "xm w720 y+12", "How it runs")
+        ui.SetFont("norm")
+        this.ByItself := ui.Add("Radio", "xm w720 y+4 Checked", "By itself, showing each check for a few seconds (Space holds it there)")
+        this.WaitAtChecks := ui.Add("Radio", "xm w720 y+2", "By itself, waiting for you at each check")
+        this.EachStep := ui.Add("Radio", "xm w720 y+2", "Step by step: it waits for you to press Enter before each step")
 
         ui.Add("Text", "xm w50 h26 y+12 0x200", "Speed")
         this.Speed := ui.Add("DropDownList", "x+4 yp w120", ["Slow", "Modest", "Fast"])
         this.Speed.Choose(Settings.Speed)
-        this.StopAt := ui.Add("CheckBox", "x+20 yp+4 w170", "Stop at each checkpoint")
         ui.SetFont("s10 bold")
-        start := ui.Add("Button", "x+110 yp-8 w120 h34 Default", "Start")
+        start := ui.Add("Button", "x+300 yp-4 w120 h34 Default", "Start")
         start.OnEvent("Click", (*) => Launcher.Start())
         ui.SetFont("s9 norm")
         ui.Add("Button", "x+8 yp w110 h34", "Close").OnEvent("Click", (*) => ExitApp())
@@ -202,13 +210,13 @@ class Launcher {
             missing.Push("NetDeploy.exe")
         for name in Settings.MissingPackages()
             missing.Push(name)
-        this.FilesNote.Text := missing.Length ? "Missing: " Join(missing, ", ") : ""
+        this.FilesNote.Text := missing.Length ? "Can't find: " Join(missing, ", ") : ""
         this.BuildButton.Visible := missing.Length && Settings.IsRepo
 
         leftovers := Machine.Leftovers()
         this.MachineNote.Text := leftovers.Length
-            ? "Left from an earlier run: " Join(leftovers, ", ") ". Starting from case 1 cleans it up first."
-            : "Clean: none of the test packages' services, tasks or folders are here."
+            ? "Left over from an earlier run: " Join(leftovers, ", ") ". Starting from case 1 cleans it up first."
+            : "Ready: none of the test packages' services, tasks or folders are here."
         this.CleanButton.Visible := leftovers.Length > 0
     }
 
@@ -219,7 +227,7 @@ class Launcher {
     }
 
     static BrowsePackages() {
-        if path := DirSelect("*" Settings.Packages, 0, "Pick the folder with the four test package zips")
+        if path := DirSelect("*" Settings.Packages, 0, "Pick the folder that has the four test package zips in it")
             Settings.Packages := path, this.PackagesBox.Value := path
         this.Refresh()
     }
@@ -236,8 +244,8 @@ class Launcher {
     }
 
     static CleanUp() {
-        if MsgBox("Remove the test packages' services, scheduled tasks and folders (C:\Apps\Contoso.Orders, C:\Apps\Fabrikam.Reports "
-            . "and C:\ProgramData\Contoso.Orders)?", "Clean up", "OKCancel Icon?") != "OK"
+        if MsgBox("Remove everything the test packages installed: their services, scheduled tasks and folders "
+            . "(C:\Apps\Contoso.Orders, C:\Apps\Fabrikam.Reports and C:\ProgramData\Contoso.Orders)?", "Clean up", "OKCancel Icon?") != "OK"
             return
         App.CloseAll()
         this.Ui.Opt("+Disabled")
@@ -252,17 +260,18 @@ class Launcher {
         while row := this.List.GetNext(row, "Checked")
             picked.Push(Cases.All[row])
         if !picked.Length
-            return MsgBox("Tick at least one case.", "NetDeploy tests")
+            return MsgBox("Tick at least one case to run.", "NetDeploy tests")
         if !FileExist(Settings.Exe) || Settings.MissingPackages().Length
-            return MsgBox("NetDeploy.exe or a test package is missing. Use Browse, or Build them.", "NetDeploy tests", "Icon!")
+            return MsgBox("NetDeploy.exe or one of the test packages can't be found. Use Browse to find them, or Build them.", "NetDeploy tests", "Icon!")
         speed := this.Speed.Text
-        Runner.StopAtCheckpoints := this.StopAt.Value
+        Runner.StopAtCheckpoints := this.WaitAtChecks.Value
+        Runner.StepByStep := this.EachStep.Value
         this.Ui.Destroy()
         Runner.Init(false, speed, Settings.Results)
         Runner.Log("START", "NetDeploy " Settings.Exe ", packages " Settings.Packages)
         ; The first case expects a clean computer, so anything an earlier run left is removed first, as CI does.
         if picked[1] = Cases.All[1] && (leftovers := Machine.Leftovers()).Length {
-            Runner.Step("Clean up what an earlier run left: " Join(leftovers, ", "))
+            Runner.Step("Clean up what an earlier run left behind: " Join(leftovers, ", "))
             App.CloseAll(), Machine.Reset()
         }
         Runner.RunCases(picked)
