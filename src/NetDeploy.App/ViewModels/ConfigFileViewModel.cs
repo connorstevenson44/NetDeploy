@@ -89,23 +89,26 @@ public sealed partial class ConfigFileViewModel : ObservableObject
             try
             {
                 _update.Plan.Edit(value);
-                TextError = null;
+                TextProblem = null;
             }
             catch (Exception ex) when (ex is JsonException or XmlException or InvalidDataException)
             {
-                TextError = ex.Message;
+                TextProblem = TextProblem.From(ex, value);
             }
             Refresh();
             _changed();
         }
     }
 
-    /// <summary>Why the text can't be read as settings, or null when it can.</summary>
+    /// <summary>Why the text can't be read as settings and where, or null when it can.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasTextError))]
-    public partial string? TextError { get; private set; }
+    [NotifyPropertyChangedFor(nameof(TextError), nameof(HasTextError))]
+    public partial TextProblem? TextProblem { get; private set; }
 
-    public bool HasTextError => TextError is not null;
+    /// <summary>Why the text can't be read as settings, in one line, or null when it can.</summary>
+    public string? TextError => TextProblem?.Message;
+
+    public bool HasTextError => TextProblem is not null;
 
     /// <summary>The marks, in the order they are in the text.</summary>
     [ObservableProperty]
@@ -137,7 +140,7 @@ public sealed partial class ConfigFileViewModel : ObservableObject
         _update.Plan.CancelTextEdit();
         _text = _update.Plan.BuildText();
         OnPropertyChanged(nameof(Text));
-        TextError = null;
+        TextProblem = null;
         Refresh();
         _changed();
     }
@@ -151,7 +154,7 @@ public sealed partial class ConfigFileViewModel : ObservableObject
         var marks = new List<ChangeMark>();
         if (ServerText is { } server)
             AddChanges(marks, server);
-        var choices = TextError is null ? AddChoices(marks) : [];
+        var choices = TextProblem is null ? AddChoices(marks) : [];
         Marks = marks.OrderBy(mark => mark.Start).ThenBy(mark => mark.Kind).ToList();
         Choices = choices;
         OnPropertyChanged(nameof(ChangeCount));
@@ -232,7 +235,7 @@ public sealed partial class ConfigFileViewModel : ObservableObject
     {
         _text = _update.Plan.Choose(row, choice);
         OnPropertyChanged(nameof(Text));
-        TextError = null;
+        TextProblem = null;
         Refresh();
         _changed();
     }

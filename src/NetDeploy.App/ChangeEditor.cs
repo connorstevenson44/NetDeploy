@@ -41,7 +41,8 @@ public sealed class ChangeEditor : TextEditor
         FontFamily = new FontFamily("Cascadia Mono, Consolas");
         FontSize = 12.5;
         Padding = new Thickness(4, 4, 0, 4);
-        // Long lines wrap, so a change and the buttons at the end of its line are always in view.
+        // Long lines wrap, so a change and the buttons at the end of its line are always in view. With wrapping the
+        // editor can't scroll sideways, so the text taken out that shows among the lines wraps to its width too.
         WordWrap = true;
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         Options.EnableHyperlinks = false;
@@ -49,6 +50,12 @@ public sealed class ChangeEditor : TextEditor
         Options.IndentationSize = 2;
         TextArea.TextView.BackgroundRenderers.Add(new MarkRenderer(this));
         TextArea.TextView.ElementGenerators.Add(new MarkGenerator(this));
+        // The text taken out is fitted to the width the lines were last laid out at, so lay them out again after a resize.
+        TextArea.TextView.SizeChanged += (_, e) =>
+        {
+            if (e.WidthChanged)
+                TextArea.TextView.Redraw();
+        };
         AutomationProperties.SetAutomationId(this, "FileText");
         // The buttons on the changes come and go as lines are drawn, so UI Automation has to ask for them again.
         TextArea.TextView.VisualLinesChanged += (_, _) => UIElementAutomationPeer.FromElement(this)?.ResetChildrenCache();
@@ -98,11 +105,15 @@ public sealed class ChangeEditor : TextEditor
         var next = direction > 0
             ? marks.FirstOrDefault(mark => mark.Start > caret) ?? marks.FirstOrDefault()
             : marks.LastOrDefault(mark => mark.Start < caret) ?? marks.LastOrDefault();
-        if (next is null)
-            return;
-        CaretOffset = next.Start;
-        var line = Document.GetLineByOffset(next.Start);
-        ScrollTo(line.LineNumber, 0);
+        if (next is not null)
+            GoTo(next.Start);
+    }
+
+    /// <summary>Puts the caret at an offset in the text and scrolls it into view.</summary>
+    public void GoTo(int offset)
+    {
+        CaretOffset = Math.Clamp(offset, 0, Document.TextLength);
+        ScrollTo(TextArea.Caret.Line, TextArea.Caret.Column);
         TextArea.Focus();
     }
 
@@ -239,14 +250,17 @@ public sealed class ChangeEditor : TextEditor
                 return null;
 
             var lineHeight = textView.DefaultLineHeight;
-            var atLineStart = offset == editor.Document.GetLineByOffset(offset).Offset;
+            var line = editor.Document.GetLineByOffset(offset);
+            var atLineStart = offset == line.Offset;
+            var width = textView.ActualWidth > 0 ? textView.ActualWidth : double.PositiveInfinity;
             var panel = new StackPanel();
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Height = lineHeight };
+            // Fits on any line of the wrapped text, even one indented like the start of its line.
+            var row = new WrapPanel { MinHeight = lineHeight, MaxWidth = Math.Max(width - Indent(textView, line, width), lineHeight) };
             foreach (var mark in removed)
             {
                 // Whole lines show above the line after them; part of a line shows inline, struck through.
                 if (atLineStart && mark.Removed.EndsWith('\n'))
-                    panel.Children.Add(new RemovedLines(editor, textView, mark.Removed));
+                    panel.Children.Add(new RemovedLines(editor, textView, mark.Removed, width));
                 else
                     row.Children.Add(Struck(mark.Removed));
             }
@@ -272,6 +286,14 @@ public sealed class ChangeEditor : TextEditor
             }
         }
 
+        // How far the text view indents the wrapped part of a line: as far as its own indentation, up to half the width.
+        private double Indent(TextView textView, DocumentLine line, double width)
+        {
+            var leading = editor.Document.GetText(TextUtilities.GetLeadingWhitespace(editor.Document, line));
+            var columns = leading.Sum(c => c == '\t' ? editor.Options.IndentationSize : 1);
+            return Math.Min(columns * textView.WideSpaceWidth, width / 2);
+        }
+
         // The end of the line the mark ends on, or for text taken out, the line it was taken out of.
         private int ButtonsAt(ChangeMark mark) =>
             editor.Document.GetLineByOffset(mark.Length > 0 ? mark.End - 1 : mark.Start).EndOffset;
@@ -284,7 +306,8 @@ public sealed class ChangeEditor : TextEditor
             Foreground = editor.Resource("Danger"),
             Background = editor.Resource("DiffRemoved"),
             TextDecorations = TextDecorations.Strikethrough,
-            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Top,
         };
 
         private Border Pill(ChangeMark mark)
@@ -316,6 +339,7 @@ public sealed class ChangeEditor : TextEditor
             {
                 Child = content,
                 Height = CurrentContext.TextView.DefaultLineHeight,
+                VerticalAlignment = VerticalAlignment.Bottom,
                 Margin = new Thickness(8, 0, 0, 0),
                 Padding = new Thickness(1, 0, 1, 0),
                 CornerRadius = new CornerRadius(4),
@@ -333,20 +357,33 @@ public sealed class ChangeEditor : TextEditor
 
     /// <summary>
     /// Lines taken out, struck through on red, in rows of their own above the line that followed them. It takes no
-    /// width, so the line's own text doesn't move; it draws across the editor from the start of the line.
+    /// width, so the line's own text doesn't move; it draws across the editor from the start of the line, and a line
+    /// longer than the editor is wide wraps the way the editor's own lines do.
     /// </summary>
     private sealed class RemovedLines : FrameworkElement
     {
         private readonly ChangeEditor _editor;
         private readonly TextView _textView;
-        private readonly string[] _lines;
+        private readonly FormattedText[] _lines;
 
-        public RemovedLines(ChangeEditor editor, TextView textView, string removed)
+        public RemovedLines(ChangeEditor editor, TextView textView, string removed, double width)
         {
             _editor = editor;
             _textView = textView;
-            _lines = removed.ReplaceLineEndings("\n").TrimEnd('\n').Split('\n');
-            Height = _lines.Length * textView.DefaultLineHeight;
+            var typeface = new Typeface(editor.FontFamily, editor.FontStyle, editor.FontWeight, editor.FontStretch);
+            var dpi = VisualTreeHelper.GetDpi(textView).PixelsPerDip;
+            _lines = removed.ReplaceLineEndings("\n").TrimEnd('\n').Split('\n').Select(line =>
+            {
+                var text = new FormattedText(line.Replace("\t", new string(' ', editor.Options.IndentationSize)), CultureInfo.CurrentUICulture,
+                    FlowDirection.LeftToRight, typeface, editor.FontSize, editor.Resource("Danger"), dpi)
+                {
+                    LineHeight = textView.DefaultLineHeight,
+                    MaxTextWidth = double.IsInfinity(width) ? 0 : width,
+                };
+                text.SetTextDecorations(TextDecorations.Strikethrough);
+                return text;
+            }).ToArray();
+            Height = _lines.Sum(RowHeight);
             IsHitTestVisible = false;
         }
 
@@ -354,18 +391,17 @@ public sealed class ChangeEditor : TextEditor
 
         protected override void OnRender(DrawingContext drawingContext)
         {
-            var lineHeight = _textView.DefaultLineHeight;
             var width = _textView.ActualWidth + _textView.HorizontalOffset;
-            var typeface = new Typeface(_editor.FontFamily, _editor.FontStyle, _editor.FontWeight, _editor.FontStretch);
-            var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-            for (var i = 0; i < _lines.Length; i++)
+            var top = 0.0;
+            foreach (var line in _lines)
             {
-                drawingContext.DrawRectangle(_editor.Resource("DiffRemoved"), null, new Rect(0, i * lineHeight, width, lineHeight));
-                var text = new FormattedText(_lines[i].Replace("\t", new string(' ', _editor.Options.IndentationSize)), CultureInfo.CurrentUICulture,
-                    FlowDirection.LeftToRight, typeface, _editor.FontSize, _editor.Resource("Danger"), dpi);
-                text.SetTextDecorations(TextDecorations.Strikethrough);
-                drawingContext.DrawText(text, new Point(0, i * lineHeight + (lineHeight - text.Height) / 2));
+                drawingContext.DrawRectangle(_editor.Resource("DiffRemoved"), null, new Rect(0, top, width, RowHeight(line)));
+                drawingContext.DrawText(line, new Point(0, top));
+                top += RowHeight(line);
             }
         }
+
+        // An empty line still takes a row.
+        private double RowHeight(FormattedText line) => Math.Max(line.Height, _textView.DefaultLineHeight);
     }
 }

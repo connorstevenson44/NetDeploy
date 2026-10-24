@@ -3,6 +3,7 @@ using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -72,6 +73,7 @@ public class MainWindowTests
                     await SaveFilesScreenshotAsync(window, viewModel);
                     await SaveInstallScreenshotsAsync(window, viewModel);
                     await SaveFolderScreenshotAsync(window, viewModel, history);
+                    await CheckLongTextStaysInViewAsync();
                     await SaveEditorScreenshotsAsync(window, viewModel);
                 }
                 catch (Exception ex)
@@ -309,6 +311,44 @@ public class MainWindowTests
         await folder.Listing;
         Assert.Equal(["2.5.1 deployed", "2.5.0 failed, rolled back", "2.4.0 deployed"], folder.History.Select(entry => entry.Label));
         await SaveScreenshotAsync(window, "11e-folder-history");
+    }
+
+    /// <summary>
+    /// The editor wraps long lines and can't scroll sideways. A long stretch taken out from a line, shown struck through
+    /// where it was, once ran off the right edge out of reach. A bad word in the text once put the rest of the file in
+    /// the error under the editor, which pushed the text out of view.
+    /// </summary>
+    private static async Task CheckLongTextStaysInViewAsync()
+    {
+        var path = Path.Combine(Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "long")).FullName, $"{Path.GetRandomFileName()}.json");
+        var options = string.Concat(Enumerable.Range(1, 30).Select(i => $";Option{i}=value{i}"));
+        var more = string.Concat(Enumerable.Range(1, 40).Select(i => $",\n  \"Key{i}\": \"value {i}\""));
+        File.WriteAllText(path, $"{{\n  \"Db\": \"Server=sql01{options}\",\n  \"Port\": 25{more}\n}}\n");
+        var file = new ConfigFileViewModel(ConfigUpdates.Open(path), () => { });
+        var view = new ConfigFileView { DataContext = file };
+        var window = new Window { Width = 560, Height = 420, Content = view, Background = (Brush)Application.Current.FindResource("Surface") };
+        window.Show();
+        try
+        {
+            file.Text = file.Text.Replace(options, "");
+            await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+            var textView = view.Editor.TextArea.TextView;
+            var struck = Descendants(textView).OfType<TextBlock>().Single(block => block.Text.Contains("Option30"));
+            Assert.True(struck.TransformToAncestor(textView).TransformBounds(new Rect(struck.RenderSize)).Right <= textView.ActualWidth + 1,
+                "The text taken out runs past the right edge of the editor");
+            await SaveScreenshotAsync(window, "11f-removed-text-wraps");
+
+            file.Text = file.Text.Replace("\"Server=sql01\"", "tru");
+            await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+            Assert.StartsWith("Line 2, column ", file.TextError);
+            Assert.True(view.TextError.ActualHeight < 2 * view.TextError.FontSize * 1.5, "The error under the editor takes more than one line");
+            Assert.True(view.Editor.ActualHeight > view.ActualHeight / 2, "The error under the editor hides the text");
+            await SaveScreenshotAsync(window, "11g-text-error");
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     /// <summary>Opens the sample's deploy.json: its folder opens as the package, with the config on its own tab.</summary>

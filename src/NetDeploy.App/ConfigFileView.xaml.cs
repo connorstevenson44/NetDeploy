@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using NetDeploy.App.ViewModels;
 
 namespace NetDeploy.App;
 
@@ -21,4 +22,10 @@ public partial class ConfigFileView : UserControl
     private void OnPreviousChange(object sender, RoutedEventArgs e) => Editor.GoToMark(-1);
 
     private void OnNextChange(object sender, RoutedEventArgs e) => Editor.GoToMark(1);
+
+    private void OnShowTextError(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is ConfigFileViewModel { TextProblem.Offset: { } offset })
+            Editor.GoTo(offset);
+    }
 }
