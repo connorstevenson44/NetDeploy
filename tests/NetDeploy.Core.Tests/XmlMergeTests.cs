@@ -69,18 +69,6 @@ public class XmlMergeTests
     }
 
     [Fact]
-    public void A_setting_line_splits_around_its_value_so_it_can_be_edited_in_place()
-    {
-        var values = Xml.Read(Current);
-
-        Assert.Equal(("<add key=\"Mode\" value=\"", "\" />"), Xml.Around("Mode", values["appSettings:Mode"]));
-        var (before, after) = Xml.Around("Orders", values["connectionStrings:Orders"]);
-        Assert.Equal("<add name=\"Orders\" connectionString=\"", before);
-        Assert.Equal("\" providerName=\"System.Data.SqlClient\" />", after);
-        Assert.Equal("", Xml.Separator);
-    }
-
-    [Fact]
     public void A_kept_setting_missing_from_the_package_is_added_back_whole()
     {
         var plan = ConfigMerger.Plan(null, Current, Incoming, Xml, new MergeOptions([]));

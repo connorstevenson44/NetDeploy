@@ -222,7 +222,7 @@ public class InstallFolderViewModelTests : IDisposable
     {
         var folder = await OpenAsync();
         folder.OpenCommand.Execute(File(folder, "appsettings.json"));
-        folder.OpenFile!.Items.OfType<SettingViewModel>().Single(setting => setting.Key == "Db").Value = "prod2";
+        folder.OpenFile!.Text = folder.OpenFile.Text.Replace("\"prod\"", "\"prod2\"");
         folder.ToggleDeleteCommand.Execute(File(folder, "logs/old.log"));
 
         Assert.Equal((1, 1), (folder.EditCount, folder.DeleteCount));
@@ -254,7 +254,7 @@ public class InstallFolderViewModelTests : IDisposable
     {
         var folder = await OpenAsync();
         folder.OpenCommand.Execute(File(folder, "appsettings.json"));
-        folder.OpenFile!.Items.OfType<SettingViewModel>().Single(setting => setting.Key == "Timeout").Value = "60";
+        folder.OpenFile!.Text = folder.OpenFile.Text.Replace("30", "60");
         folder.ToggleDeleteCommand.Execute(File(folder, "Orders.exe"));
 
         folder.DiscardCommand.Execute(null);

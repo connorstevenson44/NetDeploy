@@ -259,7 +259,7 @@ public class MainWindowTests
         await folder.Listing;
         var settings = folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "appsettings.json");
         folder.OpenCommand.Execute(settings);
-        folder.OpenFile!.Items.OfType<SettingViewModel>().Single(setting => setting.Key == "KeepDays").Value = "14";
+        folder.OpenFile!.Text = folder.OpenFile.Text.Replace("\"KeepDays\": 30", "\"KeepDays\": 14");
         folder.ToggleDeleteCommand.Execute(folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "2026-10-01.log"));
         await folder.CheckServices;
         Assert.Equal(ServiceState.NotFound, folder.Rows.OfType<FolderNodeViewModel>().Single(node => node.Name == "east").ServiceState);
@@ -274,15 +274,13 @@ public class MainWindowTests
         await SaveScreenshotAsync(window, "11c-folder-filter");
         folder.FileFilter = "";
 
-        // The whole file as text, with an array the lines can't add, then the diff of what it changes
+        // Typing in the file adds a tracked change: new lines on green, with buttons to undo them at the line's end
         var open = folder.OpenFile!;
-        open.EditAsTextCommand.Execute(null);
-        open.Text = open.Text.Replace("\"Cleanup\"", "\"Hosts\": [ \"web01.contoso.local\", \"web02.contoso.local\", \"web03.contoso.local\" ],\n  \"Cleanup\"");
+        open.Text = open.Text.Replace("\"Cleanup\"", "\"Hosts\": [ \"web01.contoso.local\", \"web02.contoso.local\" ],\n  \"Cleanup\"");
         Assert.Null(open.TextError);
-        await SaveScreenshotAsync(window, "11d-edit-as-text");
-        open.ShowDiffCommand.Execute(null);
-        Assert.Equal(SettingStatus.Edited, open.Items.OfType<SettingViewModel>().Single(setting => setting.Key == "Hosts").Status);
-        await SaveScreenshotAsync(window, "11e-text-diff");
+        Assert.Equal(2, open.ChangeCount);
+        Assert.Contains(open.Marks, mark => mark.Kind == MarkKind.Change && open.Text.Substring(mark.Start, mark.Length).Contains("Hosts"));
+        await SaveScreenshotAsync(window, "11d-track-changes");
 
         // Listing another folder lays out new rows over the old ones. A folder heading once got a row built for a
         // file, and the file's typed command threw during layout.

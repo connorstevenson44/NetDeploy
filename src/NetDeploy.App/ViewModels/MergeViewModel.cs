@@ -28,15 +28,6 @@ public sealed partial class MergeViewModel : ObservableObject
     [ObservableProperty]
     public partial ConfigFileViewModel SelectedFile { get; set; }
 
-    [ObservableProperty]
-    public partial bool ShowUnchanged { get; set; }
-
-    partial void OnShowUnchangedChanged(bool value)
-    {
-        foreach (var file in Files)
-            file.ShowUnchanged(value);
-    }
-
     private void OnChanged()
     {
         OnPropertyChanged(nameof(ConflictCount));

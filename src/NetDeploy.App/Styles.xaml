@@ -204,6 +204,35 @@
         <Setter Property="materialDesign:RippleAssist.Feedback" Value="White" />
     </Style>
 
+    <!-- A small icon button on a change in the track-changes editor, sized to fit inside a line of text. -->
+    <Style x:Key="MarkButton" TargetType="Button">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="15" />
+        <Setter Property="Margin" Value="1,0" />
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Back" Background="Transparent" CornerRadius="3">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Back" Property="Background" Value="{StaticResource BrandTint}" />
+                            <Setter Property="Foreground" Value="{StaticResource Brand}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Back" Property="Background" Value="{StaticResource Hairline}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- An icon followed by a label, for buttons. -->
     <DataTemplate x:Key="IconLabel">
         <StackPanel Orientation="Horizontal">

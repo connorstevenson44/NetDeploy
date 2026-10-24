@@ -38,11 +38,12 @@ Everything happens in one window. Open or drop a package, an install folder, or 
   or remove it. The dot beside an install says whether its Windows services are running (green), stopped (red) or in
   between (amber); hover it for each service. A question mark means no service runs from that install.
 - **Right:** tabs for **Files** (every file in the folder you are in, as a tree whose folders fold, with a filter box:
-  edit a settings file side by side, run a script, or stage a delete, all written together with **Finalize**),
+  edit any text file, run a script, or stage a delete, all written together with **Finalize**),
   **Steps**, **deploy.json** (the visual editor) and **Log**.
-- **Settings files** show as a side-by-side diff. Drag the bars between the panes to resize them; each side of the diff
-  scrolls sideways on its own when its lines are long. Values are edited in place, or use **Edit as text** to edit the
-  whole file, for arrays, new sections or anything else; **Show changes** then shows what the text changes.
+- **Files are edited with tracked changes**, as in a word processor. There is one editor: type in it and new text shows
+  in green, while text taken out stays where it was, struck through in red. Each change has buttons at the end of its
+  line to undo it, or in a deploy to take the package's text instead; **Undo all** starts over. This works for any
+  text file, JSON, XML or plain text, and the file is written as typed, comments and layout included.
 - **Deploy** first shows every file it will add, replace, merge, keep or delete in the right-hand pane, so you can
   change any of them. **Continue** runs the steps; when the copy step gets to the config files, their review shows in
   the same pane, then the rest of the deploy runs with its log.
@@ -151,10 +152,13 @@ so their scripts should only read state.
 
 Config files are never copied over the server's copy. `copyFiles` treats every file matching `configs`
 (default `**/appsettings*.json` and `**/*.config`) as config. After the other files are copied, it works out how each
-config file should change and shows the **config review** in the right-hand pane. Like Visual Studio's diff, each
-file is shown side by side with line numbers: the file now on the left, the file as it will be written on the right,
-with added, removed and changed lines coloured and unchanged lines folded away. Values are edited in place on the
-right. Nothing is written until you continue. A dry run shows the same review without writing anything.
+config file should change and shows the **config review** in the right-hand pane. Each file opens in the
+track-changes editor as it will be written, marked against the server's copy: what the deploy adds in green, what it
+takes out struck through in red, each with a button to keep the server's text instead. Where the text keeps the
+server's value but the package has another, a dashed outline offers the package's. Settings that need a value are
+outlined in amber and listed above the file, with buttons to settle them; typing a value in the text settles them too.
+Edit anything else in the text as you like. Nothing is written until you continue. A dry run shows the same review
+without letting you edit it.
 
 How the tool decides, following how .NET layers configuration:
 
@@ -185,8 +189,8 @@ How the tool decides, following how .NET layers configuration:
 
   An override the package does ship is merged three ways like appsettings.json.
 - **A value can come from the deploy.** A setting whose value in the package is `{{Name}}` or `{{Name|default}}`
-  takes the parameter or input called `Name`, or the default when there is none. In a new file the review shows the
-  default on the left and the value it becomes on the right. A value the server already has is kept as usual.
+  takes the parameter or input called `Name`, or the default when there is none. A value the server already has is
+  kept as usual.
 - **A setting must not go live with a placeholder.** A new setting with an empty value, a `{{Name}}` with no value
   or default, or any value such as `CHANGE_ME`, `TODO`, `<your key>` or `__KEY__`, needs a value before the files can
   be written, unless an override on the server already sets it.

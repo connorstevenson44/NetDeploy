@@ -24,7 +24,15 @@ public sealed partial class FolderFileViewModel : ObservableObject
         Name = RelativePath[(slash + 1)..];
         IsConfig = ConfigFormats.IsConfig(Name);
         CanRun = FileRunner.CanRun(Name);
+        CanEdit = !BinaryExtensions.Contains(Path.GetExtension(Name));
     }
+
+    // Files that are never text, so they get no Edit button. Anything else is checked when it is opened.
+    private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".dll", ".pdb", ".msi", ".zip", ".7z", ".gz", ".rar", ".nupkg", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico",
+        ".pdf", ".db", ".sqlite", ".mdf", ".ldf", ".bak", ".woff", ".woff2", ".ttf", ".otf", ".eot", ".so", ".bin", ".dat",
+    };
 
     public string FullPath { get; }
 
@@ -35,6 +43,9 @@ public sealed partial class FolderFileViewModel : ObservableObject
     public string Name { get; }
     public bool IsConfig { get; }
     public bool CanRun { get; }
+
+    /// <summary>True for a file that may be text, which opens in the editor.</summary>
+    public bool CanEdit { get; }
     public Thickness IconMargin => FileTree.IconMargin(Folder.Length == 0 ? 0 : Folder.Count(c => c == '/') + 1);
 
     public PackIconKind Icon => IsConfig ? PackIconKind.FileCogOutline
@@ -45,7 +56,7 @@ public sealed partial class FolderFileViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsStagedForDelete { get; set; }
 
-    /// <summary>A config file with settings changed but not yet written.</summary>
+    /// <summary>A file with changes not yet written.</summary>
     [ObservableProperty]
     public partial bool HasEdits { get; set; }
 }
@@ -285,7 +296,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     /// <summary>The read of the installs' service states in progress, for tests to wait on.</summary>
     public Task CheckServices { get; private set; } = Task.CompletedTask;
 
-    /// <summary>The config file open in the side-by-side editor.</summary>
+    /// <summary>The file open in the editor.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasOpenFile))]
     public partial ConfigFileViewModel? OpenFile { get; private set; }
@@ -298,13 +309,13 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     public bool HasPending => EditCount > 0 || DeleteCount > 0;
     public bool HasConflicts => _opened.Values.Any(file => file.HasConflicts);
 
-    /// <summary>A settings file whose text can't be read, which has to be put right or dropped before Finalize.</summary>
+    /// <summary>A settings file whose text can't be read as settings, which has to be put right or undone before Finalize.</summary>
     public ConfigFileViewModel? FileWithTextError => _opened.Values.FirstOrDefault(file => file.HasTextError);
 
     /// <summary>What Finalize will do, in a few words, for the bar beside it.</summary>
     public string PendingText => string.Join(", ", new[]
     {
-        EditCount > 0 ? Words.Count(EditCount, "setting changed", "settings changed") : null,
+        EditCount > 0 ? Words.Count(EditCount, "change", "changes") : null,
         DeleteCount > 0 ? Words.Count(DeleteCount, "file to delete", "files to delete") : null,
     }.OfType<string>());
 
@@ -314,24 +325,34 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         get
         {
             var lines = _opened.Values.Where(file => file.HasChanges)
-                .Select(file => $"Write {file.ChangeCount} changed setting(s) to {Relative(Path.Combine(file.Folder, file.FileName))}")
+                .Select(file => $"Write {Words.Count(file.ChangeCount, "change", "changes")} to {Relative(Path.Combine(file.Folder, file.FileName))}")
                 .Concat(_deletes.Order(StringComparer.OrdinalIgnoreCase).Select(path => $"Delete {Relative(path)}"));
             return string.Join(Environment.NewLine, lines);
         }
     }
 
+    /// <summary>Why the last file picked couldn't be opened, such as it not being text; null when it could.</summary>
+    [ObservableProperty]
+    public partial string? OpenError { get; private set; }
+
     [RelayCommand]
     private void Open(FolderFileViewModel file)
     {
-        if (!file.IsConfig)
-            return;
-        if (!_opened.TryGetValue(file.FullPath, out var config))
+        OpenError = null;
+        if (!_opened.TryGetValue(file.FullPath, out var opened))
         {
-            config = new ConfigFileViewModel(ConfigUpdates.Open(file.FullPath), () => OnEdited(file.FullPath));
-            config.ShowUnchanged(true);
-            _opened[file.FullPath] = config;
+            try
+            {
+                opened = new ConfigFileViewModel(ConfigUpdates.Open(file.FullPath), () => OnEdited(file.FullPath));
+            }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Xml.XmlException)
+            {
+                OpenError = ex is InvalidDataException ? ex.Message : $"{file.Name} can't be opened: {ex.Message}";
+                return;
+            }
+            _opened[file.FullPath] = opened;
         }
-        OpenFile = config;
+        OpenFile = opened;
     }
 
     [RelayCommand]
@@ -420,6 +441,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
             _target.Selected = choice;
 
         OpenFile = null;
+        OpenError = null;
         FileFilter = "";
         _tree.Filter = "";
         Listing = ListFilesAsync(folder.FullPath);

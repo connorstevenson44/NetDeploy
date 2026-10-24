@@ -362,7 +362,7 @@
                                         <TextBlock Text="{Binding ConflictCount}" Foreground="{StaticResource Warning}" FontSize="11" FontWeight="SemiBold"
                                                    Margin="3,0,0,0" VerticalAlignment="Center" />
                                     </StackPanel>
-                                    <Border Style="{StaticResource Chip}" Margin="8,0,0,0" ToolTip="Settings that change"
+                                    <Border Style="{StaticResource Chip}" Margin="8,0,0,0" ToolTip="Changes to the server's file"
                                             Visibility="{Binding HasChanges, Converter={StaticResource BoolToVisibility}}">
                                         <TextBlock Text="{Binding ChangeCount}" />
                                     </Border>
@@ -382,21 +382,6 @@
 
                     <Border Style="{StaticResource PaneHeader}">
                         <DockPanel>
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                <StackPanel Orientation="Horizontal" Visibility="{Binding IsEditable, Converter={StaticResource BoolToVisibility}}">
-                                    <Button Style="{StaticResource PaneButton}" Command="{Binding SelectedFile.KeepAllNowCommand}"
-                                            ToolTip="Keep every value that is there now">
-                                        <materialDesign:PackIcon Kind="ChevronDoubleRight" Width="18" Height="18" />
-                                    </Button>
-                                    <Button Style="{StaticResource PaneButton}" Command="{Binding SelectedFile.ResetAllCommand}"
-                                            ToolTip="Use every value from the package">
-                                        <materialDesign:PackIcon Kind="Undo" Width="18" Height="18" />
-                                    </Button>
-                                </StackPanel>
-                                <ToggleButton Style="{StaticResource PaneToggle}" IsChecked="{Binding ShowUnchanged}" ToolTip="Show unchanged lines">
-                                    <materialDesign:PackIcon Kind="EyeOutline" Width="18" Height="18" />
-                                </ToggleButton>
-                            </StackPanel>
                             <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedFile.Folder}"><Run Text="{Binding SelectedFile.KindTip, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding SelectedFile.Folder, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" FontFamily="{StaticResource Code}" /></TextBlock>
                         </DockPanel>
                     </Border>
@@ -817,6 +802,13 @@
                                             <TextBox Style="{StaticResource FilterBox}" Text="{Binding FileFilter, UpdateSourceTrigger=PropertyChanged, Delay=150}" />
                                         </Border>
 
+                                        <!-- Why the file last picked didn't open, such as it not being text -->
+                                        <DockPanel DockPanel.Dock="Top" Margin="14,2,10,4"
+                                                   Visibility="{Binding OpenError, Converter={StaticResource NullToCollapsed}}">
+                                            <materialDesign:PackIcon Kind="AlertCircleOutline" Foreground="{StaticResource Warning}" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                            <TextBlock Text="{Binding OpenError}" FontSize="12" Foreground="{StaticResource Warning}" TextWrapping="Wrap" />
+                                        </DockPanel>
+
                                         <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource Caption}" Margin="14,6"
                                                    Visibility="{Binding IsCapped, Converter={StaticResource BoolToVisibility}}"
                                                    Text="Showing the first 5,000 files. Go into a subfolder on the left to see the rest." />
@@ -831,14 +823,14 @@
                                     <GridSplitter Grid.Column="1" Style="{StaticResource PaneSplitter}"
                                                   Visibility="{Binding HasOpenFile, Converter={StaticResource BoolToVisibility}}" />
 
-                                    <!-- The settings file being edited, as a side-by-side diff -->
+                                    <!-- The file being edited, with its changes tracked -->
                                     <DockPanel Grid.Column="2" Visibility="{Binding HasOpenFile, Converter={StaticResource BoolToVisibility}}">
                                         <Border Style="{StaticResource PaneHeader}">
                                             <DockPanel>
                                                 <Button DockPanel.Dock="Right" Style="{StaticResource PaneButton}" Command="{Binding CloseFileCommand}" ToolTip="Close">
                                                     <materialDesign:PackIcon Kind="Close" Width="16" Height="16" />
                                                 </Button>
-                                                <materialDesign:PackIcon Kind="FileCogOutline" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                                <materialDesign:PackIcon Kind="FileEditOutline" Width="16" Height="16" Foreground="{StaticResource Brand}"
                                                                          VerticalAlignment="Center" Margin="0,0,8,0" />
                                                 <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding OpenFile.Folder}"><Run Text="{Binding OpenFile.FileName, Mode=OneWay}" FontWeight="SemiBold" FontFamily="{StaticResource Code}" /><Run Text="   " /><Run Text="{Binding OpenFile.Folder, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" /></TextBlock>
                                             </DockPanel>

@@ -60,10 +60,10 @@ public sealed class MergeRow(string path, string? baseValue, string? current, st
     /// Gives the row the value the user wrote in the file's text, null when they took the setting out. A value that is
     /// already on one side picks that side, so the row reads as kept or taken rather than edited.
     /// </summary>
-    internal void Take(string? value)
+    internal void Take(string? value, bool settled = false)
     {
-        // A setting that needs a value keeps needing one until the text gives it another value.
-        if (value == Draft)
+        // A setting that needs a value keeps needing one until the text gives it another value, or the user settles it.
+        if (value == Draft && !settled)
             return;
         if (value is null)
             Choice = MergeChoice.Remove;
@@ -97,6 +97,9 @@ public sealed class MergePlan(IConfigFormat format, string startText, IReadOnlyL
     private readonly List<MergeRow> _rows = [.. rows];
     private string? _editedText;
     private OrderedDictionary<string, string>? _editedValues;
+
+    // Settings the user picked a side for: their value in the text counts as chosen, even the one held for now.
+    private readonly HashSet<string> _settled = new(StringComparer.OrdinalIgnoreCase);
 
     // The settings and text as they were when the user started editing the text.
     private (List<(MergeRow Row, (MergeChoice?, string?, string) Saved)> Rows, string? Text, OrderedDictionary<string, string>? Values)? _beforeText;
@@ -158,7 +161,7 @@ public sealed class MergePlan(IConfigFormat format, string startText, IReadOnlyL
         foreach (var (row, saved) in rows)
         {
             row.Restore(saved);
-            row.Take(values.GetValueOrDefault(row.Path));
+            row.Take(values.GetValueOrDefault(row.Path), _settled.Contains(row.Path));
             _rows.Add(row);
         }
         // A setting the text adds goes after the one written before it, so the diff keeps the text's order.
@@ -177,9 +180,29 @@ public sealed class MergePlan(IConfigFormat format, string startText, IReadOnlyL
         _editedValues = values;
     }
 
+    /// <summary>
+    /// Picks a side for a setting: the server's value, the package's, or with Remove, neither. The text takes that
+    /// value, and the setting counts as decided from then on. Returns the new text.
+    /// </summary>
+    public string Choose(MergeRow row, MergeChoice choice)
+    {
+        var value = choice switch
+        {
+            MergeChoice.KeepCurrent => row.Current,
+            MergeChoice.TakeIncoming => row.Incoming,
+            MergeChoice.Remove => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(choice), "Only a side or Remove can be chosen."),
+        };
+        var text = Format.Write(_editedText ?? BuildText(), [KeyValuePair.Create(row.Path, value)], Sources);
+        _settled.Add(row.Path);
+        Edit(text);
+        return text;
+    }
+
     /// <summary>Puts the settings and the text back as they were before StartTextEdit.</summary>
     public void CancelTextEdit()
     {
+        _settled.Clear();
         if (_beforeText is not { } before)
             return;
         _rows.Clear();
@@ -195,8 +218,11 @@ public sealed class MergePlan(IConfigFormat format, string startText, IReadOnlyL
     {
         var changes = Changes(value).ToList();
         var start = _editedText ?? startText;
-        return changes.Count == 0 ? start : Format.Write(start, changes);
+        return changes.Count == 0 ? start : Format.Write(start, changes, Sources);
     }
+
+    // The files a value can be copied from as it is written there.
+    private IReadOnlyList<string> Sources => new[] { CurrentText, startText }.OfType<string>().Distinct().ToList();
 
     // Rows whose value isn't already in the file the result starts from.
     private IEnumerable<KeyValuePair<string, string?>> Changes(Func<MergeRow, string?> value) => Rows

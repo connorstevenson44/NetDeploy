@@ -95,11 +95,22 @@ public static partial class ConfigUpdates
         }
     }
 
-    /// <summary>Opens a config file on the server for editing. Every setting starts as it is.</summary>
+    /// <summary>The biggest file opened for editing, so a log or a dump doesn't hang the editor.</summary>
+    public const long MaxEditBytes = 4 * 1024 * 1024;
+
+    /// <summary>
+    /// Opens a file on the server for editing: a config file setting by setting, any other text file as one value.
+    /// Everything starts as it is. Throws InvalidDataException for a file that isn't text or is too big.
+    /// </summary>
     public static ConfigFileUpdate Open(string path)
     {
+        if (new FileInfo(path).Length > MaxEditBytes)
+            throw new InvalidDataException($"{Path.GetFileName(path)} is too big to edit here.");
         var text = File.ReadAllText(path);
-        var plan = ConfigMerger.Plan(null, text, text, ConfigFormats.For(path), new MergeOptions([]));
+        if (text.Contains('\0'))
+            throw new InvalidDataException($"{Path.GetFileName(path)} isn't a text file.");
+        var format = ConfigFormats.IsConfig(Path.GetFileName(path)) ? ConfigFormats.For(path) : ConfigFormats.PlainText;
+        var plan = ConfigMerger.Plan(null, text, text, format, new MergeOptions([]));
         return new ConfigFileUpdate(path, ConfigFileKind.Edit, plan, null);
     }
 

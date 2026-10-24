@@ -88,9 +88,9 @@
                 <TextBlock x:Name="Name" Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding RelativePath}"
                            FontFamily="{StaticResource Code}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 <StackPanel x:Name="Actions" Grid.Column="2" Orientation="Horizontal" Visibility="Hidden" Margin="0,0,4,0">
-                    <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}" ToolTip="Edit settings"
+                    <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}" ToolTip="Edit"
                             Command="{Binding DataContext.Folder.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            CommandParameter="{Binding}" Visibility="{Binding IsConfig, Converter={StaticResource BoolToVisibility}}">
+                            CommandParameter="{Binding}" Visibility="{Binding CanEdit, Converter={StaticResource BoolToVisibility}}">
                         <materialDesign:PackIcon Kind="PencilOutline" Width="16" Height="16" />
                     </Button>
                     <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Success}" ToolTip="Run, with arguments"

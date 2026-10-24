@@ -14,7 +14,6 @@ internal sealed class JsonConfigFormat : IConfigFormat
 
     // Relaxed escaping keeps connection strings readable instead of turning ' into '.
     private static readonly JsonSerializerOptions Compact = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-    private static readonly JsonSerializerOptions Indented = new(Compact) { WriteIndented = true };
 
     public OrderedDictionary<string, string> Read(string text)
     {
@@ -24,13 +23,20 @@ internal sealed class JsonConfigFormat : IConfigFormat
         return values;
     }
 
-    public string Write(string incomingText, IEnumerable<KeyValuePair<string, string?>> changes)
+    public string Write(string text, IEnumerable<KeyValuePair<string, string?>> changes, IReadOnlyList<string>? sources = null)
     {
-        var root = ParseObject(incomingText);
+        var written = (sources ?? []).Select(source => (Text: source, Values: Read(source), Spans: JsonText.Locate(source))).ToList();
         foreach (var (path, value) in changes)
-            Apply(root, path.Split(':'), value);
-        return root.ToJsonString(Indented);
+        {
+            // A value a source has keeps that source's layout, such as an array over several lines.
+            var source = value is null ? default : written.FirstOrDefault(source => source.Values.GetValueOrDefault(path) == value);
+            var raw = source.Text is null ? value : source.Text[source.Spans[path].Start..source.Spans[path].End];
+            text = JsonText.Set(text, path, raw);
+        }
+        return text;
     }
+
+    public IReadOnlyDictionary<string, (int Start, int End)> Locate(string text) => JsonText.Locate(text);
 
     public string Display(string value) =>
         value.StartsWith('"') ? JsonSerializer.Deserialize<string>(value)! : value;
@@ -50,22 +56,6 @@ internal sealed class JsonConfigFormat : IConfigFormat
         }
     }
 
-    public IReadOnlyList<string> SplitPath(string path) => path.Split(':');
-
-    public string OpenSection(string? name) => name is null ? "{" : $"{Quote(name)}: {{";
-
-    public string CloseSection(string? name) => "}";
-
-    public string Line(string key, string value) => $"{Quote(key)}: {value}";
-
-    // A string shows inside its quotes; numbers, bools and arrays show as they are written.
-    public (string Before, string After) Around(string key, string value) =>
-        value.StartsWith('"') ? ($"{Quote(key)}: \"", "\"") : ($"{Quote(key)}: ", "");
-
-    public string Separator => ",";
-
-    private static string Quote(string key) => JsonSerializer.Serialize(key, Compact);
-
     private static JsonObject ParseObject(string text) =>
         JsonNode.Parse(text, documentOptions: ReadOptions) as JsonObject
         ?? throw new InvalidDataException("The JSON file's root must be an object.");
@@ -81,33 +71,4 @@ internal sealed class JsonConfigFormat : IConfigFormat
                 values[childPath] = child?.ToJsonString(Compact) ?? "null";
         }
     }
-
-    private static void Apply(JsonObject root, string[] keys, string? value)
-    {
-        var parent = root;
-        foreach (var key in keys[..^1])
-        {
-            var existing = FindKey(parent, key);
-            if (existing is not null && parent[existing] is JsonObject child)
-            {
-                parent = child;
-                continue;
-            }
-            if (value is null)
-                return; // Nothing to remove.
-            var created = new JsonObject();
-            parent[existing ?? key] = created;
-            parent = created;
-        }
-
-        var leaf = FindKey(parent, keys[^1]) ?? keys[^1];
-        if (value is null)
-            parent.Remove(leaf);
-        else
-            parent[leaf] = JsonNode.Parse(value);
-    }
-
-    // Keys are case-insensitive, so reuse whatever casing the file already has.
-    private static string? FindKey(JsonObject node, string key) =>
-        node.Select(property => property.Key).FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
 }

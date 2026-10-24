@@ -18,7 +18,7 @@ class Cases {
         {Name: "Add a second install (blue) for Production", Run: AddBlue, Needs: "Case 3",
             Covers: "A choice parameter, a second install beside the first, the Production branch"},
         {Name: "Change settings on the server in the Files tab", Run: EditOnServer, Needs: "Case 3",
-            Covers: "Going into an install, folding a folder and filtering the files, editing appsettings.json side by side and as text, an .exe.config, staging and unstaging a delete, Finalize"},
+            Covers: "Going into an install, folding a folder and filtering the files, editing appsettings.json with tracked changes and undoing one, an .exe.config, staging and unstaging a delete, Finalize"},
         {Name: "Cancel an upgrade at the config check, then roll back", Run: CancelAndRollBack, Needs: "Case 4",
             Covers: "A secret parameter, the files review of an upgrade, a when question, Cancel during a deploy, Roll back"},
         {Name: "Upgrade main to 1.1.0", Run: UpgradeMain, Needs: "Case 5",
@@ -177,32 +177,34 @@ EditOnServer() {
     App.Tab("Files")
     App.ToggleFolder("templates", "Fold the templates folder, as in File Explorer")
     App.ToggleFolder("templates", "And open it again")
-    App.EditSettings("appsettings.json")
-    App.SetSetting("Orders:Region", "west", "Change Orders:Region to west, as someone might on the server")
-    App.EditAsText((text) => RegExReplace(text, "^\s*\{", "{`r`n  " alerts, , 1),
-        "Add an Alerts section with a list of emails, which the lines can't add, by editing the file as text")
-    App.FindInList({Type: "Edit", Name: "Alerts:Emails"}, "the new Alerts:Emails setting in the diff")
-    Runner.Say("The diff shows the new Alerts section the text added, beside Region's change.")
+    App.EditFile("appsettings.json")
+    App.ReplaceText('"Region": "east"', '"Region": "west"', "Change Orders:Region to west, as someone might on the server")
+    Runner.Say("The editor shows the change in place: east struck through in red, west in green.")
+    App.ReplaceText('"HeartbeatSeconds": 10', '"HeartbeatSeconds": 20', "Change HeartbeatSeconds to 20")
+    App.ClickMark("Undo", "Put back the server's text: 10", "And undo just that change, with the button at the end of its line")
+    App.ReplaceText("^\s*\{", "{`r`n  " alerts, "Add an Alerts section with a list of emails at the top of the file")
+    Runner.Say("The new line is green. Region's change is still there, and HeartbeatSeconds is back to 10.")
     App.FilterFiles("config", "Filter the files to the ones with config in their path")
-    App.EditSettings("export/Contoso.Orders.Export.exe.config")
-    App.SetSetting("appSettings:BatchSize", "750", "Change the export's BatchSize to 750")
+    App.EditFile("export/Contoso.Orders.Export.exe.config")
+    App.ReplaceText('key="BatchSize" value="500"', 'key="BatchSize" value="750"', "Change the export's BatchSize to 750")
     App.FilterFiles("", "Clear the filter")
-    App.Find({Type: "Text", Name: "3 settings changed"}, "the bar saying 3 settings changed")
+    App.Find({Type: "Text", Name: "3 changes"}, "the bar saying 3 changes")
     App.FileButton("README.txt", "Delete when finalized", "Stage README.txt to be deleted")
-    App.Find({Type: "Text", Name: "3 settings changed, 1 file to delete"}, "the bar saying a file will be deleted")
+    App.Find({Type: "Text", Name: "3 changes, 1 file to delete"}, "the bar saying a file will be deleted")
     App.FileButton("README.txt", "Keep this file", "Change your mind and keep README.txt")
     App.ClickButton("Finalize")
-    App.Answer("Finalize", "Yes", "Write the changes", "changed setting(s)")
+    App.Answer("Finalize", "Yes", "Write the changes", "Write 2 changes to appsettings.json")
     App.WaitStatus(["Changes written."])
     Runner.Checkpoint("The server's settings changed", [
         Check.Json(main "\appsettings.json", "Orders:Region", "west"),
+        Check.Json(main "\appsettings.json", "Orders:HeartbeatSeconds", "10"),
         Check.Json(main "\appsettings.json", "Alerts:Emails", "ops@contoso.local oncall@contoso.local"),
         Check.AppSetting(main "\export\Contoso.Orders.Export.exe.config", "BatchSize", "750"),
         Check.Exists(main "\README.txt"),
     ], [
         "The Finalize message listed exactly the two settings files.",
         "README.txt is still in the list, not struck through.",
-        "appsettings.json has the Alerts section as it was typed, and Region west.",
+        "appsettings.json has the Alerts section as it was typed, Region west, and the rest of its layout as it was.",
     ], [
         Tool.File(main "\appsettings.json"),
         Tool.File(main "\export\Contoso.Orders.Export.exe.config", "Open the export's config"),
@@ -264,12 +266,12 @@ UpgradeMain() {
     App.WaitStage("Check the config")
     App.ConfigFile("appsettings.json")
     Runner.Say("Region keeps the server's west. BatchSize takes the package's 250. Smtp:Server is renamed Smtp:Host. LegacyMode goes. Logging takes the package's (takeNew).")
-    App.SetSetting("Payments:ApiKey", ApiKey, "Fill in Payments:ApiKey, new and empty in the package, so it needs a value")
+    App.ReplaceText('"ApiKey": ""', '"ApiKey": "' ApiKey '"', "Fill in Payments:ApiKey, new and empty in the package, so it needs a value")
     App.ConfigFile("appsettings.Production.json")
     Runner.Say("This override is only on the server now, so its settings are checked against the new appsettings.json.")
     App.ConfigFile("Contoso.Orders.Export.exe.config")
     Runner.Say("BatchSize changed on both sides, 500 to 750 here and to 1000 in the package, so it needs a value. The other settings take the package's.")
-    App.KeepNow("appSettings:BatchSize", "Keep the server's BatchSize of 750")
+    App.Settle("appSettings:BatchSize", "Keep the server's", "Keep the server's BatchSize of 750")
     App.ContinueStage()
     log := App.LogFile(App.WaitStatus(["Deploy finished."], 300000))
     settings := main "\appsettings.json", export := main "\export\Contoso.Orders.Export.exe.config"
@@ -325,7 +327,7 @@ RenameBlue() {
     App.Answer("NetDeploy", "No", "Skip the optional settings check", "Run a settings check on the old version first?")
     App.WaitStage("Check the config")
     App.ConfigFile("appsettings.json")
-    App.SetSetting("Payments:ApiKey", ApiKey, "Fill in Payments:ApiKey")
+    App.ReplaceText('"ApiKey": ""', '"ApiKey": "' ApiKey '"', "Fill in Payments:ApiKey")
     App.ContinueStage()
     App.Answer("Remove the old install", "Yes", "Remove blue now that green works", "Remove the old one", 300000)
     App.RunRemoval()
@@ -459,7 +461,7 @@ AddReports() {
     App.ContinueStage()
     App.WaitStage("Check the config")
     App.ConfigFile("Fabrikam.Reports.exe.config")
-    App.SetSetting("appSettings:SmtpPassword", "smtp-test-123", "Fill in SmtpPassword, empty in the package, so it needs a value")
+    App.ReplaceText('key="SmtpPassword" value=""', 'key="SmtpPassword" value="smtp-test-123"', "Fill in SmtpPassword, empty in the package, so it needs a value")
     App.ConfigFile("web.config")
     Runner.Say("A .NET Framework app's .exe.config and its site's web.config, both new here.")
     App.ContinueStage()

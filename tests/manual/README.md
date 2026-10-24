@@ -45,7 +45,7 @@ ones leave (the launcher's Needs column).
 | 2 | Dry run a new install | Nothing was created |
 | 3 | Add the first install (main) | Service running (and its green dot in the folder list), task, database, settings, log |
 | 4 | Add a second install (blue) for Production | Both services, Production branch, separate databases |
-| 5 | Change settings on the server in the Files tab | Region, an Alerts section added as text, and BatchSize written, README kept |
+| 5 | Change settings on the server in the Files tab | Region and an Alerts section typed in with tracked changes, one change undone, BatchSize written, README kept |
 | 6 | Cancel an upgrade at the config check, then roll back | blue back on 1.0.0 and running |
 | 7 | Upgrade main to 1.1.0 | The three-way merge, rename, override check, heartbeat on 1.1.0, database schema 2 |
 | 8 | Rename blue to green | green running, blue's service, task, database and folder gone |

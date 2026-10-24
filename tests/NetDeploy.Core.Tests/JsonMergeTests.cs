@@ -208,6 +208,24 @@ public class JsonMergeTests
     }
 
     [Fact]
+    public void Choosing_a_side_writes_it_into_the_text_and_stays_chosen_through_later_edits()
+    {
+        var plan = ConfigMerger.Plan("""{ "Port": 25 }""", "{\n  \"Port\": 2525,\n  \"Db\": \"a\"\n}", """{ "Port": 587, "Db": "a" }""", Json, Defaults);
+        plan.StartTextEdit();
+
+        var text = plan.Choose(Row(plan, "Port"), MergeChoice.TakeIncoming);
+        Assert.Equal(MergeChoice.TakeIncoming, Row(plan, "Port").Choice);
+        Assert.Contains("587", text);
+
+        plan.Edit(text.Replace("\"a\"", "\"b\""));
+        Assert.Equal(MergeChoice.TakeIncoming, Row(plan, "Port").Choice);
+
+        text = plan.Choose(Row(plan, "Port"), MergeChoice.KeepCurrent);
+        Assert.Contains("2525", text);
+        Assert.Equal(MergeChoice.KeepCurrent, Row(plan, "Port").Choice);
+    }
+
+    [Fact]
     public void Text_typed_and_taken_back_leaves_the_settings_as_they_were()
     {
         var plan = ConfigMerger.Plan("""{ "Port": 25 }""", """{ "Port": 2525 }""", """{ "Port": 587 }""", Json, Defaults);
@@ -259,14 +277,6 @@ public class JsonMergeTests
     [Fact]
     public void Display_shows_strings_without_quotes() =>
         Assert.Equal("Server=x;Database='y'", Json.Display("\"Server=x;Database='y'\""));
-
-    [Fact]
-    public void A_setting_line_splits_around_its_value_so_it_can_be_edited_in_place()
-    {
-        Assert.Equal(("\"Host\": \"", "\""), Json.Around("Host", "\"mail\""));
-        Assert.Equal(("\"Port\": ", ""), Json.Around("Port", "25"));
-        Assert.Equal(",", Json.Separator);
-    }
 
     private static string Compact(string json) =>
         System.Text.Json.Nodes.JsonNode.Parse(json)!.ToJsonString();
