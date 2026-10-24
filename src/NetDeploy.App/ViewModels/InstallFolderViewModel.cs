@@ -120,6 +120,8 @@ public sealed partial class InstallFolderViewModel : ObservableObject
     {
         _opened.Clear();
         OpenFile = null;
+        foreach (var file in _files)
+            file.IsStagedForDelete = false;
         Reload();
     }
 

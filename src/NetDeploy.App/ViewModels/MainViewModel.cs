@@ -185,7 +185,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand(CanExecute = nameof(IsIdle))]
-    private void Home() => Screen = AppScreen.Home;
+    private void Home()
+    {
+        Screen = AppScreen.Home;
+        Status = "Deploy a package, or open an install folder to manage it.";
+    }
 
     [RelayCommand]
     private void BrowseFolder()
