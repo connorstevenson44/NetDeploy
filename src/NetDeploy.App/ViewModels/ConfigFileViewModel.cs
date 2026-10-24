@@ -221,6 +221,7 @@ public sealed partial class ConfigFileViewModel : ObservableObject
     public int ChangeCount => _settings.Count(setting => setting.Status != SettingStatus.Unchanged);
     public int ConflictCount => _settings.Count(setting => setting.NeedsValue);
     public bool HasConflicts => ConflictCount > 0;
+    public string ConflictText => ConflictCount == 1 ? "1 setting needs a value" : $"{ConflictCount} settings need a value";
     public bool HasChanges => ChangeCount > 0;
 
     /// <summary>Lines only on the right, lines only on the left, and settings on both that change, for the totals.</summary>
@@ -230,15 +231,15 @@ public sealed partial class ConfigFileViewModel : ObservableObject
 
     public string KindTip => _update.Kind switch
     {
-        ConfigFileKind.New => "New file: the server has no copy yet.",
-        ConfigFileKind.Override => "Server-only override, checked against the new appsettings.json.",
-        ConfigFileKind.Edit => "Your edits to this file.",
-        _ => "The package's file merged with the server's copy.",
+        ConfigFileKind.New => "New file, the server has no copy yet",
+        ConfigFileKind.Override => "Server-only override, checked against the new appsettings.json",
+        ConfigFileKind.Edit => "Your edits to this file",
+        _ => "The server's copy merged with the package's",
     };
 
     /// <summary>Headings over the two sides: the left side is always what is there now.</summary>
     public string NowHeading => _update.Kind != ConfigFileKind.New ? "Now"
-        : _settings.Any(setting => setting.InFileNow) ? "No file yet: the package's defaults" : "Now: no file yet";
+        : _settings.Any(setting => setting.InFileNow) ? "Package defaults (no file yet)" : "Now (no file yet)";
     public string ValueHeading => _update.Kind == ConfigFileKind.Edit ? "With your changes" : "After deploy";
     public string ResetTip => _update.Kind == ConfigFileKind.Edit ? "Undo" : "Use the package value";
 
@@ -289,6 +290,7 @@ public sealed partial class ConfigFileViewModel : ObservableObject
         OnPropertyChanged(nameof(ChangeCount));
         OnPropertyChanged(nameof(ConflictCount));
         OnPropertyChanged(nameof(HasConflicts));
+        OnPropertyChanged(nameof(ConflictText));
         OnPropertyChanged(nameof(HasChanges));
         OnPropertyChanged(nameof(AddedCount));
         OnPropertyChanged(nameof(RemovedCount));

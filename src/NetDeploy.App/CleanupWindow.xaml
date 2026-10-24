@@ -7,26 +7,26 @@
         ShowInTaskbar="False" Title="Remove install">
     <!-- One step of removing an install: exactly what it does, and an explicit OK before it runs. -->
     <StackPanel>
-        <DockPanel Margin="22,20,22,0">
+        <DockPanel Margin="24,22,24,0">
             <Border Width="40" Height="40" CornerRadius="20" Background="{StaticResource DangerTint}" VerticalAlignment="Top" Margin="0,0,14,0">
                 <materialDesign:PackIcon Kind="DeleteAlertOutline" Foreground="{StaticResource Danger}" Width="20" Height="20"
                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <StackPanel VerticalAlignment="Center">
-                <TextBlock x:Name="Counter" Foreground="{StaticResource Danger}" FontSize="11" FontWeight="SemiBold" />
+                <TextBlock x:Name="Counter" Foreground="{StaticResource Danger}" FontSize="12" FontWeight="SemiBold" />
                 <TextBlock x:Name="StepTitle" Style="{StaticResource PanelTitle}" TextWrapping="Wrap" />
             </StackPanel>
         </DockPanel>
 
-        <StackPanel Margin="22,18,22,16">
-            <TextBlock Text="WHAT WILL HAPPEN" Style="{StaticResource Caption}" FontWeight="SemiBold" Margin="0,0,0,6" />
+        <StackPanel Margin="24,18,24,18">
+            <TextBlock Text="What this step does" Style="{StaticResource FieldLabel}" />
             <Border Background="{StaticResource DangerTint}" CornerRadius="6" Padding="14,10">
                 <TextBlock x:Name="Explanation" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Ink}" />
             </Border>
             <CheckBox x:Name="Understood" Margin="0,16,0,0" Content="I understand. This can't be undone." Checked="OnUnderstoodChanged" Unchecked="OnUnderstoodChanged" />
         </StackPanel>
 
-        <Border Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="22,12">
+        <Border Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="24,12">
             <DockPanel>
                 <Button DockPanel.Dock="Left" Style="{StaticResource QuietButton}" Content="Stop removing" IsCancel="True" Click="OnCancel"
                         Tag="{x:Static materialDesign:PackIconKind.Cancel}" ContentTemplate="{StaticResource IconLabel}" />

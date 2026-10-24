@@ -52,7 +52,7 @@ public sealed partial class MainViewModel
             return;
         ClosePackage();
         if (OpenInEditor(path))
-            ShowEditor(Editor.VersionWarning ?? "Pick a step on the left to change it. Problems are checked as you type.");
+            ShowEditor(Editor.VersionWarning ?? "Select a step on the left to edit it. Problems are checked as you type.");
     }
 
     [RelayCommand]
@@ -128,12 +128,12 @@ public sealed partial class MainViewModel
         }
 
         if (Editor.HasProblems)
-            Status = $"Saved {path}, but it has problems NetDeploy won't accept. They are listed under the form.";
+            Status = $"Saved {path}, but it has problems to fix. They are listed under the form.";
         else if (Path.GetFileName(path).Equals(DeployPackage.ManifestFileName, StringComparison.OrdinalIgnoreCase) && !IsRunning)
         {
             Load(Path.GetDirectoryName(path)!);
             SelectedTab = ConfigTab;
-            Status = $"Saved {path}. Its folder is open as the package: try a dry run.";
+            Status = $"Saved {path}. Its folder is open as the package, ready for a dry run.";
         }
         else
             Status = $"Saved {path}.";

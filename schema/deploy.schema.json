@@ -372,7 +372,7 @@
         },
         "name": {
           "type": "string",
-          "description": "Shown in the UI instead of the generated description."
+          "description": "The title in the step list. Leave it empty to use one made from the settings."
         },
         "when": {
           "$ref": "#/definitions/condition",
@@ -443,7 +443,7 @@
         },
         "name": {
           "type": "string",
-          "description": "Shown in the UI instead of the generated description."
+          "description": "The title in the step list. Leave it empty to use one made from the settings."
         },
         "when": {
           "$ref": "#/definitions/condition",
@@ -503,7 +503,7 @@
         },
         "name": {
           "type": "string",
-          "description": "Shown in the UI instead of the generated description."
+          "description": "The title in the step list. Leave it empty to use one made from the settings."
         },
         "when": {
           "$ref": "#/definitions/condition",
@@ -558,7 +558,7 @@
         },
         "name": {
           "type": "string",
-          "description": "Shown in the UI instead of the generated description."
+          "description": "The title in the step list. Leave it empty to use one made from the settings."
         },
         "when": {
           "$ref": "#/definitions/condition",
@@ -604,7 +604,7 @@
         },
         "name": {
           "type": "string",
-          "description": "Shown in the UI instead of the generated description."
+          "description": "The title in the step list. Leave it empty to use one made from the settings."
         },
         "when": {
           "$ref": "#/definitions/condition",
@@ -682,7 +682,7 @@
         },
         "name": {
           "type": "string",
-          "description": "Shown in the UI instead of the generated description."
+          "description": "The title in the step list. Leave it empty to use one made from the settings."
         },
         "when": {
           "$ref": "#/definitions/condition",
@@ -754,7 +754,7 @@
         },
         "name": {
           "type": "string",
-          "description": "Shown in the UI instead of the generated description."
+          "description": "The title in the step list. Leave it empty to use one made from the settings."
         },
         "when": {
           "$ref": "#/definitions/condition",
@@ -806,7 +806,7 @@
         },
         "name": {
           "type": "string",
-          "description": "Shown in the UI instead of the generated description."
+          "description": "The title in the step list. Leave it empty to use one made from the settings."
         },
         "when": {
           "$ref": "#/definitions/condition",
@@ -853,7 +853,7 @@
         },
         "name": {
           "type": "string",
-          "description": "Shown in the UI instead of the generated description."
+          "description": "The title in the step list. Leave it empty to use one made from the settings."
         },
         "when": {
           "$ref": "#/definitions/condition",

@@ -27,6 +27,9 @@ public sealed partial class InputFieldViewModel : ObservableObject
     public InputType Type => Field.Type;
     public IReadOnlyList<string> Options => Field.Options ?? [];
 
+    /// <summary>The placeholder in the empty box.</summary>
+    public string? Hint => Field.Optional ? "Optional" : null;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsChecked))]
     public partial string Value { get; set; }

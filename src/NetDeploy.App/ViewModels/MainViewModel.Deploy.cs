@@ -150,7 +150,7 @@ public sealed partial class MainViewModel
         _rollback = null;
         Progress = 0;
         SelectedTab = LogTab;
-        Status = dryRun ? "Dry run in progress..." : "Deploying...";
+        Status = dryRun ? "Running a dry run…" : "Deploying…";
 
         var package = _package!;
         using var log = UiLog.Create(Log, package.Manifest.App.Name, dryRun ? "dryrun" : "deploy");

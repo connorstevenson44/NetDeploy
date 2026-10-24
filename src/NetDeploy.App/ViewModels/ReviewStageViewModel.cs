@@ -111,10 +111,10 @@ public sealed partial class ConfigStageViewModel : ReviewStageViewModel
     // A first install has nothing to merge with, so it doesn't talk about merging.
     public override string Description => (IsDryRun, Review.Files.All(file => file.Kind == ConfigFileKind.New)) switch
     {
-        (true, true) => "Dry run: these config files are new on this server and would be written like this. Nothing is written.",
-        (true, false) => "Dry run: this is how the config files would be merged. Nothing is written.",
-        (false, true) => "These config files are new on this server. Check the values on the right, then write the files.",
-        _ => "Each file is the server's copy merged with the package's. Change any value on the right, then write the files.",
+        (true, true) => "These config files are new on this server and would be written like this. Nothing is written in a dry run.",
+        (true, false) => "This is how the server's config files would be merged with the package's. Nothing is written in a dry run.",
+        (false, true) => "These config files are new on this server. Check the values on the right before they are written.",
+        _ => "Each file is the server's copy merged with the package's. Check or change the values on the right before they are written.",
     };
 
     public override string ContinueText => IsDryRun ? "Continue the dry run" : "Write files and continue";

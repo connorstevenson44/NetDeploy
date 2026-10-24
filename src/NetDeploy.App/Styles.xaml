@@ -117,6 +117,23 @@
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
+    <!-- A label above a group on the left, like a VS tool window's -->
+    <Style x:Key="SectionLabel" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- A thin strip across the top of a pane, for its title and tools -->
+    <Style x:Key="PaneHeader" TargetType="Border">
+        <Setter Property="DockPanel.Dock" Value="Top" />
+        <Setter Property="BorderBrush" Value="{StaticResource Hairline}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="14,0,8,0" />
+        <Setter Property="MinHeight" Value="40" />
+    </Style>
+
     <!-- The main action of a window: filled Pantone 301. -->
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
         <Setter Property="Height" Value="38" />
@@ -155,47 +172,96 @@
         </StackPanel>
     </DataTemplate>
 
-    <!-- Outlined inputs, tighter than Material's default (16 all round) so forms fit without scrolling. Every text box,
-         password box and drop-down in the app uses one of these. -->
+    <!-- A form field's label. It sits above the box rather than floating on its border, so it is never clipped and
+         stays readable at any size. -->
+    <Style x:Key="FieldLabel" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="Margin" Value="1,0,0,5" />
+    </Style>
+
+    <!-- A labelled form field: Header is the label, Content the input. -->
+    <Style x:Key="Field" TargetType="HeaderedContentControl">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="HeaderedContentControl">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Header, RelativeSource={RelativeSource TemplatedParent}}" Style="{StaticResource FieldLabel}" />
+                        <ContentPresenter />
+                    </StackPanel>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Outlined inputs, 32 pixels tall. Their label is a Field's header, so a hint is only a placeholder inside the
+         empty box. Every text box, password box and drop-down in the app uses one of these. -->
     <Style x:Key="InputBox" TargetType="TextBox" BasedOn="{StaticResource MaterialDesignOutlinedTextBox}">
-        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
     </Style>
     <Style x:Key="InputPassword" TargetType="PasswordBox" BasedOn="{StaticResource MaterialDesignOutlinedRevealPasswordBox}">
-        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
     </Style>
     <Style x:Key="InputChoice" TargetType="ComboBox" BasedOn="{StaticResource MaterialDesignOutlinedComboBox}">
-        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
+    </Style>
+
+    <!-- A small rounded label beside a name, such as an install's version -->
+    <Style x:Key="Chip" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BrandTint}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="6,1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextElement.Foreground" Value="{StaticResource Brand}" />
+        <Setter Property="TextElement.FontSize" Value="11" />
+        <Setter Property="TextElement.FontWeight" Value="SemiBold" />
     </Style>
 
     <!-- Input editors, one per InputType. The form below picks one with the field's Type. -->
     <DataTemplate x:Key="TextInput">
-        <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Label}"
-                 Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+        <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
+            <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Hint}"
+                     Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+        </HeaderedContentControl>
     </DataTemplate>
     <DataTemplate x:Key="SecretInput">
-        <PasswordBox Style="{StaticResource InputPassword}" materialDesign:HintAssist.Hint="{Binding Label}"
-                     materialDesign:PasswordBoxAssist.Password="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+        <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
+            <PasswordBox Style="{StaticResource InputPassword}" materialDesign:HintAssist.Hint="{Binding Hint}"
+                         materialDesign:PasswordBoxAssist.Password="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+        </HeaderedContentControl>
     </DataTemplate>
     <DataTemplate x:Key="YesNoInput">
-        <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" Margin="2,2,0,2" />
+        <CheckBox IsChecked="{Binding IsChecked}" Margin="0,2,0,0">
+            <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+        </CheckBox>
     </DataTemplate>
     <DataTemplate x:Key="ChoiceInput">
-        <ComboBox Style="{StaticResource InputChoice}" materialDesign:HintAssist.Hint="{Binding Label}"
-                  ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" />
+        <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
+            <ComboBox Style="{StaticResource InputChoice}" ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" />
+        </HeaderedContentControl>
     </DataTemplate>
     <DataTemplate x:Key="PathInput">
-        <Grid>
-            <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Label}"
-                     Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Padding="10,8,40,8" />
-            <Button Style="{StaticResource MaterialDesignIconButton}" Command="{Binding BrowseCommand}" ToolTip="Browse"
-                    HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="30" Margin="0,0,4,0">
-                <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" />
-            </Button>
-        </Grid>
+        <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
+            <Grid>
+                <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Hint}"
+                         Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Padding="10,7,38,7" />
+                <Button Style="{StaticResource MaterialDesignIconButton}" Command="{Binding BrowseCommand}" ToolTip="Browse"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Width="28" Height="28" Padding="0" Margin="0,0,3,0">
+                    <materialDesign:PackIcon Kind="FolderOpenOutline" Width="18" Height="18" />
+                </Button>
+            </Grid>
+        </HeaderedContentControl>
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type vm:InputFieldViewModel}">
-        <ContentControl Content="{Binding}" Focusable="False" Margin="0,0,0,10">
+        <ContentControl Content="{Binding}" Focusable="False" Margin="0,0,0,14">
             <ContentControl.Style>
                 <Style TargetType="ContentControl">
                     <Setter Property="ContentTemplate" Value="{StaticResource TextInput}" />

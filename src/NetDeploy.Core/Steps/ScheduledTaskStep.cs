@@ -44,11 +44,18 @@ public sealed class ScheduledTaskStep : DeployStep
     public string? RunAs { get; init; }
     public string? Password { get; init; }
 
-    public override string Describe() => $"{Action} scheduled task {TaskName}";
+    public override string Describe() => Action switch
+    {
+        ScheduledTaskAction.CreateOrUpdate => $"Set up scheduled task {TaskName}",
+        _ => $"{Action} scheduled task {TaskName}",
+    };
 
-    public override string Explain() => Action == ScheduledTaskAction.Delete
-        ? $"Deletes the scheduled task \"{TaskName}\": schtasks /Delete /TN \"{TaskName}\" /F."
-        : $"{Action} the scheduled task \"{TaskName}\".";
+    public override string Explain() => Action switch
+    {
+        ScheduledTaskAction.Delete => $"Deletes the scheduled task \"{TaskName}\": schtasks /Delete /TN \"{TaskName}\" /F.",
+        ScheduledTaskAction.CreateOrUpdate => $"Creates the scheduled task \"{TaskName}\", or updates it if it is already there.",
+        _ => $"{Action}s the scheduled task \"{TaskName}\".",
+    };
 
     protected internal override IEnumerable<DeployStep> DefaultCleanup() =>
         Action == ScheduledTaskAction.CreateOrUpdate ? [new ScheduledTaskStep { Action = ScheduledTaskAction.Delete, TaskName = TaskName }] : [];
