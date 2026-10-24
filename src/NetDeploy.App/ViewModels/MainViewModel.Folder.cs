@@ -105,6 +105,12 @@ public sealed partial class MainViewModel
     private void FinalizeFolder()
     {
         var folder = Folder!;
+        if (folder.FileWithTextError is { } unreadable)
+        {
+            MessageBox.Show($"The text of {unreadable.FileName} can't be read: {unreadable.TextError}{Environment.NewLine}{Environment.NewLine}Put it right, or drop the text changes, then finalize.",
+                "Finalize", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
         if (!folder.HasPending
             || !Confirm($"Make these changes in {folder.Root}?{Environment.NewLine}{Environment.NewLine}{folder.PendingSummary}", "Finalize"))
             return;

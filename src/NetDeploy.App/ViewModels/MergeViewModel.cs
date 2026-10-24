@@ -19,7 +19,7 @@ public sealed partial class MergeViewModel : ObservableObject
     public bool IsEditable => !IsReadOnly;
     public IReadOnlyList<ConfigFileViewModel> Files { get; }
     public string ApplyText => IsReadOnly ? "Continue" : "Write files";
-    public bool CanApply => IsReadOnly || Files.All(file => !file.HasConflicts);
+    public bool CanApply => IsReadOnly || Files.All(file => !file.HasConflicts && !file.HasTextError);
     public int ConflictCount => Files.Sum(file => file.ConflictCount);
     public int ChangeCount => Files.Sum(file => file.ChangeCount);
 
@@ -27,15 +27,6 @@ public sealed partial class MergeViewModel : ObservableObject
 
     [ObservableProperty]
     public partial ConfigFileViewModel SelectedFile { get; set; }
-
-    [ObservableProperty]
-    public partial bool ShowUnchanged { get; set; }
-
-    partial void OnShowUnchangedChanged(bool value)
-    {
-        foreach (var file in Files)
-            file.ShowUnchanged(value);
-    }
 
     private void OnChanged()
     {

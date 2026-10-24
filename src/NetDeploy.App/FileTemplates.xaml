@@ -4,19 +4,66 @@
                     xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
                     xmlns:steps="clr-namespace:NetDeploy.Core.Steps;assembly=NetDeploy.Core">
     <!-- How files look in the two file lists: the install folder's files, and the files a deploy will change.
-         Both are flat, virtualized lists of folder headings and files, so a big folder scrolls smoothly. -->
+         Both are trees laid out in flat, virtualized lists, so a big folder scrolls smoothly: a folder's row folds
+         what is in it, as in File Explorer, and every row lines up under the folder it is in. -->
 
     <FontFamily x:Key="Code">Cascadia Mono, Consolas</FontFamily>
+    <SolidColorBrush x:Key="FolderYellow" Color="#E0A526" />
 
-    <!-- A folder heading, in either list -->
+    <!-- A row in a tree: rounded, and tinted under the mouse -->
+    <Style x:Key="TreeRow" TargetType="Border">
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Margin" Value="4,1" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- A folder, in either list: click it to fold or open it -->
     <DataTemplate DataType="{x:Type vm:FolderViewModel}">
-        <StackPanel Orientation="Horizontal" Height="26" Margin="30,0,0,0">
-            <materialDesign:PackIcon Kind="FolderOutline" Width="14" Height="14" Foreground="{StaticResource InkFaint}"
-                                     VerticalAlignment="Center" Margin="{Binding Indent}" />
-            <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource InkMuted}"
-                       VerticalAlignment="Center" Margin="6,0,0,0" />
-        </StackPanel>
+        <Button Command="{Binding ToggleCommand}" ToolTip="{Binding Path}" AutomationProperties.Name="{Binding Name}" Cursor="Hand" Focusable="False">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Row" Style="{StaticResource TreeRow}" Height="28">
+                        <ContentPresenter VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{StaticResource Canvas}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+            <StackPanel Orientation="Horizontal" Margin="{Binding Indent}">
+                <materialDesign:PackIcon x:Name="Chevron" Kind="ChevronRight" Width="14" Height="14" Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" />
+                <materialDesign:PackIcon x:Name="FolderIcon" Kind="Folder" Width="16" Height="16" Foreground="{StaticResource FolderYellow}"
+                                         VerticalAlignment="Center" Margin="4,0,8,0" />
+                <TextBlock Text="{Binding Name}" FontSize="12" Foreground="{StaticResource Ink}" VerticalAlignment="Center" />
+            </StackPanel>
+        </Button>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                <Setter TargetName="Chevron" Property="Kind" Value="ChevronDown" />
+                <Setter TargetName="FolderIcon" Property="Kind" Value="FolderOpen" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
     </DataTemplate>
+
+    <!-- A filter box over a file list -->
+    <Style x:Key="FilterBox" TargetType="TextBox" BasedOn="{StaticResource MaterialDesignOutlinedTextBox}">
+        <Setter Property="Height" Value="30" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="BorderBrush" Value="{StaticResource InputOutline}" />
+        <Setter Property="materialDesign:TextFieldAssist.HasLeadingIcon" Value="True" />
+        <Setter Property="materialDesign:TextFieldAssist.LeadingIcon" Value="Magnify" />
+        <Setter Property="materialDesign:TextFieldAssist.LeadingIconSize" Value="16" />
+        <Setter Property="materialDesign:TextFieldAssist.HasClearButton" Value="True" />
+        <Setter Property="materialDesign:TextFieldAssist.TextFieldCornerRadius" Value="6" />
+        <Setter Property="materialDesign:HintAssist.Hint" Value="Filter files" />
+        <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
+        <Setter Property="AutomationProperties.Name" Value="Filter files" />
+    </Style>
 
     <!-- ===== The install folder's files: edit settings, run, or stage a delete ===== -->
 
@@ -28,21 +75,22 @@
     </Style>
 
     <DataTemplate DataType="{x:Type vm:FolderFileViewModel}">
-        <Border x:Name="Row" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Background="Transparent">
-            <Grid Height="30">
+        <Border x:Name="Row" Style="{StaticResource TreeRow}">
+            <Grid Height="28">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
+                <!-- In line with a folder's icon, after the space its fold arrow takes -->
                 <materialDesign:PackIcon x:Name="Icon" Kind="{Binding Icon}" Width="16" Height="16" Foreground="{StaticResource InkMuted}"
-                                         HorizontalAlignment="Center" VerticalAlignment="Center" />
-                <TextBlock x:Name="Name" Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding RelativePath}" Margin="{Binding Indent}"
+                                         Margin="{Binding IconMargin}" VerticalAlignment="Center" />
+                <TextBlock x:Name="Name" Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding RelativePath}"
                            FontFamily="{StaticResource Code}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 <StackPanel x:Name="Actions" Grid.Column="2" Orientation="Horizontal" Visibility="Hidden" Margin="0,0,4,0">
-                    <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}" ToolTip="Edit settings"
+                    <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}" ToolTip="Edit"
                             Command="{Binding DataContext.Folder.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            CommandParameter="{Binding}" Visibility="{Binding IsConfig, Converter={StaticResource BoolToVisibility}}">
+                            CommandParameter="{Binding}" Visibility="{Binding CanEdit, Converter={StaticResource BoolToVisibility}}">
                         <materialDesign:PackIcon Kind="PencilOutline" Width="16" Height="16" />
                     </Button>
                     <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Success}" ToolTip="Run, with arguments"
@@ -168,20 +216,20 @@
 
     <!-- A file: how it compares with the server, and what the deploy does with it -->
     <DataTemplate DataType="{x:Type vm:FileRowViewModel}">
-        <Border x:Name="Row" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Background="Transparent">
+        <Border x:Name="Row" Style="{StaticResource TreeRow}">
             <Grid Height="30">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <materialDesign:PackIcon x:Name="State" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+                <materialDesign:PackIcon x:Name="State" Width="16" Height="16" Margin="{Binding IconMargin}" VerticalAlignment="Center"
                                          Background="Transparent" ToolTip="{Binding StateTip}"
                                          Kind="FileCheckOutline" Foreground="{StaticResource InkFaint}" />
 
-                <TextBlock x:Name="Name" Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding Path}" Margin="{Binding Indent}"
+                <TextBlock x:Name="Name" Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding Path}"
                            FontFamily="{StaticResource Code}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
 
                 <TextBlock x:Name="ActionLabel" Grid.Column="2" Text="{Binding ActionLabel}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource InkMuted}"

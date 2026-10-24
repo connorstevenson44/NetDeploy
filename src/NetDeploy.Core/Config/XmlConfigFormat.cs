@@ -27,36 +27,33 @@ internal sealed class XmlConfigFormat : IConfigFormat
         return values;
     }
 
-    public string Write(string incomingText, IEnumerable<KeyValuePair<string, string?>> changes)
+    public string Write(string text, IEnumerable<KeyValuePair<string, string?>> changes, IReadOnlyList<string>? sources = null)
     {
-        var document = XDocument.Parse(incomingText, LoadOptions.PreserveWhitespace);
-        var root = document.Root ?? throw new InvalidDataException("The config file has no root element.");
-
+        var written = (sources ?? []).Select(source => (Text: source, Values: Read(source), Spans: Locate(source))).ToList();
         foreach (var (path, value) in changes)
         {
             var separator = path.IndexOf(':');
             var section = Sections.Single(s => s.Name == path[..separator]);
             var key = path[(separator + 1)..];
 
-            var container = root.Element(section.Name);
-            if (container is null)
-            {
-                container = new XElement(section.Name);
-                root.Add(container);
-            }
-
-            var existing = container.Elements("add").FirstOrDefault(
-                e => string.Equals(e.Attribute(section.KeyAttribute)?.Value, key, StringComparison.OrdinalIgnoreCase));
-            if (value is null)
-                existing?.Remove();
-            else if (existing is null)
-                container.Add(XElement.Parse(value));
-            else
-                existing.ReplaceWith(XElement.Parse(value));
+            // An element a source has keeps that source's layout, such as its quotes and spacing.
+            var source = value is null ? default : written.FirstOrDefault(source => source.Values.GetValueOrDefault(path) == value);
+            var raw = source.Text is null ? value : source.Text[source.Spans[path].Start..source.Spans[path].End];
+            text = XmlText.Set(text, section.Name,
+                element => string.Equals(element.Attribute(section.KeyAttribute)?.Value, key, StringComparison.OrdinalIgnoreCase), raw);
         }
+        return text;
+    }
 
-        // The line break after the declaration is kept as whitespace in the document, so none is added here.
-        return document.Declaration + document.ToString(SaveOptions.DisableFormatting);
+    public IReadOnlyDictionary<string, (int Start, int End)> Locate(string text)
+    {
+        var root = XmlText.Parse(text).Root;
+        var spans = new Dictionary<string, (int Start, int End)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var section in Sections)
+            foreach (var add in root?.Element(section.Name)?.Elements("add") ?? [])
+                if (add.Attribute(section.KeyAttribute)?.Value is { } key)
+                    spans[$"{section.Name}:{key}"] = XmlText.Span(text, add);
+        return spans;
     }
 
     public string Display(string value) => ValueAttribute(XElement.Parse(value))?.Value ?? "";
@@ -70,32 +67,6 @@ internal sealed class XmlConfigFormat : IConfigFormat
             element.SetAttributeValue("value", text);
         return element.ToString(SaveOptions.DisableFormatting);
     }
-
-    // appSettings keys often contain ':', so only the first one separates the section.
-    public IReadOnlyList<string> SplitPath(string path) => path.Split(':', 2);
-
-    public string OpenSection(string? name) => $"<{name ?? "configuration"}>";
-
-    public string CloseSection(string? name) => $"</{name ?? "configuration"}>";
-
-    // The canonical value is the whole <add /> element.
-    public string Line(string key, string value) => value;
-
-    public (string Before, string After) Around(string key, string value)
-    {
-        // Put a marker where the value goes, then split the element's text around it.
-        const string Marker = "NETDEPLOY-VALUE-7F3A";
-        var element = XElement.Parse(value);
-        if (ValueAttribute(element) is { } attribute)
-            attribute.Value = Marker;
-        else
-            element.SetAttributeValue("value", Marker);
-        var text = element.ToString(SaveOptions.DisableFormatting);
-        var at = text.IndexOf(Marker, StringComparison.Ordinal);
-        return (text[..at], text[(at + Marker.Length)..]);
-    }
-
-    public string Separator => "";
 
     private static XAttribute? ValueAttribute(XElement element) =>
         element.Attribute("connectionString") ?? element.Attribute("value");

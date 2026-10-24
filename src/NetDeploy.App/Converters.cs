@@ -29,15 +29,3 @@ public sealed class StepIconConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }
-
-/// <summary>A grid size from a flag: Star when true, nothing when false, for a column that only shows sometimes.</summary>
-public sealed class BoolToStarConverter : IValueConverter
-{
-    public double Star { get; set; } = 1;
-
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
-        value is true ? new GridLength(Star, GridUnitType.Star) : new GridLength(0);
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
-        throw new NotSupportedException();
-}

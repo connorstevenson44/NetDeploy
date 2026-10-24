@@ -67,6 +67,16 @@ public sealed partial class FilesStageViewModel : ReviewStageViewModel
             plan.ShowUnchanged(value);
     }
 
+    /// <summary>Text the files' paths must have in them to be listed; empty lists them all.</summary>
+    [ObservableProperty]
+    public partial string FileFilter { get; set; } = "";
+
+    partial void OnFileFilterChanged(string value)
+    {
+        foreach (var plan in Plans.OfType<FilePlanViewModel>())
+            plan.Filter(value);
+    }
+
     private void OnPlanChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(FilePlanViewModel.Items))
@@ -80,7 +90,7 @@ public sealed partial class FilesStageViewModel : ReviewStageViewModel
         {
             items.Add(plan);
             if (plan is FilePlanViewModel files)
-                items.AddRange(files.HasItems ? files.Items : [new FilesMatch()]);
+                items.AddRange(files.HasItems ? files.Items : FileFilter.Length > 0 ? [] : [new FilesMatch()]);
         }
         return items;
     }
@@ -113,8 +123,8 @@ public sealed partial class ConfigStageViewModel : ReviewStageViewModel
     {
         (true, true) => "These config files are new on this server and would be written like this. Nothing is written in a dry run.",
         (true, false) => "This is how the server's config files would be merged with the package's. Nothing is written in a dry run.",
-        (false, true) => "These config files are new on this server. Check the values on the right before they are written.",
-        _ => "Each file is the server's copy merged with the package's. Check or change the values on the right before they are written.",
+        (false, true) => "These config files are new on this server. Check them, and edit anything, before they are written.",
+        _ => "Each file is the package's with the server's values kept. Changes to the server's copy are marked: undo any, or edit the text, before it is written.",
     };
 
     public override string ContinueText => IsDryRun ? "Continue the dry run" : "Write files and continue";

@@ -130,6 +130,18 @@ public sealed class InstallTests : IDisposable
     }
 
     [Fact]
+    public void Every_install_is_in_the_service_lookup_even_with_no_services()
+    {
+        var folders = new[] { _server.Combine("main"), _server.Combine("blue") };
+
+        var services = Installations.Services(folders);
+
+        Assert.Equal(folders, services.Keys);
+        // No test service runs from a fresh temp folder, on any system.
+        Assert.All(services.Values, Assert.Empty);
+    }
+
+    [Fact]
     public async Task A_clone_starts_from_the_source_files_so_server_edits_are_kept()
     {
         await DeployAsync("east");

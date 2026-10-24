@@ -7,9 +7,13 @@ internal static class WindowsServices
 {
     /// <summary>
     /// Services whose program is inside the folder, read from each service's ImagePath, so services installed by hand
-    /// are found too. Programs inside skipFolders don't count.
+    /// are found too.
     /// </summary>
-    public static IReadOnlyList<string> ServicesIn(string folder)
+    public static IReadOnlyList<string> ServicesIn(string folder) =>
+        Programs().Where(service => IsInside(service.Program, folder)).Select(service => service.Name).ToList();
+
+    /// <summary>Every service with the program it runs. Empty on other systems than Windows.</summary>
+    public static IReadOnlyList<(string Name, string Program)> Programs()
     {
         if (!OperatingSystem.IsWindows())
             return [];
@@ -17,15 +21,30 @@ internal static class WindowsServices
         if (services is null)
             return [];
 
-        var found = new List<string>();
+        var found = new List<(string, string)>();
         foreach (var name in services.GetSubKeyNames())
         {
             using var service = services.OpenSubKey(name);
-            if (service?.GetValue("ImagePath") is string image && ProgramPath(image) is { } program
-                && IsInside(program, folder))
-                found.Add(name);
+            if (service?.GetValue("ImagePath") is string image && ProgramPath(image) is { } program)
+                found.Add((name, program));
         }
         return found;
+    }
+
+    /// <summary>The service's state, or null when there is no such service.</summary>
+    public static ServiceControllerStatus? Status(string name)
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+        using var service = new ServiceController(name);
+        try
+        {
+            return service.Status;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     /// <summary>The program in a service's command line, which may be quoted and followed by arguments.</summary>
@@ -41,23 +60,11 @@ internal static class WindowsServices
         return exe < 0 ? line : line[..(exe + 4)];
     }
 
-    private static bool IsInside(string path, string folder) =>
+    internal static bool IsInside(string path, string folder) =>
         Path.IsPathFullyQualified(path)
         && Path.GetFullPath(path).StartsWith(Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
-    public static bool Exists(string name)
-    {
-        using var service = new ServiceController(name);
-        try
-        {
-            _ = service.Status;
-            return true;
-        }
-        catch (InvalidOperationException)
-        {
-            return false;
-        }
-    }
+    public static bool Exists(string name) => Status(name) is not null;
 
     /// <summary>Returns true if the service was running and has been stopped.</summary>
     public static bool Stop(string name, TimeSpan timeout)

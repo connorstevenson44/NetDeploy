@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ServiceProcess;
 using System.Text.RegularExpressions;
 using NetDeploy.Core.Steps;
 
@@ -6,6 +7,9 @@ namespace NetDeploy.Core;
 
 /// <summary>One install found in an install folder: a subfolder, named after the install, that holds the app.</summary>
 public sealed record Installation(string Name, string Directory, string? Version);
+
+/// <summary>A Windows service that runs a program in an install, and its state; null when it can't be read.</summary>
+public sealed record InstallService(string Name, ServiceControllerStatus? Status);
 
 /// <summary>
 /// Finds installs by looking at the folder, so installs made by hand count as much as ones NetDeploy made. Nothing is
@@ -43,6 +47,23 @@ public static partial class Installations
             .Select(folder => new Installation(Path.GetFileName(folder), folder, VersionOf(folder, appFiles)))
             .ToList();
     }
+
+    /// <summary>
+    /// The services whose program is in each folder, read from the services' command lines so services set up by hand
+    /// count too. Every folder is in the result, with no services when none run from it.
+    /// </summary>
+    public static IReadOnlyDictionary<string, IReadOnlyList<string>> Services(IEnumerable<string> folders)
+    {
+        var programs = WindowsServices.Programs();
+        return folders.Distinct(StringComparer.OrdinalIgnoreCase).ToDictionary(
+            folder => folder,
+            folder => (IReadOnlyList<string>)programs.Where(service => WindowsServices.IsInside(service.Program, folder)).Select(service => service.Name).ToList(),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The services' states now.</summary>
+    public static IReadOnlyList<InstallService> States(IEnumerable<string> services) =>
+        services.Select(name => new InstallService(name, WindowsServices.Status(name))).ToList();
 
     /// <summary>
     /// The files at the top of the folder a package installs into {InstanceDir}: its exes, or its dlls when it has no

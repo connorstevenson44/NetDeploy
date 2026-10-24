@@ -55,16 +55,63 @@ public sealed class MergeRow(string path, string? baseValue, string? current, st
         IsConflict = true;
         Reason = reason;
     }
+
+    /// <summary>
+    /// Gives the row the value the user wrote in the file's text, null when they took the setting out. A value that is
+    /// already on one side picks that side, so the row reads as kept or taken rather than edited.
+    /// </summary>
+    internal void Take(string? value, bool settled = false)
+    {
+        // A setting that needs a value keeps needing one until the text gives it another value, or the user settles it.
+        if (value == Draft && !settled)
+            return;
+        if (value is null)
+            Choice = MergeChoice.Remove;
+        else if (value == Incoming)
+            Choice = MergeChoice.TakeIncoming;
+        else if (value == Current)
+            Choice = MergeChoice.KeepCurrent;
+        else
+        {
+            EditedValue = value;
+            Choice = MergeChoice.Edit;
+            Reason = "Your edit";
+        }
+    }
+
+    /// <summary>The result, or while the row still needs a choice, the value it holds for now.</summary>
+    internal string? Draft => Choice is null ? Incoming ?? Current : Result;
+
+    internal (MergeChoice? Choice, string? EditedValue, string Reason) Save() => (Choice, EditedValue, Reason);
+
+    internal void Restore((MergeChoice? Choice, string? EditedValue, string Reason) saved) => (Choice, EditedValue, Reason) = saved;
 }
 
 /// <summary>
 /// The rows of one file and how to write it. The result starts from startText (the package's file, or the
-/// server's file when startIsCurrent) and applies every row whose result differs from that side.
+/// server's file when startIsCurrent) and applies every row whose result differs from that side. Once the user edits
+/// the whole file as text, the result starts from their text instead.
 /// </summary>
-public sealed class MergePlan(IConfigFormat format, string startText, IReadOnlyList<MergeRow> rows, bool startIsCurrent = false)
+public sealed class MergePlan(IConfigFormat format, string startText, IReadOnlyList<MergeRow> rows, bool startIsCurrent = false, string? currentText = null)
 {
+    private readonly List<MergeRow> _rows = [.. rows];
+    private string? _editedText;
+    private OrderedDictionary<string, string>? _editedValues;
+
+    // Settings the user picked a side for: their value in the text counts as chosen, even the one held for now.
+    private readonly HashSet<string> _settled = new(StringComparer.OrdinalIgnoreCase);
+
+    // The settings and text as they were when the user started editing the text.
+    private (List<(MergeRow Row, (MergeChoice?, string?, string) Saved)> Rows, string? Text, OrderedDictionary<string, string>? Values)? _beforeText;
+
     public IConfigFormat Format { get; } = format;
-    public IReadOnlyList<MergeRow> Rows { get; } = rows;
+    public IReadOnlyList<MergeRow> Rows => _rows;
+
+    /// <summary>The server's file as it is now, or null when the server has none.</summary>
+    public string? CurrentText { get; } = currentText ?? (startIsCurrent ? startText : null);
+
+    /// <summary>The whole file as the user last wrote it, or null when they haven't.</summary>
+    public string? EditedText => _editedText;
 
     public int ConflictCount => Rows.Count(row => row.Choice is null);
 
@@ -80,14 +127,111 @@ public sealed class MergePlan(IConfigFormat format, string startText, IReadOnlyL
         }
     }
 
-    /// <summary>The merged file.</summary>
-    public string BuildResult() =>
-        Format.Write(startText, Rows
-            .Where(row => row.Result != (startIsCurrent ? row.Current : row.Incoming))
-            .Select(row => KeyValuePair.Create(row.Path, row.Result)));
+    /// <summary>The merged file. With nothing to change, the start file is returned as it is, keeping its layout.</summary>
+    public string BuildResult() => Build(row => row.Result);
+
+    /// <summary>
+    /// The merged file to edit as text. Settings that still need a value show what they hold for now, where
+    /// BuildResult would throw.
+    /// </summary>
+    public string BuildText() => Build(row => row.Draft);
 
     /// <summary>True when writing the result would change the file the plan starts from.</summary>
-    public bool ChangesStartFile => Rows.Any(row => row.Result != (startIsCurrent ? row.Current : row.Incoming));
+    public bool ChangesStartFile => _editedText is not null ? BuildResult() != startText : Changes(row => row.Result).Any();
+
+    /// <summary>
+    /// Starts editing the whole file as text. Each Edit after it applies its text to the settings as they are now, so
+    /// text typed and then taken back leaves them as they were.
+    /// </summary>
+    public void StartTextEdit() =>
+        _beforeText = (_rows.Select(row => (row, row.Save())).ToList(), _editedText, _editedValues);
+
+    /// <summary>
+    /// Takes the whole file as the user wrote it: it becomes the result, and every setting follows it, so the diff
+    /// shows what the text changes. Settings it adds become rows of their own. Throws when the text can't be read,
+    /// and then changes nothing.
+    /// </summary>
+    public void Edit(string text)
+    {
+        var values = Format.Read(text);
+        if (_beforeText is null)
+            StartTextEdit();
+        var (rows, _, _) = _beforeText!.Value;
+        _rows.Clear();
+        foreach (var (row, saved) in rows)
+        {
+            row.Restore(saved);
+            row.Take(values.GetValueOrDefault(row.Path), _settled.Contains(row.Path));
+            _rows.Add(row);
+        }
+        // A setting the text adds goes after the one written before it, so the diff keeps the text's order.
+        var known = _rows.Select(row => row.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        string? previous = null;
+        foreach (var (path, value) in values)
+        {
+            if (!known.Contains(path))
+            {
+                var at = _rows.FindIndex(row => string.Equals(row.Path, previous, StringComparison.OrdinalIgnoreCase)) + 1;
+                _rows.Insert(at, new MergeRow(path, null, null, null, MergeChoice.Edit, "Your edit") { EditedValue = value });
+            }
+            previous = path;
+        }
+        _editedText = text;
+        _editedValues = values;
+    }
+
+    /// <summary>
+    /// Picks a side for a setting: the server's value, the package's, or with Remove, neither. The text takes that
+    /// value, and the setting counts as decided from then on. Returns the new text.
+    /// </summary>
+    public string Choose(MergeRow row, MergeChoice choice)
+    {
+        var value = choice switch
+        {
+            MergeChoice.KeepCurrent => row.Current,
+            MergeChoice.TakeIncoming => row.Incoming,
+            MergeChoice.Remove => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(choice), "Only a side or Remove can be chosen."),
+        };
+        var text = Format.Write(_editedText ?? BuildText(), [KeyValuePair.Create(row.Path, value)], Sources);
+        _settled.Add(row.Path);
+        Edit(text);
+        return text;
+    }
+
+    /// <summary>Puts the settings and the text back as they were before StartTextEdit.</summary>
+    public void CancelTextEdit()
+    {
+        _settled.Clear();
+        if (_beforeText is not { } before)
+            return;
+        _rows.Clear();
+        foreach (var (row, saved) in before.Rows)
+        {
+            row.Restore(saved);
+            _rows.Add(row);
+        }
+        (_editedText, _editedValues) = (before.Text, before.Values);
+    }
+
+    private string Build(Func<MergeRow, string?> value)
+    {
+        var changes = Changes(value).ToList();
+        var start = _editedText ?? startText;
+        return changes.Count == 0 ? start : Format.Write(start, changes, Sources);
+    }
+
+    // The files a value can be copied from as it is written there.
+    private IReadOnlyList<string> Sources => new[] { CurrentText, startText }.OfType<string>().Distinct().ToList();
+
+    // Rows whose value isn't already in the file the result starts from.
+    private IEnumerable<KeyValuePair<string, string?>> Changes(Func<MergeRow, string?> value) => Rows
+        .Select(row => (row.Path, Value: value(row), Start: StartValue(row)))
+        .Where(row => row.Value != row.Start)
+        .Select(row => KeyValuePair.Create(row.Path, row.Value));
+
+    private string? StartValue(MergeRow row) =>
+        _editedValues is not null ? _editedValues.GetValueOrDefault(row.Path) : startIsCurrent ? row.Current : row.Incoming;
 }
 
 /// <summary>
@@ -113,7 +257,7 @@ public static class ConfigMerger
             })
             .ToList();
 
-        return new MergePlan(format, incomingText, rows);
+        return new MergePlan(format, incomingText, rows, currentText: currentText);
     }
 
     /// <summary>A file the server doesn't have yet: every setting is new, taken from the package.</summary>

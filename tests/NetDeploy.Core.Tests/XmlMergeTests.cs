@@ -69,23 +69,24 @@ public class XmlMergeTests
     }
 
     [Fact]
-    public void A_setting_line_splits_around_its_value_so_it_can_be_edited_in_place()
-    {
-        var values = Xml.Read(Current);
-
-        Assert.Equal(("<add key=\"Mode\" value=\"", "\" />"), Xml.Around("Mode", values["appSettings:Mode"]));
-        var (before, after) = Xml.Around("Orders", values["connectionStrings:Orders"]);
-        Assert.Equal("<add name=\"Orders\" connectionString=\"", before);
-        Assert.Equal("\" providerName=\"System.Data.SqlClient\" />", after);
-        Assert.Equal("", Xml.Separator);
-    }
-
-    [Fact]
     public void A_kept_setting_missing_from_the_package_is_added_back_whole()
     {
         var plan = ConfigMerger.Plan(null, Current, Incoming, Xml, new MergeOptions([]));
         plan.Rows.Single(row => row.Path == "appSettings:Legacy").Choice = MergeChoice.KeepCurrent;
 
         Assert.Contains("""<add key="Legacy" value="1" />""", plan.BuildResult());
+    }
+
+    [Fact]
+    public void Editing_the_whole_file_as_text_keeps_edits_outside_the_merged_sections()
+    {
+        var plan = ConfigMerger.Plan(null, Current, Incoming, Xml, new MergeOptions([]));
+        var text = plan.BuildText().Replace("<new />", "<edited />").Replace("""<add key="Retries" value="3" />""", """<add key="Retries" value="5" />""");
+
+        plan.Edit(text);
+
+        Assert.Equal(MergeChoice.Edit, plan.Rows.Single(r => r.Path == "appSettings:Retries").Choice);
+        Assert.Contains("<edited />", plan.BuildResult());
+        Assert.True(plan.ChangesStartFile);
     }
 }

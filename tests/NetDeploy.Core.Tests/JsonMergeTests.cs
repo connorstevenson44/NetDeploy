@@ -144,16 +144,139 @@ public class JsonMergeTests
     }
 
     [Fact]
-    public void Display_shows_strings_without_quotes() =>
-        Assert.Equal("Server=x;Database='y'", Json.Display("\"Server=x;Database='y'\""));
+    public void Editing_the_whole_file_as_text_moves_every_setting_to_it_and_keeps_the_text_as_written()
+    {
+        var plan = ConfigMerger.Plan(null, """{ "Db": "prod", "Hosts": ["a"], "Old": 1 }""", """{ "Db": "local", "Hosts": ["a", "b"] }""", Json, Defaults);
+        const string text = """
+            {
+              // Arrays and new sections, written by hand
+              "Db": "local",
+              "Hosts": ["a", "c"],
+              "Old": 1,
+              "Alerts": { "Emails": ["ops@x"] }
+            }
+            """;
+
+        plan.Edit(text);
+
+        Assert.Equal(MergeChoice.TakeIncoming, Row(plan, "Db").Choice);
+        Assert.Equal(MergeChoice.Edit, Row(plan, "Hosts").Choice);
+        Assert.Equal("""["a","c"]""", Row(plan, "Hosts").Result);
+        Assert.Equal(MergeChoice.KeepCurrent, Row(plan, "Old").Choice);
+        var added = Row(plan, "Alerts:Emails");
+        Assert.Null(added.Current);
+        Assert.Equal("""["ops@x"]""", added.Result);
+        Assert.Equal(text, plan.BuildResult());
+        Assert.Equal(text, plan.EditedText);
+    }
 
     [Fact]
-    public void A_setting_line_splits_around_its_value_so_it_can_be_edited_in_place()
+    public void Settings_the_text_adds_sit_where_the_text_puts_them()
     {
-        Assert.Equal(("\"Host\": \"", "\""), Json.Around("Host", "\"mail\""));
-        Assert.Equal(("\"Port\": ", ""), Json.Around("Port", "25"));
-        Assert.Equal(",", Json.Separator);
+        var plan = ConfigMerger.Plan(null, """{ "Db": "prod", "Port": 25 }""", """{ "Db": "prod", "Port": 25 }""", Json, Defaults);
+
+        plan.Edit("""{ "First": 1, "Db": "prod", "Hosts": ["a"], "Port": 25 }""");
+
+        Assert.Equal(["First", "Db", "Hosts", "Port"], plan.Rows.Select(row => row.Path));
     }
+
+    [Fact]
+    public void A_setting_left_out_of_the_text_is_removed_and_a_later_change_applies_on_top_of_the_text()
+    {
+        var plan = ConfigMerger.Plan(null, """{ "Db": "prod", "Port": 25 }""", """{ "Db": "prod", "Port": 25 }""", Json, Defaults);
+
+        plan.Edit("""{ "Db": "prod" }""");
+        Assert.Equal(MergeChoice.Remove, Row(plan, "Port").Choice);
+
+        Row(plan, "Db").Choice = MergeChoice.Edit;
+        Row(plan, "Db").EditedValue = "\"test\"";
+        Assert.Equal("""{"Db":"test"}""", Compact(plan.BuildResult()));
+    }
+
+    [Fact]
+    public void A_setting_that_needs_a_value_still_needs_one_until_the_text_gives_it_one()
+    {
+        var plan = ConfigMerger.Plan("""{ "Port": 25 }""", """{ "Port": 2525 }""", """{ "Port": 587 }""", Json, Defaults);
+        var text = plan.BuildText();
+        Assert.Equal("""{"Port":587}""", Compact(text));
+
+        plan.Edit(text);
+        Assert.Null(Row(plan, "Port").Choice);
+
+        plan.Edit("""{ "Port": 2525 }""");
+        Assert.Equal(MergeChoice.KeepCurrent, Row(plan, "Port").Choice);
+    }
+
+    [Fact]
+    public void Choosing_a_side_writes_it_into_the_text_and_stays_chosen_through_later_edits()
+    {
+        var plan = ConfigMerger.Plan("""{ "Port": 25 }""", "{\n  \"Port\": 2525,\n  \"Db\": \"a\"\n}", """{ "Port": 587, "Db": "a" }""", Json, Defaults);
+        plan.StartTextEdit();
+
+        var text = plan.Choose(Row(plan, "Port"), MergeChoice.TakeIncoming);
+        Assert.Equal(MergeChoice.TakeIncoming, Row(plan, "Port").Choice);
+        Assert.Contains("587", text);
+
+        plan.Edit(text.Replace("\"a\"", "\"b\""));
+        Assert.Equal(MergeChoice.TakeIncoming, Row(plan, "Port").Choice);
+
+        text = plan.Choose(Row(plan, "Port"), MergeChoice.KeepCurrent);
+        Assert.Contains("2525", text);
+        Assert.Equal(MergeChoice.KeepCurrent, Row(plan, "Port").Choice);
+    }
+
+    [Fact]
+    public void Text_typed_and_taken_back_leaves_the_settings_as_they_were()
+    {
+        var plan = ConfigMerger.Plan("""{ "Port": 25 }""", """{ "Port": 2525 }""", """{ "Port": 587 }""", Json, Defaults);
+        plan.StartTextEdit();
+        var text = plan.BuildText();
+
+        plan.Edit("""{ "Port": 5, "Extra": true }""");
+        Assert.Equal(MergeChoice.Edit, Row(plan, "Port").Choice);
+        Assert.Contains(plan.Rows, row => row.Path == "Extra");
+
+        plan.Edit(text);
+        Assert.Null(Row(plan, "Port").Choice);
+        Assert.DoesNotContain(plan.Rows, row => row.Path == "Extra");
+    }
+
+    [Fact]
+    public void Cancelling_a_text_edit_puts_back_the_settings_and_the_file()
+    {
+        var plan = ConfigMerger.Plan(null, """{ "Db": "prod" }""", """{ "Db": "local" }""", Json, Defaults);
+        plan.StartTextEdit();
+        plan.Edit("""{ "Db": "test", "Extra": 1 }""");
+
+        plan.CancelTextEdit();
+
+        Assert.Equal(MergeChoice.KeepCurrent, Row(plan, "Db").Choice);
+        Assert.Single(plan.Rows);
+        Assert.Null(plan.EditedText);
+        Assert.Equal("""{"Db":"prod"}""", Compact(plan.BuildResult()));
+    }
+
+    [Fact]
+    public void Text_that_isnt_json_is_refused_and_changes_nothing()
+    {
+        var plan = ConfigMerger.Plan(null, """{ "Db": "prod" }""", """{ "Db": "prod" }""", Json, Defaults);
+
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => plan.Edit("""{ "Db": """));
+        Assert.Null(plan.EditedText);
+        Assert.Equal(MergeChoice.TakeIncoming, Row(plan, "Db").Choice);
+    }
+
+    [Fact]
+    public void The_plan_remembers_the_servers_file()
+    {
+        const string current = """{ "Db": "prod" }""";
+        Assert.Equal(current, ConfigMerger.Plan(null, current, """{ "Db": "local" }""", Json, Defaults).CurrentText);
+        Assert.Null(ConfigMerger.PlanNew(current, Json).CurrentText);
+    }
+
+    [Fact]
+    public void Display_shows_strings_without_quotes() =>
+        Assert.Equal("Server=x;Database='y'", Json.Display("\"Server=x;Database='y'\""));
 
     private static string Compact(string json) =>
         System.Text.Json.Nodes.JsonNode.Parse(json)!.ToJsonString();

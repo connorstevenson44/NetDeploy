@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.ServiceProcess;
 using System.Windows;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MaterialDesignThemes.Wpf;
@@ -22,7 +24,15 @@ public sealed partial class FolderFileViewModel : ObservableObject
         Name = RelativePath[(slash + 1)..];
         IsConfig = ConfigFormats.IsConfig(Name);
         CanRun = FileRunner.CanRun(Name);
+        CanEdit = !BinaryExtensions.Contains(Path.GetExtension(Name));
     }
+
+    // Files that are never text, so they get no Edit button. Anything else is checked when it is opened.
+    private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".dll", ".pdb", ".msi", ".zip", ".7z", ".gz", ".rar", ".nupkg", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico",
+        ".pdf", ".db", ".sqlite", ".mdf", ".ldf", ".bak", ".woff", ".woff2", ".ttf", ".otf", ".eot", ".so", ".bin", ".dat",
+    };
 
     public string FullPath { get; }
 
@@ -33,7 +43,10 @@ public sealed partial class FolderFileViewModel : ObservableObject
     public string Name { get; }
     public bool IsConfig { get; }
     public bool CanRun { get; }
-    public Thickness Indent => new((Folder.Length == 0 ? 0 : Folder.Count(c => c == '/') + 1) * 16, 0, 0, 0);
+
+    /// <summary>True for a file that may be text, which opens in the editor.</summary>
+    public bool CanEdit { get; }
+    public Thickness IconMargin => FileTree.IconMargin(Folder.Length == 0 ? 0 : Folder.Count(c => c == '/') + 1);
 
     public PackIconKind Icon => IsConfig ? PackIconKind.FileCogOutline
         : CanRun ? PackIconKind.ApplicationCogOutline
@@ -43,19 +56,36 @@ public sealed partial class FolderFileViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsStagedForDelete { get; set; }
 
-    /// <summary>A config file with settings changed but not yet written.</summary>
+    /// <summary>A file with changes not yet written.</summary>
     [ObservableProperty]
     public partial bool HasEdits { get; set; }
 }
 
-/// <summary>A folder in the install folder, with its install marked. The folder view lists those in the folder it is in.</summary>
-public sealed class FolderNodeViewModel
+/// <summary>How an install's Windows services are doing, as the dot beside it shows.</summary>
+public enum ServiceState
 {
-    internal FolderNodeViewModel(string path, string name, Installation? install)
+    /// <summary>Not looked at yet: nothing shows.</summary>
+    Unknown,
+
+    /// <summary>No service runs a program in the install: a question mark shows.</summary>
+    NotFound,
+
+    Running,
+    Stopped,
+
+    /// <summary>Some running and some not, or starting, stopping or paused.</summary>
+    Mixed,
+}
+
+/// <summary>A folder in the install folder, with its install marked. The folder view lists those in the folder it is in.</summary>
+public sealed partial class FolderNodeViewModel : ObservableObject
+{
+    internal FolderNodeViewModel(string path, string name, Installation? install, IReadOnlyList<string>? services = null)
     {
         FullPath = path;
         Name = name;
         Target = install is null ? null : new InstallTarget(install);
+        ServiceNames = services ?? [];
     }
 
     public string FullPath { get; }
@@ -65,6 +95,16 @@ public sealed class FolderNodeViewModel
     public InstallTarget? Target { get; }
 
     public bool IsInstall => Target is not null;
+
+    /// <summary>The Windows services that run a program in the install.</summary>
+    internal IReadOnlyList<string> ServiceNames { get; }
+
+    [ObservableProperty]
+    public partial ServiceState ServiceState { get; private set; }
+
+    /// <summary>Each service and its state, for the dot's tooltip.</summary>
+    [ObservableProperty]
+    public partial string ServiceTip { get; private set; } = "";
 
     /// <summary>The root of a new install whose folder isn't there yet.</summary>
     public bool IsMissing => !Directory.Exists(FullPath);
@@ -80,6 +120,24 @@ public sealed class FolderNodeViewModel
 
     public PackIconKind Icon =>
         IsInstall ? PackIconKind.Server : IsMissing ? PackIconKind.FolderPlusOutline : PackIconKind.FolderOutline;
+
+    /// <summary>Shows the states just read of the install's services.</summary>
+    internal void ShowServices(IReadOnlyDictionary<string, ServiceControllerStatus?> states)
+    {
+        if (!IsInstall)
+            return;
+        if (ServiceNames.Count == 0)
+        {
+            ServiceState = ServiceState.NotFound;
+            ServiceTip = "No Windows service runs from this install";
+            return;
+        }
+        var mine = ServiceNames.Select(name => (Name: name, Status: states.GetValueOrDefault(name))).ToList();
+        ServiceState = mine.All(service => service.Status == ServiceControllerStatus.Running) ? ServiceState.Running
+            : mine.All(service => service.Status is ServiceControllerStatus.Stopped or null) ? ServiceState.Stopped
+            : ServiceState.Mixed;
+        ServiceTip = string.Join(Environment.NewLine, mine.Select(service => $"{service.Name}: {Words.Status(service.Status)}"));
+    }
 }
 
 /// <summary>
@@ -152,7 +210,10 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     private readonly HashSet<string> _deletes = new(StringComparer.OrdinalIgnoreCase);
     private readonly InstallViewModel? _target;
     private readonly IReadOnlyCollection<string> _appFiles;
+    private readonly FileTree<FolderFileViewModel> _tree;
     private Dictionary<string, Installation> _installsByFolder = [];
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> _servicesByFolder = new Dictionary<string, IReadOnlyList<string>>();
+    private readonly DispatcherTimer _serviceTimer;
     private List<FolderFileViewModel> _files = [];
     private CancellationTokenSource? _listing;
     private NewInstallRowViewModel? _newInstall;
@@ -166,6 +227,9 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         Root = Path.GetFullPath(path);
         _target = target;
         _appFiles = appFiles ?? [];
+        _tree = new FileTree<FolderFileViewModel>(file => file.Folder, file => file.RelativePath, ShowFiles);
+        // Services start and stop on their own, so their states are read again every few seconds.
+        _serviceTimer = new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => CheckServices = CheckServicesAsync(), Dispatcher.CurrentDispatcher);
         if (target is not null)
             target.PropertyChanged += OnTargetChanged;
         Reload();
@@ -197,12 +261,27 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     /// <summary>The install folder's own name, or the whole path for the top of a drive.</summary>
     private string RootName => Path.GetFileName(Root.TrimEnd(Path.DirectorySeparatorChar)) is { Length: > 0 } name ? name : Root;
 
-    /// <summary>Folder headings and files, in path order.</summary>
+    /// <summary>Folder headings and files, in path order, as a tree whose folders can be folded.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFiles))]
     public partial IReadOnlyList<object> Items { get; private set; } = [];
 
     public bool HasFiles => Items.Count > 0;
+
+    /// <summary>Text the files' paths must have in them to be listed; empty lists them all.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NoFilesText))]
+    public partial string FileFilter { get; set; } = "";
+
+    public string NoFilesText => FileFilter.Length > 0 ? "No files match the filter." : "No files in this folder.";
+
+    partial void OnFileFilterChanged(string value)
+    {
+        _tree.Filter = value;
+        ShowFiles();
+    }
+
+    private void ShowFiles() => Items = _tree.Build(_files);
 
     [ObservableProperty]
     public partial bool IsListing { get; private set; }
@@ -214,7 +293,10 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     /// <summary>The listing in progress, for tests to wait on.</summary>
     public Task Listing { get; private set; } = Task.CompletedTask;
 
-    /// <summary>The config file open in the side-by-side editor.</summary>
+    /// <summary>The read of the installs' service states in progress, for tests to wait on.</summary>
+    public Task CheckServices { get; private set; } = Task.CompletedTask;
+
+    /// <summary>The file open in the editor.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasOpenFile))]
     public partial ConfigFileViewModel? OpenFile { get; private set; }
@@ -227,10 +309,13 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     public bool HasPending => EditCount > 0 || DeleteCount > 0;
     public bool HasConflicts => _opened.Values.Any(file => file.HasConflicts);
 
+    /// <summary>A settings file whose text can't be read as settings, which has to be put right or undone before Finalize.</summary>
+    public ConfigFileViewModel? FileWithTextError => _opened.Values.FirstOrDefault(file => file.HasTextError);
+
     /// <summary>What Finalize will do, in a few words, for the bar beside it.</summary>
     public string PendingText => string.Join(", ", new[]
     {
-        EditCount > 0 ? Words.Count(EditCount, "setting changed", "settings changed") : null,
+        EditCount > 0 ? Words.Count(EditCount, "change", "changes") : null,
         DeleteCount > 0 ? Words.Count(DeleteCount, "file to delete", "files to delete") : null,
     }.OfType<string>());
 
@@ -240,24 +325,34 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         get
         {
             var lines = _opened.Values.Where(file => file.HasChanges)
-                .Select(file => $"Write {file.ChangeCount} changed setting(s) to {Relative(Path.Combine(file.Folder, file.FileName))}")
+                .Select(file => $"Write {Words.Count(file.ChangeCount, "change", "changes")} to {Relative(Path.Combine(file.Folder, file.FileName))}")
                 .Concat(_deletes.Order(StringComparer.OrdinalIgnoreCase).Select(path => $"Delete {Relative(path)}"));
             return string.Join(Environment.NewLine, lines);
         }
     }
 
+    /// <summary>Why the last file picked couldn't be opened, such as it not being text; null when it could.</summary>
+    [ObservableProperty]
+    public partial string? OpenError { get; private set; }
+
     [RelayCommand]
     private void Open(FolderFileViewModel file)
     {
-        if (!file.IsConfig)
-            return;
-        if (!_opened.TryGetValue(file.FullPath, out var config))
+        OpenError = null;
+        if (!_opened.TryGetValue(file.FullPath, out var opened))
         {
-            config = new ConfigFileViewModel(ConfigUpdates.Open(file.FullPath), () => OnEdited(file.FullPath));
-            config.ShowUnchanged(true);
-            _opened[file.FullPath] = config;
+            try
+            {
+                opened = new ConfigFileViewModel(ConfigUpdates.Open(file.FullPath), () => OnEdited(file.FullPath));
+            }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Xml.XmlException)
+            {
+                OpenError = ex is InvalidDataException ? ex.Message : $"{file.Name} can't be opened: {ex.Message}";
+                return;
+            }
+            _opened[file.FullPath] = opened;
         }
-        OpenFile = config;
+        OpenFile = opened;
     }
 
     [RelayCommand]
@@ -299,6 +394,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
 
         var installs = Installations.Find(Root, _appFiles);
         _installsByFolder = installs.ToDictionary(install => Path.GetFullPath(install.Directory), StringComparer.OrdinalIgnoreCase);
+        _servicesByFolder = Installations.Services(_installsByFolder.Keys);
         Installs = installs.Select(install => new InstallTarget(install)).ToList();
 
         _newInstall?.Detach();
@@ -325,7 +421,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
 
     internal FolderNodeViewModel Node(string path) =>
         new(path, IsRoot(path) ? RootName : Path.GetFileName(path),
-            _installsByFolder.GetValueOrDefault(Path.GetFullPath(path)));
+            _installsByFolder.GetValueOrDefault(Path.GetFullPath(path)), _servicesByFolder.GetValueOrDefault(Path.GetFullPath(path)));
 
     /// <summary>
     /// Goes into a folder: lists its folders and its files, and with a package open, makes an install there the
@@ -345,7 +441,28 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
             _target.Selected = choice;
 
         OpenFile = null;
+        OpenError = null;
+        FileFilter = "";
+        _tree.Filter = "";
         Listing = ListFilesAsync(folder.FullPath);
+        CheckServices = CheckServicesAsync();
+        _serviceTimer.Start();
+    }
+
+    /// <summary>
+    /// Reads the states of the services of the installs in view, on a background thread, and shows them beside each
+    /// install.
+    /// </summary>
+    private async Task CheckServicesAsync()
+    {
+        var installs = Rows.OfType<FolderNodeViewModel>().Append(CurrentFolder).OfType<FolderNodeViewModel>().Where(node => node.IsInstall).ToList();
+        if (installs.Count == 0)
+            return;
+        var names = installs.SelectMany(node => node.ServiceNames).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        IReadOnlyList<InstallService> states = names.Count == 0 ? [] : await Task.Run(() => Installations.States(names));
+        var byName = states.ToDictionary(service => service.Name, service => service.Status, StringComparer.OrdinalIgnoreCase);
+        foreach (var node in installs)
+            node.ShowServices(byName);
     }
 
     private bool IsRoot(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar)
@@ -388,7 +505,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
             }
             _files = files;
             IsCapped = capped;
-            Items = FolderHeadings.Interleave(_files, file => file.Folder);
+            ShowFiles();
         }
         catch (OperationCanceledException)
         {
@@ -463,6 +580,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
 
     public void Dispose()
     {
+        _serviceTimer.Stop();
         _listing?.Cancel();
         _newInstall?.Detach();
         if (_target is not null)

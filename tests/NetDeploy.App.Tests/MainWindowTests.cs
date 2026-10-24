@@ -1,6 +1,8 @@
 using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Windows;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -240,7 +242,13 @@ public class MainWindowTests
         }
         Write("OrdersService.exe", "");
         Write("OrdersService.dll", "");
-        Write("appsettings.json", """{ "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" }, "Smtp": { "Host": "mail", "Port": 25 }, "Cleanup": { "KeepDays": 30 } }""");
+        Write("appsettings.json", """
+            {
+              "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" },
+              "Smtp": { "Host": "mail", "Port": 25 },
+              "Cleanup": { "KeepDays": 30 }
+            }
+            """);
         Write("OrdersService.exe.config", "<configuration><appSettings><add key=\"Region\" value=\"East\" /></appSettings></configuration>");
         Write("tools/migrate.ps1", "Write-Output done");
         Write("tools/reindex.bat", "@echo done");
@@ -253,9 +261,33 @@ public class MainWindowTests
         await folder.Listing;
         var settings = folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "appsettings.json");
         folder.OpenCommand.Execute(settings);
-        folder.OpenFile!.Items.OfType<SettingViewModel>().Single(setting => setting.Key == "KeepDays").Value = "14";
+        folder.OpenFile!.Text = folder.OpenFile.Text.Replace("\"KeepDays\": 30", "\"KeepDays\": 14");
         folder.ToggleDeleteCommand.Execute(folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "2026-10-01.log"));
+        await folder.CheckServices;
+        Assert.Equal(ServiceState.NotFound, folder.Rows.OfType<FolderNodeViewModel>().Single(node => node.Name == "east").ServiceState);
         await SaveScreenshotAsync(window, "11-folder");
+
+        // The files as a tree: tools folded, then filtered
+        folder.Items.OfType<FolderViewModel>().Single(heading => heading.Path == "tools").ToggleCommand.Execute(null);
+        Assert.DoesNotContain(folder.Items.OfType<FolderFileViewModel>(), file => file.Folder == "tools");
+        await SaveScreenshotAsync(window, "11b-folder-tree");
+        folder.FileFilter = "orders";
+        Assert.All(folder.Items.OfType<FolderFileViewModel>(), file => Assert.Contains("Orders", file.Name));
+        await SaveScreenshotAsync(window, "11c-folder-filter");
+        folder.FileFilter = "";
+
+        // Typing in the file adds a tracked change: new lines on green, with buttons to undo them at the line's end
+        var open = folder.OpenFile!;
+        open.Text = open.Text.Replace("\"Cleanup\"", "\"Hosts\": [ \"web01.contoso.local\", \"web02.contoso.local\" ],\n  \"Cleanup\"");
+        Assert.Null(open.TextError);
+        Assert.Equal(2, open.ChangeCount);
+        Assert.Contains(open.Marks, mark => mark.Kind == MarkKind.Change && open.Text.Substring(mark.Start, mark.Length).Contains("Hosts"));
+        await SaveScreenshotAsync(window, "11d-track-changes");
+
+        // Screen readers and the manual tests reach the text and each change's buttons through the editor
+        var peer = UIElementAutomationPeer.CreatePeerForElement(Descendants(window).OfType<ChangeEditor>().First(editor => editor.IsVisible));
+        Assert.Equal(open.Text, ((IValueProvider)peer.GetPattern(PatternInterface.Value)).Value);
+        Assert.Contains(peer.GetChildren(), child => child.GetName() == "Undo");
 
         // Listing another folder lays out new rows over the old ones. A folder heading once got a row built for a
         // file, and the file's typed command threw during layout.
@@ -303,16 +335,72 @@ public class MainWindowTests
             File.WriteAllText(full, text);
         }
 
-        const string v23 = """{ "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" }, "Logging": { "LogLevel": { "Default": "Information" } }, "Smtp": { "Server": "localhost", "Port": 25 }, "Cleanup": { "KeepDays": 30 } }""";
+        const string v23 = """
+            {
+              "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" },
+              "Logging": {
+                "LogLevel": { "Default": "Information" }
+              },
+              "Smtp": {
+                "Server": "localhost",
+                "Port": 25
+              },
+              "Cleanup": { "KeepDays": 30 }
+            }
+            """;
         Write("server/appsettings.json", v23.Replace("\"KeepDays\": 30", "\"KeepDays\": 14"));
         Write("server/.deploy/base/appsettings.json", v23);
-        Write("server/appsettings.Production.json", """{ "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" }, "Smtp": { "Server": "mail.contoso.com" } }""");
-        Write("server/OrdersService.exe.config", """<configuration><appSettings><add key="Region" value="East" /><add key="Batch:Size" value="500" /></appSettings></configuration>""");
-        Write("package/appsettings.json", """{ "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" }, "Logging": { "LogLevel": { "Default": "Warning" } }, "Smtp": { "Host": "localhost", "Port": 25 }, "Cleanup": { "KeepDays": 30 }, "Payments": { "ApiKey": "" } }""");
-        Write("package/OrdersService.exe.config", """<configuration><appSettings><add key="Region" value="West" /><add key="Batch:Size" value="250" /><add key="Batch:Retry" value="3" /></appSettings></configuration>""");
+        Write("server/appsettings.Production.json", """
+            {
+              "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" },
+              "Smtp": { "Server": "mail.contoso.com" }
+            }
+            """);
+        Write("server/OrdersService.exe.config", """
+            <configuration>
+              <appSettings>
+                <add key="Region" value="East" />
+                <add key="Batch:Size" value="500" />
+              </appSettings>
+            </configuration>
+            """);
+        Write("package/appsettings.json", """
+            {
+              "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" },
+              "Logging": {
+                "LogLevel": { "Default": "Warning" }
+              },
+              "Smtp": {
+                "Host": "localhost",
+                "Port": 25
+              },
+              "Cleanup": { "KeepDays": 30 },
+              "Payments": { "ApiKey": "" }
+            }
+            """);
+        Write("package/OrdersService.exe.config", """
+            <configuration>
+              <appSettings>
+                <add key="Region" value="West" />
+                <add key="Batch:Size" value="250" />
+                <add key="Batch:Retry" value="3" />
+              </appSettings>
+            </configuration>
+            """);
 
         return ConfigUpdates.Plan(Path.Combine(root, "package"), Path.Combine(root, "server"),
             ["appsettings.json", "OrdersService.exe.config"], new MergeOptions(["Logging"]));
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            yield return child;
+            foreach (var inner in Descendants(child))
+                yield return inner;
+        }
     }
 
     private static async Task SaveScreenshotAsync(Window window, string name)

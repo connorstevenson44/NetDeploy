@@ -32,11 +32,9 @@ class App {
         WinActivate(this.Hwnd)
     }
 
+    ; Closes any NetDeploy that is open, so the tests start it fresh.
     static CloseAll() {
         while WinExist("ahk_exe NetDeploy.exe") {
-            if !Runner.Unattended && A_Index = 1
-                && MsgBox("NetDeploy is open. Close it so the tests can start it fresh?", "NetDeploy tests", "OKCancel Icon? 0x40000") != "OK"
-                throw StopRun("NetDeploy was left open.")
             ProcessClose("NetDeploy.exe")
             ProcessWaitClose("NetDeploy.exe", 10)
         }
@@ -526,7 +524,40 @@ class App {
         this.Click(this.FindInRow(name, {Type: "Button", HelpText: tooltip}, "the button to " StrLower(what)), what)
     }
 
-    static EditSettings(path) => this.FileButton(path, "Edit settings", "Edit the settings in " path)
+    static EditFile(path) => this.FileButton(path, "Edit", "Edit " path)
+
+    ; Types into the filter box over the file list; "" clears it.
+    static FilterFiles(text, what) => this.Type({Type: "Edit", Name: "Filter files"}, text, what)
+
+    ; Folds or opens a folder in the file list, by its path from the folder being listed, which is the row's tooltip.
+    static ToggleFolder(path, what) => this.Click(this.FindInList({Type: "Button", HelpText: path}, "the " path " folder in the file list"), what)
+
+    ; Edits the open file's text: change(text) returns the new text, which goes in the editor in one go, as a paste
+    ; would. The editor then marks what changed, in green and struck through in red.
+    static EditText(change, what) {
+        editor := this.Find({AutomationId: "FileText"}, "the file's text")
+        Runner.Step(what)
+        this.Point(editor, what)
+        editor.Value := change(editor.Value)
+        Runner.Wait(Runner.Pace)
+    }
+
+    ; Changes one value in the open file's text: the first match of the regex pattern is replaced with replacement.
+    ; Files written by scripts space their values in all sorts of ways, so patterns allow for any spacing.
+    static ReplaceText(pattern, replacement, what) {
+        this.EditText((text) => this.ReplaceOnce(text, pattern, replacement, what), what)
+    }
+
+    static ReplaceOnce(text, pattern, replacement, what) {
+        changed := RegExReplace(text, pattern, replacement, &count, 1)
+        if !count
+            Runner.Fail("The file's text has nothing matching " pattern ", so I couldn't " StrLower(what))
+        return changed
+    }
+
+    ; Clicks one of the buttons at the end of a change in the editor, by its name and tooltip, such as Undo and
+    ; "Put back the server's text: 10".
+    static ClickMark(name, tooltip, what) => this.Click({Type: "Button", Name: name, HelpText: tooltip}, what)
 
     ; ===== The deploy's reviews =====
 
@@ -544,17 +575,9 @@ class App {
     ; Shows one config file's diff in the config review, by clicking its chip.
     static ConfigFile(name) => this.Click({Type: "Text", Name: name}, "Show " name, "mouse")
 
-    ; Copies a setting's value on the server across to the file after the deploy. Focusing the setting scrolls the
-    ; diff to it.
-    static KeepNow(path, what) {
-        setting := this.FindInList({Type: "Edit", Name: path}, path)
-        try setting.SetFocus()
-        this.Point(setting, path)
-        this.Click(this.FindInRow(setting, {Type: "Button", AutomationId: "KeepNow"}, "the button to keep " path "'s value"), what)
-    }
-
-    ; Types a setting's value on the right of a diff. path is the setting's path, such as Orders:Region.
-    static SetSetting(path, value, what) => this.Type(this.FindInList({Type: "Edit", Name: path}, path), value, what)
+    ; Settles a setting that needs a value, with one of its buttons, such as "Keep the server's". The buttons are in
+    ; the list above the file and at the end of the setting's line, and their tooltips name the setting.
+    static Settle(path, action, what) => this.Click({Type: "Button", Name: action, HelpText: path, mm: 2}, what)
 
     ; ===== Diagnostics =====
 

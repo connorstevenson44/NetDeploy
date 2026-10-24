@@ -86,7 +86,7 @@ public class ReviewStageViewModelTests : IDisposable
         Assert.Equal(2, stage.Number);
         Assert.False(stage.ContinueCommand.CanExecute(null));
 
-        stage.Review.SelectedFile.Items.OfType<SettingViewModel>().Single().KeepNowCommand.Execute(null);
+        stage.Review.SelectedFile.Choices.Single().Actions.Single(action => action.Name == "Keep the server's").Command.Execute(null);
 
         Assert.True(stage.ContinueCommand.CanExecute(null));
         Assert.Contains(nameof(ConfigStageViewModel.CanContinue), changes);
