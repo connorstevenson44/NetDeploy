@@ -140,6 +140,23 @@ public sealed class EditorViewModelTests : IDisposable
     }
 
     [Fact]
+    public void A_list_written_by_hand_as_one_value_opens_as_that_line_and_saves_as_a_list()
+    {
+        var editor = new EditorViewModel();
+        editor.Load("""
+            { "schemaVersion": 1, "app": { "name": "Orders", "version": "1.0.0" },
+              "steps": [ { "type": "copyFiles", "from": "app", "to": "C:\\Apps\\Orders", "preserve": "logs/**" } ] }
+            """, "deploy.json");
+        editor.Selected = editor.Rows.Single(row => row.Kind == EditorRowKind.Step);
+
+        var preserve = Field<ValueFieldViewModel>(editor, "preserve");
+        Assert.Equal("logs/**", preserve.Text);
+        preserve.Text = "logs/**\ndata/**";
+
+        Assert.Equal(["logs/**", "data/**"], JsonNode.Parse(editor.Json)!["steps"]![0]!["preserve"]!.AsArray().Select(line => (string?)line));
+    }
+
+    [Fact]
     public void Saving_keeps_what_the_form_does_not_show()
     {
         var editor = OpenSample();

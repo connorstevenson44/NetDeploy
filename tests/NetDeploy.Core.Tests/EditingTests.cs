@@ -118,4 +118,14 @@ public class EditingTests
         Assert.Throws<ManifestException>(() => ManifestDocument.Parse("[1, 2]"));
         Assert.Throws<ManifestException>(() => ManifestDocument.Parse("{ \"app\": "));
     }
+
+    [Theory]
+    [InlineData("""{ "steps": { "type": "copyFiles" } }""", "steps")]
+    [InlineData("""{ "app": "Orders" }""", "app")]
+    [InlineData("""{ "install": "C:\\Apps" }""", "install")]
+    public void Parts_the_editor_is_built_around_must_have_their_shape(string json, string part)
+    {
+        var error = Assert.Single(Assert.Throws<ManifestException>(() => ManifestDocument.Parse(json)).Errors);
+        Assert.StartsWith($"\"{part}\" must be", error);
+    }
 }

@@ -73,6 +73,19 @@ public sealed class InstallTests : IDisposable
     }
 
     [Fact]
+    public async Task A_copy_of_an_install_that_cant_be_made_fails_the_deploy()
+    {
+        await DeployAsync("east");
+        _server.File("west", "a file where the new install's folder goes");
+
+        var outcome = await DeployAsync("west", seedFrom: _server.Combine("east"));
+
+        Assert.Equal(DeployResult.Failed, outcome.Result);
+        Assert.Null(outcome.FailedStep);
+        Assert.Contains(_log.Entries, entry => entry.Level == LogLevel.Error);
+    }
+
+    [Fact]
     public void Services_and_tasks_undo_themselves_with_the_install_name_filled_in()
     {
         var values = new Dictionary<string, string> { ["InstanceSuffix"] = "-east", ["InstanceDir"] = @"C:\Apps\Orders\east" };

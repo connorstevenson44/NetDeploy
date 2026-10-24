@@ -136,8 +136,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (ManifestException) when (File.Exists(manifestPath))
         {
             ClosePackage();
-            OpenInEditor(manifestPath);
-            Status = "deploy.json has problems, listed under the form. Fix them and save to open the package.";
+            if (OpenInEditor(manifestPath))
+                Status = "deploy.json has problems, listed under the form. Fix them and save to open the package.";
             return;
         }
         catch (Exception ex) when (ex is ManifestException or IOException or InvalidDataException or UnauthorizedAccessException)

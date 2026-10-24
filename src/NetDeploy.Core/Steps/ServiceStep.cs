@@ -62,8 +62,9 @@ public sealed class ServiceStep : DeployStep
                 break;
 
             case ServiceAction.Start:
-                WindowsServices.Start(name, timeout);
-                context.Rollback.StartedServices.Add(name);
+                // A service that was already running isn't the deploy's to stop on a rollback.
+                if (WindowsServices.Start(name, timeout))
+                    context.Rollback.StartedServices.Add(name);
                 break;
 
             case ServiceAction.Install:

@@ -32,6 +32,7 @@ public sealed partial class StepViewModel : ObservableObject
         PowerShellStep => PackIconKind.Console,
         ScheduledTaskStep => PackIconKind.CalendarClock,
         IfStep => PackIconKind.SourceBranch,
+        DeleteFolderStep => PackIconKind.FolderRemoveOutline,
         _ => PackIconKind.CircleSmall,
     };
 

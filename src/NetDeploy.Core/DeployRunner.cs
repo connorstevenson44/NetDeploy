@@ -49,7 +49,8 @@ public sealed class DeployRunner(IUserInteraction user, IDeployLog log)
         {
             return new DeployOutcome(DeployResult.Failed, context.Rollback, ex.Step, ex.InnerException);
         }
-        catch (InstanceException ex)
+        // Steps report their own failures; these are from setting up the install before the first step.
+        catch (Exception ex) when (ex is InstanceException or IOException or UnauthorizedAccessException)
         {
             maskingLog.Error(ex.Message);
             return new DeployOutcome(DeployResult.Failed, context.Rollback, Error: ex);

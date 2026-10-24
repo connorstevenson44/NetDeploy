@@ -37,18 +37,32 @@ public sealed partial class ManifestDocument(JsonObject root)
         ["steps"] = new JsonArray(new JsonObject { ["type"] = "copyFiles", ["from"] = "app", ["to"] = "{InstanceDir}" }),
     });
 
-    /// <summary>Reads a deploy.json. Throws ManifestException when it isn't a JSON object.</summary>
+    /// <summary>
+    /// Reads a deploy.json. Throws ManifestException when it isn't a JSON object, or when the parts the editor is built
+    /// around, the steps, the app and the install, aren't the shape they must be.
+    /// </summary>
     public static ManifestDocument Parse(string json)
     {
+        JsonObject root;
         try
         {
-            return new(JsonNode.Parse(json, documentOptions: ReadOptions) as JsonObject
-                ?? throw new ManifestException(["deploy.json must be a JSON object."]));
+            root = JsonNode.Parse(json, documentOptions: ReadOptions) as JsonObject
+                ?? throw new ManifestException(["deploy.json must be a JSON object."]);
         }
         catch (JsonException ex)
         {
             throw new ManifestException([ex.Message]);
         }
+
+        string?[] wrongShape =
+        [
+            root["steps"] is null or JsonArray ? null : "\"steps\" must be a list: [ ... ].",
+            root["app"] is null or JsonObject ? null : "\"app\" must be an object: { \"name\": ..., \"version\": ... }.",
+            root["install"] is null or JsonObject ? null : "\"install\" must be an object: { \"folder\": ... }.",
+        ];
+        if (wrongShape.OfType<string>().ToList() is [_, ..] errors)
+            throw new ManifestException(errors);
+        return new(root);
     }
 
     public string ToJson() => Root.ToJsonString(WriteOptions) + Environment.NewLine;

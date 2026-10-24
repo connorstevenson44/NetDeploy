@@ -147,13 +147,13 @@ internal static class JsonText
         return text[start..end];
     }
 
-    // One level of indentation: the first indented line's, or two spaces.
+    // One level of indentation: the first indented line's, or two spaces. Lines of only spaces don't count.
     private static string Unit(string text)
     {
         foreach (var line in text.Split('\n').Skip(1))
         {
             var indent = line[..(line.Length - line.TrimStart(' ', '\t').Length)];
-            if (indent.Length > 0)
+            if (indent.Length > 0 && line.Trim().Length > 0)
                 return indent;
         }
         return "  ";

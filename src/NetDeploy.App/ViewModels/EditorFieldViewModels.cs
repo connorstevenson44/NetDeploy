@@ -57,7 +57,8 @@ public sealed partial class ValueFieldViewModel : EditorFieldViewModel
         var value = owner[field.Name];
         Text = field.Kind switch
         {
-            FieldKind.Lines => string.Join(Environment.NewLine, value?.AsArray().Select(line => line?.ToString()) ?? []),
+            // A file written by hand may have one line where a list goes; it shows as that line until it is saved.
+            FieldKind.Lines => value is JsonArray lines ? string.Join(Environment.NewLine, lines.Select(line => line?.ToString())) : value?.ToString() ?? "",
             FieldKind.Json => value?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? "",
             _ => value?.ToString() ?? "",
         };

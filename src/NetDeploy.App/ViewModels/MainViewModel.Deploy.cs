@@ -180,7 +180,9 @@ public sealed partial class MainViewModel
         Status = outcome.Result switch
         {
             DeployResult.Succeeded => dryRun ? "Dry run finished. Nothing was changed." : "Deploy finished.",
-            DeployResult.Failed => $"Failed at \"{outcome.FailedStep!.Title}\": {outcome.Error!.Message}",
+            // A failure before the first step, such as a new install's folder already having files, has no step.
+            DeployResult.Failed when outcome.FailedStep is { } failed => $"Failed at \"{failed.Title}\": {outcome.Error?.Message}",
+            DeployResult.Failed => $"Failed: {outcome.Error?.Message}",
             _ => "Cancelled.",
         } + $" Log: {log.FilePath}";
 

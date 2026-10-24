@@ -31,15 +31,17 @@ public sealed class DeployPackage : IDisposable
             return new DeployPackage(path, Path.GetFullPath(path), ReadManifest(path), ownsFolder: false);
 
         var folder = Path.Combine(Path.GetTempPath(), "NetDeploy", Path.GetRandomFileName());
-        // ExtractToDirectory refuses entries that would land outside the folder ("zip slip").
-        ZipFile.ExtractToDirectory(path, folder);
         try
         {
+            // ExtractToDirectory refuses entries that would land outside the folder ("zip slip").
+            ZipFile.ExtractToDirectory(path, folder);
             return new DeployPackage(path, folder, ReadManifest(folder), ownsFolder: true);
         }
         catch
         {
-            Directory.Delete(folder, recursive: true);
+            // A zip that fails halfway through extracting leaves part of itself behind.
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
             throw;
         }
     }

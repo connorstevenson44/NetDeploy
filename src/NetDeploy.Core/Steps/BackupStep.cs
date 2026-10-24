@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 namespace NetDeploy.Core.Steps;
@@ -27,7 +28,7 @@ public sealed class BackupStep : DeployStep
         }
 
         var backupRoot = BackupsOf(folder);
-        var backup = Path.Combine(backupRoot, DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+        var backup = Path.Combine(backupRoot, DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture));
         if (context.DryRun)
         {
             context.Log.Info($"Would back up to {backup}");
@@ -39,7 +40,7 @@ public sealed class BackupStep : DeployStep
         context.Log.Info($"Backed up to {backup}");
 
         // Timestamps sort by name, so the oldest backups come last.
-        foreach (var old in Directory.GetDirectories(backupRoot).OrderDescending().Skip(Keep))
+        foreach (var old in Directory.GetDirectories(backupRoot).OrderDescending(StringComparer.Ordinal).Skip(Keep))
             Directory.Delete(old, recursive: true);
 
         return Task.CompletedTask;

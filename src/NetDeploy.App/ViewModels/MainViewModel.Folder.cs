@@ -53,6 +53,8 @@ public sealed partial class MainViewModel
             if (dialog.ShowDialog() != true)
                 return;
             Load(dialog.FileName);
+            if (!HasPackage)
+                return;
             // Point the install folder at the one the source lives in.
             if (FolderField is not null)
                 FolderField.Value = Path.GetDirectoryName(source.Directory)!;
