@@ -29,6 +29,12 @@ public interface IConfigFormat
 
     /// <summary>The line a setting is written as.</summary>
     string Line(string key, string value);
+
+    /// <summary>The line's text before and after the value as Display shows it, so the value can be edited in place.</summary>
+    (string Before, string After) Around(string key, string value);
+
+    /// <summary>Ends a setting or section that has another after it: a comma in JSON, nothing in XML.</summary>
+    string Separator { get; }
 }
 
 public static class ConfigFormats

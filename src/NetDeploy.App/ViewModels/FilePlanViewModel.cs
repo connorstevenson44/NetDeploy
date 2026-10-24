@@ -6,12 +6,6 @@ using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.ViewModels;
 
-/// <summary>A folder heading in the file list.</summary>
-public sealed record FolderViewModel(string Name, int Depth)
-{
-    public Thickness Indent => new(Depth * 16, 0, 0, 0);
-}
-
 /// <summary>A copy step whose files can't be listed yet, with the reason.</summary>
 public sealed record FilePlanError(string Title, string Message);
 
@@ -174,24 +168,6 @@ public sealed partial class FilePlanViewModel : ObservableObject
         OnPropertyChanged(nameof(KeepCount));
     }
 
-    private List<object> BuildItems()
-    {
-        var items = new List<object>();
-        var open = new List<string>();
-        foreach (var row in _rows.Where(row => _showUnchanged || row.IsNotable))
-        {
-            var folders = row.Folder.Length == 0 ? [] : row.Folder.Split('/');
-            var common = 0;
-            while (common < open.Count && common < folders.Length && open[common].Equals(folders[common], StringComparison.OrdinalIgnoreCase))
-                common++;
-            open.RemoveRange(common, open.Count - common);
-            for (var depth = common; depth < folders.Length; depth++)
-            {
-                items.Add(new FolderViewModel(folders[depth], depth));
-                open.Add(folders[depth]);
-            }
-            items.Add(row);
-        }
-        return items;
-    }
+    private List<object> BuildItems() =>
+        FolderHeadings.Interleave(_rows.Where(row => _showUnchanged || row.IsNotable), row => row.Folder);
 }

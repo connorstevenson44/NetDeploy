@@ -26,6 +26,59 @@
     <SolidColorBrush x:Key="Danger" Color="#C62828" />
     <SolidColorBrush x:Key="DangerTint" Color="#FDECEC" />
 
+    <!-- Diff colours, as in Visual Studio and GitHub: red where a line goes, green where one arrives, hatched where a
+         side has no line. -->
+    <SolidColorBrush x:Key="DiffAdded" Color="#E6FFEC" />
+    <SolidColorBrush x:Key="DiffAddedGutter" Color="#CCFFD8" />
+    <SolidColorBrush x:Key="DiffRemoved" Color="#FFEBE9" />
+    <SolidColorBrush x:Key="DiffRemovedGutter" Color="#FFD7D5" />
+    <SolidColorBrush x:Key="DiffNeedsValue" Color="#FFF8C5" />
+    <DrawingBrush x:Key="DiffFiller" TileMode="Tile" Viewport="0,0,8,8" ViewportUnits="Absolute">
+        <DrawingBrush.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#F6F8FA" Geometry="M0,0 H8 V8 H0 Z" />
+                <GeometryDrawing Geometry="M0,8 L8,0">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#E1E6EB" Thickness="1" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
+    <!-- The line between the two sides of a diff -->
+    <Style x:Key="DiffDivider" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Hairline}" />
+        <Setter Property="BorderThickness" Value="1,0" />
+    </Style>
+
+    <!-- A long list that only builds the rows on screen. Every list of files, settings or log lines uses it, so a
+         folder with thousands of files scrolls as smoothly as one with ten. -->
+    <Style x:Key="VirtualList" TargetType="ItemsControl">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel />
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ItemsControl">
+                    <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsPresenter />
+                    </ScrollViewer>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
     <converters:BooleanToVisibilityConverter x:Key="InverseBoolToVisibility" TrueValue="Collapsed" FalseValue="Visible" />
     <app:CountToVisibilityConverter x:Key="ZeroToVisible" ShowWhenZero="True" />

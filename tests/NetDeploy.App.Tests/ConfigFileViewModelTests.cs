@@ -41,11 +41,71 @@ public class ConfigFileViewModelTests
         var file = Review();
 
         Assert.DoesNotContain(file.Items.OfType<SettingViewModel>(), setting => setting.Path == "Smtp:Host");
-        Assert.Single(file.Items.OfType<SectionViewModel>(), section => section.Name == "Smtp");
+        Assert.Single(file.Items.OfType<SectionLine>(), section => section.Name == "Smtp" && !section.IsClosing);
+        Assert.Contains(file.Items, line => line is GapLine);
 
         file.ShowUnchanged(true);
         Assert.Contains(file.Items.OfType<SettingViewModel>(), setting => setting.Path == "Smtp:Host");
-        Assert.Single(file.Items.OfType<SectionViewModel>(), section => section.Name == "Smtp");
+        Assert.Single(file.Items.OfType<SectionLine>(), section => section.Name == "Smtp" && !section.IsClosing);
+        Assert.DoesNotContain(file.Items, line => line is GapLine);
+    }
+
+    [Fact]
+    public void Both_sides_read_like_the_real_files_with_numbers_and_commas()
+    {
+        var file = Review();
+        file.ShowUnchanged(true);
+
+        // Left, the server:  { "Db": "prod", "Timeout": 30, "Smtp": { "Host": ..., "Port": 25 } }
+        // Right, the result: the same with Timeout 60, Port 587 and a new ApiKey at the end.
+        string Left(DiffLine line) => line switch
+        {
+            SectionLine section => section.Text + section.LeftSeparator,
+            SettingViewModel setting => setting.NowLine + setting.LeftSeparator,
+            _ => "",
+        };
+        var left = file.Items.Where(line => line.IsOnLeft).Select(Left).ToList();
+        Assert.Equal(["{", "\"Db\": \"prod\",", "\"Timeout\": 30,", "\"Smtp\": {", "\"Host\": \"localhost\",", "\"Port\": 25", "}", "}"], left);
+        Assert.Equal(Enumerable.Range(1, 8).Cast<int?>(), file.Items.Where(line => line.IsOnLeft).Select(line => line.LeftNumber));
+
+        var apiKey = Setting(file, "ApiKey");
+        Assert.False(apiKey.IsOnLeft);
+        Assert.Equal(8, apiKey.RightNumber);
+        Assert.Equal("", apiKey.RightSeparator);
+        Assert.Equal(",", file.Items.OfType<SectionLine>().Single(section => section.Name == "Smtp" && section.IsClosing).RightSeparator);
+        Assert.Equal(("\"ApiKey\": \"", "\""), (apiKey.Before, apiKey.After));
+    }
+
+    [Fact]
+    public void An_exe_config_shows_its_xml_lines_without_commas()
+    {
+        const string server = """<configuration><appSettings><add key="Region" value="East" /></appSettings></configuration>""";
+        const string package = """<configuration><appSettings><add key="Region" value="West" /><add key="Retry" value="3" /></appSettings></configuration>""";
+        var plan = ConfigMerger.Plan(null, server, package, ConfigFormats.For("Orders.exe.config"), new MergeOptions([]));
+        var file = new ConfigFileViewModel(new ConfigFileUpdate(@"C:\App\Orders.exe.config", ConfigFileKind.Update, plan, package), () => { });
+        file.ShowUnchanged(true);
+
+        Assert.Equal(["<configuration>", "<appSettings>", "</appSettings>", "</configuration>"],
+            file.Items.OfType<SectionLine>().Select(section => section.Text + section.RightSeparator));
+        var retry = Setting(file, "appSettings:Retry");
+        Assert.Equal(("<add key=\"Retry\" value=\"", "\" />"), (retry.Before, retry.After));
+        Assert.Equal("3", retry.Value);
+        Assert.Equal("", Setting(file, "appSettings:Region").RightSeparator);
+    }
+
+    [Fact]
+    public void Removing_a_setting_takes_its_line_off_the_right_and_renumbers()
+    {
+        var file = Review();
+        file.ShowUnchanged(true);
+        var apiKey = Setting(file, "ApiKey");
+        var smtpClose = file.Items.OfType<SectionLine>().Single(section => section.Name == "Smtp" && section.IsClosing);
+
+        apiKey.RemoveCommand.Execute(null);
+
+        Assert.False(apiKey.IsOnRight);
+        Assert.Equal("", smtpClose.RightSeparator);
+        Assert.Equal(8, file.Items.OfType<SectionLine>().Single(section => section.Name is null && section.IsClosing).RightNumber);
     }
 
     [Fact]

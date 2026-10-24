@@ -3,88 +3,146 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:vm="clr-namespace:NetDeploy.App.ViewModels">
-    <!-- The side-by-side settings editor: the value now on the left, the value to write on the right.
+    <!-- A side-by-side diff of one config file, like Visual Studio's: the file now on the left, the file after the
+         change on the right, with line numbers and the real JSON or XML lines. Values are edited in place on the right.
          DataContext is a ConfigFileViewModel; set IsReadOnly to show it without editing. -->
     <UserControl.Resources>
-        <!-- GitHub's diff colours, so changes read the way they do in a pull request. -->
-        <SolidColorBrush x:Key="AddedRow" Color="#E6FFEC" />
-        <SolidColorBrush x:Key="RemovedRow" Color="#FFEBE9" />
-        <SolidColorBrush x:Key="NeedsValueRow" Color="#FFF8C5" />
         <FontFamily x:Key="Code">Cascadia Mono, Consolas</FontFamily>
 
-        <!-- The same six columns for the heading, sections and settings, so everything lines up. -->
-        <Style x:Key="Columns" TargetType="Grid">
-            <Setter Property="Height" Value="30" />
+        <!-- The same seven columns on every line, so the two sides line up: number and text on the left, the keep
+             button between them, then status, number, text and actions on the right. -->
+        <Style x:Key="DiffRow" TargetType="Grid">
+            <Setter Property="Height" Value="24" />
+        </Style>
+
+        <Style x:Key="LineNumber" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Code}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style x:Key="LineText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Code}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
 
         <Style x:Key="RowButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
-            <Setter Property="Width" Value="26" />
-            <Setter Property="Height" Value="26" />
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="22" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
             <Setter Property="IsTabStop" Value="False" />
         </Style>
 
-        <DataTemplate DataType="{x:Type vm:SectionViewModel}">
-            <Grid Height="26" Background="{StaticResource Canvas}">
-                <StackPanel Orientation="Horizontal" Margin="28,0,0,0">
-                    <materialDesign:PackIcon Kind="CodeBraces" Width="14" Height="14" Foreground="{StaticResource InkFaint}"
-                                             VerticalAlignment="Center" Margin="{Binding Indent}" />
-                    <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Code}" FontSize="12" FontWeight="SemiBold"
-                               Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" Margin="6,0,0,0" />
-                </StackPanel>
+        <!-- A section's opening or closing line -->
+        <DataTemplate DataType="{x:Type vm:SectionLine}">
+            <Grid Style="{StaticResource DiffRow}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="28" />
+                    <ColumnDefinition Width="22" />
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="50" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="LeftSide" Grid.ColumnSpan="2" />
+                <Border x:Name="RightSide" Grid.Column="3" Grid.ColumnSpan="4" />
+                <Border Grid.Column="2" Style="{StaticResource DiffDivider}" />
+
+                <TextBlock Text="{Binding LeftNumber}" Style="{StaticResource LineNumber}" />
+                <TextBlock x:Name="LeftText" Grid.Column="1" Style="{StaticResource LineText}" Margin="{Binding Indent}"><Run Text="{Binding Text, Mode=OneWay}" /><Run Text="{Binding LeftSeparator, Mode=OneWay}" /></TextBlock>
+                <TextBlock Grid.Column="4" Text="{Binding RightNumber}" Style="{StaticResource LineNumber}" />
+                <TextBlock x:Name="RightText" Grid.Column="5" Style="{StaticResource LineText}" Margin="{Binding Indent}"><Run Text="{Binding Text, Mode=OneWay}" /><Run Text="{Binding RightSeparator, Mode=OneWay}" /></TextBlock>
             </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsOnLeft}" Value="False">
+                    <Setter TargetName="LeftSide" Property="Background" Value="{StaticResource DiffFiller}" />
+                    <Setter TargetName="LeftText" Property="Visibility" Value="Hidden" />
+                    <Setter TargetName="RightSide" Property="Background" Value="{StaticResource DiffAdded}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsOnRight}" Value="False">
+                    <Setter TargetName="RightSide" Property="Background" Value="{StaticResource DiffFiller}" />
+                    <Setter TargetName="RightText" Property="Visibility" Value="Hidden" />
+                    <Setter TargetName="LeftSide" Property="Background" Value="{StaticResource DiffRemoved}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
-        <DataTemplate DataType="{x:Type vm:SettingViewModel}">
-            <Border x:Name="Row" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Background="Transparent">
-                <Grid Style="{StaticResource Columns}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="5*" />
-                        <ColumnDefinition Width="6*" />
-                        <ColumnDefinition Width="30" />
-                        <ColumnDefinition Width="7*" />
-                        <ColumnDefinition Width="58" />
-                    </Grid.ColumnDefinitions>
-
-                    <materialDesign:PackIcon x:Name="Icon" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                             Background="Transparent" ToolTip="{Binding StatusTip}" Visibility="Hidden" />
-
-                    <TextBlock Grid.Column="1" Text="{Binding Key}" Margin="{Binding Indent}" ToolTip="{Binding Path}"
-                               FontFamily="{StaticResource Code}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-
-                    <TextBlock x:Name="Now" Grid.Column="2" Text="{Binding Now}" ToolTip="{Binding Now}" Margin="0,0,6,0"
-                               FontFamily="{StaticResource Code}" FontSize="12" Foreground="{StaticResource InkMuted}"
-                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-
-                    <!-- Copy the value on the left to the right -->
-                    <Button x:Name="KeepNow" Grid.Column="3" Style="{StaticResource RowButton}" Command="{Binding KeepNowCommand}"
-                            ToolTip="Keep the value that is there now" Visibility="{Binding CanKeepNow, Converter={StaticResource BoolToVisibility}}">
-                        <materialDesign:PackIcon Kind="ChevronDoubleRight" Width="16" Height="16" />
-                    </Button>
-
-                    <TextBox x:Name="Value" Grid.Column="4" Text="{Binding Value}" FontFamily="{StaticResource Code}" FontSize="12"
-                             VerticalAlignment="Center" Padding="4,2" BorderThickness="0,0,0,1"
-                             IsReadOnly="{Binding IsReadOnly, RelativeSource={RelativeSource AncestorType=UserControl}}" />
-                    <TextBlock x:Name="Removed" Grid.Column="4" Text="removed" FontSize="12" FontStyle="Italic" Foreground="{StaticResource Danger}"
-                               VerticalAlignment="Center" Margin="4,0" Visibility="Collapsed" />
-
-                    <StackPanel x:Name="Actions" Grid.Column="5" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Style="{StaticResource RowButton}" Command="{Binding ResetCommand}"
-                                ToolTip="{Binding DataContext.ResetTip, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                Visibility="{Binding CanReset, Converter={StaticResource BoolToVisibility}}">
-                            <materialDesign:PackIcon Kind="Undo" Width="16" Height="16" />
-                        </Button>
-                        <Button x:Name="RemoveButton" Style="{StaticResource RowButton}" Command="{Binding RemoveCommand}" ToolTip="Remove this setting"
-                                Visibility="Hidden">
-                            <materialDesign:PackIcon Kind="Close" Width="16" Height="16" />
-                        </Button>
-                    </StackPanel>
-                </Grid>
+        <!-- Unchanged lines folded away -->
+        <DataTemplate DataType="{x:Type vm:GapLine}">
+            <Border Height="24" Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1">
+                <StackPanel Orientation="Horizontal" Margin="12,0,0,0">
+                    <materialDesign:PackIcon Kind="UnfoldMoreHorizontal" Width="14" Height="14" Foreground="{StaticResource InkFaint}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Text}" FontSize="11" Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
             </Border>
+        </DataTemplate>
+
+        <!-- A setting: its line now on the left, and on the right its line after the change with the value editable -->
+        <DataTemplate DataType="{x:Type vm:SettingViewModel}">
+            <Grid x:Name="Row" Style="{StaticResource DiffRow}" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="28" />
+                    <ColumnDefinition Width="22" />
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="50" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="LeftSide" Grid.ColumnSpan="2" />
+                <Border x:Name="LeftGutter" />
+                <Border x:Name="RightSide" Grid.Column="3" Grid.ColumnSpan="4" />
+                <Border x:Name="RightGutter" Grid.Column="4" />
+                <Border Grid.Column="2" Style="{StaticResource DiffDivider}" />
+
+                <TextBlock Text="{Binding LeftNumber}" Style="{StaticResource LineNumber}" />
+                <TextBlock x:Name="Now" Grid.Column="1" Style="{StaticResource LineText}" Margin="{Binding Indent}" ToolTip="{Binding NowLine}"><Run Text="{Binding NowLine, Mode=OneWay}" /><Run Text="{Binding LeftSeparator, Mode=OneWay}" /></TextBlock>
+
+                <!-- Copy the line on the left to the right -->
+                <Button x:Name="KeepNow" Grid.Column="2" Style="{StaticResource RowButton}" Command="{Binding KeepNowCommand}"
+                        ToolTip="Keep the value that is there now" Visibility="{Binding CanKeepNow, Converter={StaticResource BoolToVisibility}}">
+                    <materialDesign:PackIcon Kind="ChevronDoubleRight" Width="16" Height="16" />
+                </Button>
+
+                <materialDesign:PackIcon x:Name="Icon" Grid.Column="3" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                         Background="Transparent" ToolTip="{Binding StatusTip}" Visibility="Hidden" />
+                <TextBlock Grid.Column="4" Text="{Binding RightNumber}" Style="{StaticResource LineNumber}" />
+
+                <Grid x:Name="After" Grid.Column="5" Margin="{Binding Indent}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Before}" Style="{StaticResource LineText}" TextTrimming="None" />
+                    <TextBox x:Name="Value" Grid.Column="1" Text="{Binding Value}" ToolTip="{Binding Value}" FontFamily="{StaticResource Code}" FontSize="12"
+                             MinWidth="48" MaxWidth="420" VerticalAlignment="Center" Padding="2,0" BorderThickness="0,0,0,1"
+                             materialDesign:TextFieldAssist.UnderlineBrush="{StaticResource Brand}"
+                             IsReadOnly="{Binding IsReadOnly, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                    <TextBlock Grid.Column="2" Style="{StaticResource LineText}"><Run Text="{Binding After, Mode=OneWay}" /><Run Text="{Binding RightSeparator, Mode=OneWay}" /></TextBlock>
+                </Grid>
+
+                <StackPanel x:Name="Actions" Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,4,0">
+                    <Button Style="{StaticResource RowButton}" Command="{Binding ResetCommand}"
+                            ToolTip="{Binding DataContext.ResetTip, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            Visibility="{Binding CanReset, Converter={StaticResource BoolToVisibility}}">
+                        <materialDesign:PackIcon Kind="Undo" Width="15" Height="15" />
+                    </Button>
+                    <Button x:Name="RemoveButton" Style="{StaticResource RowButton}" Command="{Binding RemoveCommand}" ToolTip="Remove this setting"
+                            Visibility="Hidden">
+                        <materialDesign:PackIcon Kind="Close" Width="15" Height="15" />
+                    </Button>
+                </StackPanel>
+            </Grid>
             <DataTemplate.Triggers>
-                <!-- The remove button shows on hover, so quiet rows stay quiet. -->
+                <!-- The remove button shows on hover, so quiet lines stay quiet. -->
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
                         <Condition Binding="{Binding IsMouseOver, ElementName=Row}" Value="True" />
@@ -96,26 +154,38 @@
                     <Setter TargetName="Actions" Property="Visibility" Value="Collapsed" />
                     <Setter TargetName="KeepNow" Property="Visibility" Value="Hidden" />
                 </DataTrigger>
-                <DataTrigger Binding="{Binding IsRemoved}" Value="True">
-                    <Setter TargetName="Value" Property="Visibility" Value="Collapsed" />
-                    <Setter TargetName="Removed" Property="Visibility" Value="Visible" />
+
+                <!-- A side the line isn't on is hatched, as in a diff -->
+                <DataTrigger Binding="{Binding IsOnLeft}" Value="False">
+                    <Setter TargetName="LeftSide" Property="Background" Value="{StaticResource DiffFiller}" />
+                    <Setter TargetName="Now" Property="Visibility" Value="Hidden" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsOnRight}" Value="False">
+                    <Setter TargetName="RightSide" Property="Background" Value="{StaticResource DiffFiller}" />
+                    <Setter TargetName="After" Property="Visibility" Value="Hidden" />
                 </DataTrigger>
 
+                <!-- Red where a line goes or changes, green where one arrives or changes -->
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:SettingStatus.Added}">
-                    <Setter TargetName="Row" Property="Background" Value="{StaticResource AddedRow}" />
-                    <Setter TargetName="Icon" Property="Kind" Value="PlusCircle" />
+                    <Setter TargetName="RightSide" Property="Background" Value="{StaticResource DiffAdded}" />
+                    <Setter TargetName="RightGutter" Property="Background" Value="{StaticResource DiffAddedGutter}" />
+                    <Setter TargetName="Icon" Property="Kind" Value="Plus" />
                     <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Success}" />
                     <Setter TargetName="Icon" Property="Visibility" Value="Visible" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:SettingStatus.Removed}">
-                    <Setter TargetName="Row" Property="Background" Value="{StaticResource RemovedRow}" />
-                    <Setter TargetName="Now" Property="TextDecorations" Value="Strikethrough" />
-                    <Setter TargetName="Icon" Property="Kind" Value="MinusCircle" />
+                    <Setter TargetName="LeftSide" Property="Background" Value="{StaticResource DiffRemoved}" />
+                    <Setter TargetName="LeftGutter" Property="Background" Value="{StaticResource DiffRemovedGutter}" />
+                    <Setter TargetName="Icon" Property="Kind" Value="Minus" />
                     <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Danger}" />
                     <Setter TargetName="Icon" Property="Visibility" Value="Visible" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:SettingStatus.Changed}">
-                    <Setter TargetName="Icon" Property="Kind" Value="SyncCircle" />
+                    <Setter TargetName="LeftSide" Property="Background" Value="{StaticResource DiffRemoved}" />
+                    <Setter TargetName="LeftGutter" Property="Background" Value="{StaticResource DiffRemovedGutter}" />
+                    <Setter TargetName="RightSide" Property="Background" Value="{StaticResource DiffAdded}" />
+                    <Setter TargetName="RightGutter" Property="Background" Value="{StaticResource DiffAddedGutter}" />
+                    <Setter TargetName="Icon" Property="Kind" Value="SwapHorizontal" />
                     <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Brand}" />
                     <Setter TargetName="Icon" Property="Visibility" Value="Visible" />
                 </DataTrigger>
@@ -125,13 +195,15 @@
                     <Setter TargetName="Icon" Property="Visibility" Value="Visible" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:SettingStatus.Edited}">
-                    <Setter TargetName="Row" Property="Background" Value="{StaticResource BrandTint}" />
+                    <Setter TargetName="LeftSide" Property="Background" Value="{StaticResource DiffRemoved}" />
+                    <Setter TargetName="LeftGutter" Property="Background" Value="{StaticResource DiffRemovedGutter}" />
+                    <Setter TargetName="RightSide" Property="Background" Value="{StaticResource BrandTint}" />
                     <Setter TargetName="Icon" Property="Kind" Value="Pencil" />
                     <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Brand}" />
                     <Setter TargetName="Icon" Property="Visibility" Value="Visible" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static vm:SettingStatus.NeedsValue}">
-                    <Setter TargetName="Row" Property="Background" Value="{StaticResource NeedsValueRow}" />
+                    <Setter TargetName="RightSide" Property="Background" Value="{StaticResource DiffNeedsValue}" />
                     <Setter TargetName="Icon" Property="Kind" Value="AlertCircle" />
                     <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Warning}" />
                     <Setter TargetName="Icon" Property="Visibility" Value="Visible" />
@@ -142,53 +214,41 @@
     </UserControl.Resources>
 
     <DockPanel>
-        <!-- What each icon means -->
-        <WrapPanel DockPanel.Dock="Top" Margin="16,10,16,6" TextElement.FontSize="11" TextElement.Foreground="{StaticResource InkMuted}">
-            <WrapPanel.Resources>
-                <Style TargetType="materialDesign:PackIcon">
-                    <Setter Property="Width" Value="14" />
-                    <Setter Property="Height" Value="14" />
-                    <Setter Property="VerticalAlignment" Value="Center" />
-                    <Setter Property="Margin" Value="0,0,4,0" />
-                </Style>
-                <Style TargetType="TextBlock">
-                    <Setter Property="VerticalAlignment" Value="Center" />
-                    <Setter Property="Margin" Value="0,0,14,0" />
-                </Style>
-            </WrapPanel.Resources>
-            <materialDesign:PackIcon Kind="AlertCircle" Foreground="{StaticResource Warning}" /><TextBlock Text="needs you" />
-            <materialDesign:PackIcon Kind="PlusCircle" Foreground="{StaticResource Success}" /><TextBlock Text="new" />
-            <materialDesign:PackIcon Kind="SyncCircle" Foreground="{StaticResource Brand}" /><TextBlock Text="changed" />
-            <materialDesign:PackIcon Kind="MinusCircle" Foreground="{StaticResource Danger}" /><TextBlock Text="removed" />
-            <materialDesign:PackIcon Kind="Lock" Foreground="{StaticResource InkMuted}" /><TextBlock Text="kept" />
-            <materialDesign:PackIcon Kind="Pencil" Foreground="{StaticResource Brand}" /><TextBlock Text="your value" />
-        </WrapPanel>
+        <!-- Totals, like the +/- counts of a diff -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="12,8,12,6" TextElement.FontFamily="{StaticResource Code}" TextElement.FontSize="12">
+            <TextBlock Foreground="{StaticResource Success}" Margin="0,0,14,0" ToolTip="Settings added"><Run Text="+" /><Run Text="{Binding AddedCount, Mode=OneWay}" /></TextBlock>
+            <TextBlock Foreground="{StaticResource Danger}" Margin="0,0,14,0" ToolTip="Settings removed"><Run Text="−" /><Run Text="{Binding RemovedCount, Mode=OneWay}" /></TextBlock>
+            <TextBlock Foreground="{StaticResource Brand}" Margin="0,0,14,0" ToolTip="Settings changed"><Run Text="~" /><Run Text="{Binding ModifiedCount, Mode=OneWay}" /></TextBlock>
+            <StackPanel Orientation="Horizontal" ToolTip="Settings that need a value from you"
+                        Visibility="{Binding HasConflicts, Converter={StaticResource BoolToVisibility}}">
+                <materialDesign:PackIcon Kind="AlertCircle" Foreground="{StaticResource Warning}" Width="14" Height="14" VerticalAlignment="Center" />
+                <TextBlock Foreground="{StaticResource Warning}" Margin="4,0,0,0" VerticalAlignment="Center"><Run Text="{Binding ConflictCount, Mode=OneWay}" /><Run Text=" need a value" /></TextBlock>
+            </StackPanel>
+        </StackPanel>
 
-        <!-- Column headings -->
-        <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,1" Background="{StaticResource Surface}">
-            <Grid Height="28" Margin="0,0,10,0" TextElement.FontSize="11" TextElement.FontWeight="SemiBold" TextElement.Foreground="{StaticResource InkMuted}">
+        <!-- Headings over the two sides -->
+        <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1" Background="{StaticResource Canvas}">
+            <Grid Height="26" Margin="0,0,8,0" TextElement.FontSize="11" TextElement.FontWeight="SemiBold" TextElement.Foreground="{StaticResource InkMuted}">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="28" />
-                    <ColumnDefinition Width="5*" />
-                    <ColumnDefinition Width="6*" />
-                    <ColumnDefinition Width="30" />
-                    <ColumnDefinition Width="7*" />
-                    <ColumnDefinition Width="58" />
+                    <ColumnDefinition Width="22" />
+                    <ColumnDefinition Width="44" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="50" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="1" Text="SETTING" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="{Binding NowHeading}" VerticalAlignment="Center" />
-                <materialDesign:PackIcon Grid.Column="3" Kind="ArrowRightBold" Width="14" Height="14" Foreground="{StaticResource InkFaint}"
+                <TextBlock Grid.Column="1" Text="{Binding NowHeading}" VerticalAlignment="Center" />
+                <materialDesign:PackIcon Grid.Column="2" Kind="ArrowRight" Width="14" Height="14" Foreground="{StaticResource InkFaint}"
                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="4" Text="{Binding ValueHeading}" VerticalAlignment="Center" Margin="4,0,0,0" />
+                <TextBlock Grid.Column="5" Text="{Binding ValueHeading}" VerticalAlignment="Center" />
             </Grid>
         </Border>
 
-        <ScrollViewer VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled">
-            <Grid>
-                <ItemsControl ItemsSource="{Binding Items}" Focusable="False" />
-                <TextBlock Text="Nothing changes in this file." Style="{StaticResource Caption}" Margin="28,16"
-                           Visibility="{Binding Items.Count, Converter={StaticResource ZeroToVisible}}" />
-            </Grid>
-        </ScrollViewer>
+        <Grid>
+            <ItemsControl ItemsSource="{Binding Items}" Style="{StaticResource VirtualList}" />
+            <TextBlock Text="Nothing changes in this file." Style="{StaticResource Caption}" Margin="56,16"
+                       Visibility="{Binding Items.Count, Converter={StaticResource ZeroToVisible}}" />
+        </Grid>
     </DockPanel>
 </UserControl>
