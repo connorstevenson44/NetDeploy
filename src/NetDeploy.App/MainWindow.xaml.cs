@@ -37,14 +37,20 @@ public partial class MainWindow : Window
 
     private void OnDrop(object sender, DragEventArgs e)
     {
-        if (e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } paths)
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] { Length: > 0 } paths)
+            return;
+        if (paths[0].EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            _viewModel.EditConfig(paths[0]);
+        else
             _viewModel.Load(paths[0]);
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (_viewModel.IsRunning)
-            e.Cancel = MessageBox.Show(this, "A deploy is still running. Close anyway?", "NetDeploy",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes;
+        var warning = _viewModel.IsRunning ? "A deploy is still running. Close anyway?"
+            : _viewModel.Editor.IsDirty ? "The deploy config you are editing has unsaved changes. Close anyway?"
+            : null;
+        if (warning is not null)
+            e.Cancel = MessageBox.Show(this, warning, "NetDeploy", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes;
     }
 }

@@ -6,12 +6,13 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using NetDeploy.App.Services;
 using NetDeploy.Core;
+using NetDeploy.Core.Editing;
 using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.ViewModels;
 
-/// <summary>What the window shows: the home screen, a package to deploy, or an install folder.</summary>
-public enum AppScreen { Home, Deploy, Folder }
+/// <summary>What the window shows: the home screen, a package to deploy, an install folder, or a deploy config being edited.</summary>
+public enum AppScreen { Home, Deploy, Folder, Edit }
 
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
@@ -26,7 +27,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _user = user;
         Title = "No package open";
         Status = "Open a package (.zip), or drop a .zip or a folder with deploy.json onto this window.";
+        Editor.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(EditorViewModel.Title) or nameof(EditorViewModel.FilePath))
+            {
+                OnPropertyChanged(nameof(HeaderTitle));
+                OnPropertyChanged(nameof(HeaderDetail));
+            }
+        };
     }
+
+    /// <summary>The deploy config on the edit screen. It is kept when you leave the screen, so you can come back to it.</summary>
+    public EditorViewModel Editor { get; } = new();
+
+    /// <summary>True once a config has been opened or started, so the home screen offers to go back to it.</summary>
+    [ObservableProperty]
+    public partial bool HasEditor { get; set; }
 
     public ObservableCollection<InputFieldViewModel> Parameters { get; } = [];
     public ObservableCollection<StepViewModel> Steps { get; } = [];
@@ -65,6 +81,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         AppScreen.Deploy => Title,
         AppScreen.Folder => Path.GetFileName(Folder?.Root.TrimEnd(Path.DirectorySeparatorChar)) ?? "",
+        AppScreen.Edit => Editor.Title,
         _ => "Deploy or manage a .NET app",
     };
 
@@ -72,6 +89,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         AppScreen.Deploy => PackagePath,
         AppScreen.Folder => Folder?.Root,
+        AppScreen.Edit => Editor.FilePath ?? "Not saved yet",
         _ => null,
     };
 
@@ -85,12 +103,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool HasPackage { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsHome), nameof(IsDeploy), nameof(IsFolder), nameof(HeaderTitle), nameof(HeaderDetail))]
+    [NotifyPropertyChangedFor(nameof(IsHome), nameof(IsDeploy), nameof(IsFolder), nameof(IsEdit), nameof(HeaderTitle), nameof(HeaderDetail))]
     public partial AppScreen Screen { get; set; }
 
     public bool IsHome => Screen == AppScreen.Home;
     public bool IsDeploy => Screen == AppScreen.Deploy;
     public bool IsFolder => Screen == AppScreen.Folder;
+    public bool IsEdit => Screen == AppScreen.Edit;
 
     /// <summary>The install folder typed on the home screen.</summary>
     [ObservableProperty]
@@ -104,7 +123,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     [NotifyCanExecuteChangedFor(nameof(OpenPackageCommand), nameof(DryRunCommand), nameof(DeployCommand), nameof(CancelCommand), nameof(RollBackCommand), nameof(RemoveInstallCommand),
-        nameof(RunFileCommand), nameof(RemoveFolderInstallCommand), nameof(CloneInstallCommand), nameof(FinalizeFolderCommand), nameof(HomeCommand))]
+        nameof(RunFileCommand), nameof(RemoveFolderInstallCommand), nameof(CloneInstallCommand), nameof(FinalizeFolderCommand), nameof(HomeCommand), nameof(TryConfigCommand))]
     public partial bool IsRunning { get; set; }
 
     public bool IsIdle => !IsRunning;
@@ -189,6 +208,107 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         Screen = AppScreen.Home;
         Status = "Deploy a package, or open an install folder to manage it.";
+    }
+
+    private const string ConfigFilter = "Deploy config (deploy.json)|deploy.json|JSON files (*.json)|*.json";
+
+    [RelayCommand]
+    private void NewConfig()
+    {
+        if (!CanReplaceConfig())
+            return;
+        Editor.New();
+        ShowEditor();
+    }
+
+    [RelayCommand]
+    private void OpenConfig()
+    {
+        if (!CanReplaceConfig())
+            return;
+        var dialog = new OpenFileDialog { Title = "Open a deploy config", Filter = ConfigFilter };
+        if (dialog.ShowDialog() == true)
+            EditConfig(dialog.FileName, confirmed: true);
+    }
+
+    /// <summary>Opens a deploy.json in the editor, after asking whether to drop unsaved changes to the one open now.</summary>
+    public void EditConfig(string path, bool confirmed = false)
+    {
+        if (IsRunning || !confirmed && !CanReplaceConfig())
+            return;
+        try
+        {
+            Editor.Open(path);
+        }
+        catch (Exception ex) when (ex is ManifestException or IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(ex.Message, "Can't open the config", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        ShowEditor();
+    }
+
+    [RelayCommand]
+    private void ResumeEditing() => ShowEditor();
+
+    [RelayCommand]
+    private void SaveConfig() => SaveEditor(Editor.FilePath);
+
+    [RelayCommand]
+    private void SaveConfigAs() => SaveEditor(null);
+
+    /// <summary>Saves the config and opens its folder as a package, ready for a dry run.</summary>
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private void TryConfig()
+    {
+        if (Editor.HasProblems)
+        {
+            MessageBox.Show("Fix the problems listed under the form first.", "Try the config", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        if (!SaveEditor(Editor.FilePath))
+            return;
+        var path = Editor.FilePath!;
+        if (!Path.GetFileName(path).Equals("deploy.json", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show("A package reads its config from deploy.json. Use Save as to save it under that name.", "Try the config", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        Load(Path.GetDirectoryName(path)!);
+    }
+
+    private void ShowEditor()
+    {
+        HasEditor = true;
+        Screen = AppScreen.Edit;
+        Status = "Pick a step on the left to change it. Problems are checked as you type.";
+    }
+
+    /// <summary>Asks first when the config being edited has unsaved changes.</summary>
+    private bool CanReplaceConfig() =>
+        !Editor.IsDirty || Confirm("The config you are editing has unsaved changes. Drop them?", "Unsaved changes");
+
+    /// <summary>Saves to the path, or asks where when there is none. Returns false when it wasn't saved.</summary>
+    private bool SaveEditor(string? path)
+    {
+        if (path is null)
+        {
+            var dialog = new SaveFileDialog { Title = "Save the deploy config", FileName = "deploy.json", Filter = ConfigFilter };
+            if (dialog.ShowDialog() != true)
+                return false;
+            path = dialog.FileName;
+        }
+        try
+        {
+            Editor.Save(path);
+            Status = Editor.HasProblems ? $"Saved {path}, but it has problems NetDeploy won't accept." : $"Saved {path}.";
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(ex.Message, "Can't save the config", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
     }
 
     [RelayCommand]

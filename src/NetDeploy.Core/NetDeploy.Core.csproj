@@ -13,6 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The editor builds its forms from the schema. -->
+    <EmbeddedResource Include="../../schema/deploy.schema.json" LogicalName="deploy.schema.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="NetDeploy.Core.Tests" />
   </ItemGroup>
 

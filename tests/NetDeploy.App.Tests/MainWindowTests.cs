@@ -59,6 +59,7 @@ public class MainWindowTests
                     await SaveFilesScreenshotAsync(window, viewModel);
                     await SaveInstallScreenshotAsync(window, viewModel);
                     await SaveFolderScreenshotAsync(window, viewModel);
+                    await SaveEditorScreenshotsAsync(window, viewModel);
                 }
                 catch (Exception ex)
                 {
@@ -205,6 +206,27 @@ public class MainWindowTests
         folder.OpenFile!.Items.OfType<SettingViewModel>().Single(setting => setting.Key == "KeepDays").Value = "14";
         folder.ToggleDeleteCommand.Execute(folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "2026-10-01.log"));
         await SaveScreenshotAsync(window, "10-folder");
+    }
+
+    /// <summary>Opens the sample's deploy.json in the editor: its settings, a step with grouped settings, and a step with a problem.</summary>
+    private static async Task SaveEditorScreenshotsAsync(Window window, MainViewModel viewModel)
+    {
+        viewModel.HomeCommand.Execute(null);
+        viewModel.EditConfig(Path.Combine(SamplePath, "deploy.json"));
+        Assert.True(viewModel.IsEdit);
+        await SaveScreenshotAsync(window, "11-editor-settings");
+
+        var editor = viewModel.Editor;
+        editor.Selected = editor.Rows.Single(row => row.Title == ".NET 10 runtime");
+        await SaveScreenshotAsync(window, "12-editor-step");
+
+        editor.Selected = editor.Rows.Single(row => row.Title == "Migrate database");
+        ((ValueFieldViewModel)editor.Fields.Single(field => field.Field.Name == "path")).Text = "";
+        Assert.True(editor.HasProblems);
+        await SaveScreenshotAsync(window, "13-editor-problem");
+
+        // Leave nothing unsaved, so closing the window doesn't ask.
+        editor.New();
     }
 
     /// <summary>A server running version 2.3 with its own override, and a package for 2.4 that renames a setting and adds one.</summary>
