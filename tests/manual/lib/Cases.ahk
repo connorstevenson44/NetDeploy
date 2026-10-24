@@ -193,7 +193,7 @@ EditOnServer() {
     App.Find({Type: "Text", Name: "3 changes, 1 file to delete"}, "the bar saying a file will be deleted")
     App.FileButton("README.txt", "Keep this file", "Change your mind and keep README.txt")
     App.ClickButton("Finalize")
-    App.Answer("Finalize", "Yes", "Write the changes", "Write 2 changes to appsettings.json")
+    App.Answer("Finalize", "Yes", "Write the changes", "Write 2 changes to main/appsettings.json")
     App.WaitStatus(["Changes written."])
     Runner.Checkpoint("The server's settings changed", [
         Check.Json(main "\appsettings.json", "Orders:Region", "west"),
