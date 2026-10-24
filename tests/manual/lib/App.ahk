@@ -316,12 +316,12 @@ class App {
         return text
     }
 
-    ; Picks a file in a Windows file picker.
-    static PickFile(title, path, what) {
+    ; Picks a file in a Windows file picker. Its name box is control 1148, and a folder picker's 1152.
+    static PickFile(title, path, what, box := "1148") {
         hwnd := this.WaitWindow(title, "dialog", "the " title " picker")
         dialog := UIA.ElementFromHandle(hwnd)
-        ; The file name box is control 1148 and the Open button control 1 in every Windows file picker.
-        this.Type(this.Find({Type: "Edit", AutomationId: "1148"}, "the file name box", 10000, dialog), path, what, , dialog)
+        ; The Open or Select Folder button is control 1.
+        this.Type(this.Find({Type: "Edit", AutomationId: box}, "the name box", 10000, dialog), path, what, , dialog)
         Loop {
             Loop 3 {
                 if open := this.TryFind({Type: "Button", AutomationId: "1"}, dialog)
@@ -335,7 +335,7 @@ class App {
 
     ; Picks a folder in the Windows folder picker. Its first Select Folder can just go into the typed folder, so it
     ; may take two.
-    static PickFolder(title, path, what) => this.PickFile(title, path, what)
+    static PickFolder(title, path, what) => this.PickFile(title, path, what, "1152")
 
     ; A step's inputs window: fill(window) fills it in, then Continue.
     static AnswerInputs(title, what, fill := "") {
