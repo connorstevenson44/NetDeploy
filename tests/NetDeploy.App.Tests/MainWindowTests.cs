@@ -198,8 +198,7 @@ public class MainWindowTests
         viewModel.FolderField!.Value = folder;
         var tree = viewModel.Folder!;
         await tree.Listing;
-        var root = tree.Tree.Single();
-        var east = root.Children.OfType<FolderNodeViewModel>().Single(node => node.Name == "east");
+        var east = tree.Rows.OfType<FolderNodeViewModel>().Single(node => node.Name == "east");
         Assert.Equal(InstallPlan.Update, viewModel.Install!.Plan);
         Assert.Equal("instance", east.Kind);
 
@@ -209,7 +208,7 @@ public class MainWindowTests
         viewModel.SelectedTab = MainViewModel.StepsTab;
         await SaveScreenshotAsync(window, "9-install-rename");
 
-        var newInstall = root.Children.OfType<NewInstallRowViewModel>().Single();
+        var newInstall = tree.Rows.OfType<NewInstallRowViewModel>().Single();
         newInstall.Name = "west";
         Assert.Equal(InstallPlan.NewInstance, viewModel.Install.Plan);
         Assert.True(newInstall.IsTarget);
@@ -217,11 +216,12 @@ public class MainWindowTests
         viewModel.SelectedTab = MainViewModel.FilesTab;
         await SaveScreenshotAsync(window, "10-new-install");
 
-        east.IsSelected = true;
+        tree.GoIntoCommand.Execute(east);
         await tree.Listing;
         Assert.Equal(InstallPlan.Update, viewModel.Install.Plan);
         Assert.Equal("east", viewModel.Install.Selected!.Label);
         Assert.Equal(["OrdersService.exe"], tree.Items.OfType<FolderFileViewModel>().Select(file => file.Name));
+        await SaveScreenshotAsync(window, "10b-in-an-instance");
     }
 
     /// <summary>Opens an install folder on its own, edits a setting and stages a delete.</summary>
@@ -255,10 +255,10 @@ public class MainWindowTests
 
         // Listing another folder lays out new rows over the old ones. A folder heading once got a row built for a
         // file, and the file's typed command threw during layout.
-        folder.Tree[0].Children.OfType<FolderNodeViewModel>().Single(node => node.Name == "tools").IsSelected = true;
+        folder.GoIntoCommand.Execute(folder.Rows.OfType<FolderNodeViewModel>().Single(node => node.Name == "tools"));
         await folder.Listing;
         await Dispatcher.Yield(DispatcherPriority.ContextIdle);
-        folder.Tree[0].IsSelected = true;
+        folder.GoUpCommand.Execute(null);
         await folder.Listing;
         await Dispatcher.Yield(DispatcherPriority.ContextIdle);
         Assert.Contains(folder.Items, item => item is FolderViewModel);

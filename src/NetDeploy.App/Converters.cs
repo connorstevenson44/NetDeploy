@@ -41,21 +41,3 @@ public sealed class BoolToStarConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }
-
-/// <summary>
-/// Picks the folder tree's container style by row: folders bind expand and select to their view model, while the new
-/// install row only binds select, and the placeholder that shows an expander binds neither.
-/// </summary>
-public sealed class TreeItemStyleSelector : StyleSelector
-{
-    public Style? Folder { get; set; }
-    public Style? NewInstall { get; set; }
-    public Style? Placeholder { get; set; }
-
-    public override Style? SelectStyle(object item, DependencyObject container) => item switch
-    {
-        FolderNodeViewModel => Folder,
-        NewInstallRowViewModel => NewInstall,
-        _ => Placeholder,
-    };
-}

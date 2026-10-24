@@ -30,11 +30,13 @@ Logs are written to a `logs` folder next to the exe, or to `%LOCALAPPDATA%\NetDe
 
 Everything happens in one window. Open or drop a package, an install folder, or a `deploy.json`.
 
-- **Left:** the package's settings with **Dry run** and **Deploy**, and below them the install folder as a tree of
-  folders. Installs are marked with their version; the one the deploy will update says **Deploy here**. Click an
-  install to deploy to it, or use the **New install** row at the bottom of the tree and type a name, so the installs
-  already there stay in view. Hover an install to clone or remove it.
-- **Right:** tabs for **Files** (every file in the folder picked in the tree: edit a settings file side by side, run
+- **Left:** the package's settings with **Dry run** and **Deploy**, and below them the install folder, one folder at
+  a time: the folders in the one you are in, with installs marked with their version. Click a folder to go into it
+  and **Up** to come back. Going into an install makes it the deploy's target, and the **Deploy** button says what it
+  will do (**Add**, **Update**, **Rename** or **Convert**). For a new install, use the **New install** row at the
+  bottom of the install folder and type a name, so the installs already there stay in view. Hover an install to clone
+  or remove it.
+- **Right:** tabs for **Files** (every file in the folder you are in: edit a settings file side by side, run
   a script, or stage a delete, all written together with **Finalize**), **Steps**, **deploy.json** (the visual
   editor) and **Log**.
 - **Deploy** first shows every file it will add, replace, merge, keep or delete in the right-hand pane, so you can
