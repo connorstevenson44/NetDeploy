@@ -34,9 +34,13 @@ public sealed class DeployRunner(IUserInteraction user, IDeployLog log)
         }
 
         var app = package.Manifest.App;
-        maskingLog.Info($"{(dryRun ? "Dry run of" : "Deploying")} {app.Name} {app.Version}");
+        maskingLog.Info($"{(dryRun ? "Dry run of" : "Deploying")} {app.Name} {app.Version}"
+            + (context.Options.Instance.Length > 0 ? $" as instance {context.Options.Instance}" : ""));
         try
         {
+            var instanceDirectory = SetInstance(package.Manifest.Install, context);
+            if (context.Options.SeedFrom is { } seed && instanceDirectory is not null)
+                SeedInstance(seed, instanceDirectory, Installations.AppFiles(package), context);
             await RunStepsAsync(package.Manifest.Steps, context, cancellationToken);
             maskingLog.Info(dryRun ? "Dry run finished. Nothing was changed." : "Deploy finished.");
             return new DeployOutcome(DeployResult.Succeeded, context.Rollback);
@@ -45,11 +49,62 @@ public sealed class DeployRunner(IUserInteraction user, IDeployLog log)
         {
             return new DeployOutcome(DeployResult.Failed, context.Rollback, ex.Step, ex.InnerException);
         }
+        catch (InstanceException ex)
+        {
+            maskingLog.Error(ex.Message);
+            return new DeployOutcome(DeployResult.Failed, context.Rollback, Error: ex);
+        }
         catch (OperationCanceledException ex)
         {
             maskingLog.Warn(ex.Message);
             return new DeployOutcome(DeployResult.Cancelled, context.Rollback);
         }
+    }
+
+    /// <summary>Sets {Instance}, {InstanceSuffix} and {InstanceDir}, and returns the instance's folder.</summary>
+    private static string? SetInstance(InstallInfo? install, StepContext context)
+    {
+        var instance = context.Options.Instance;
+        if (install is null)
+        {
+            if (instance.Length > 0)
+                throw new InstanceException("This package has no \"install\" block, so it can't be deployed as an instance.");
+            return null;
+        }
+        if (instance.Length > 0 && !install.Instances)
+            throw new InstanceException("This package doesn't support instances.");
+        if (instance.Length > 0 && Installations.CheckName(instance) is { } problem)
+            throw new InstanceException($"Instance name \"{instance}\": {problem}");
+
+        foreach (var (name, value) in Installations.Variables(context.Resolve(install.Folder), instance))
+            context.Variables[name] = value;
+        return context.Variables["InstanceDir"];
+    }
+
+    /// <summary>
+    /// Copies an existing install's files into a new instance's folder, which must be empty, so a clone or rename keeps
+    /// its config edits and data. Instances nested in the source are left out.
+    /// </summary>
+    private static void SeedInstance(string source, string target, IReadOnlyCollection<string> appFiles, StepContext context)
+    {
+        if (!Directory.Exists(source))
+            throw new InstanceException($"{source} doesn't exist, so there is nothing to copy from.");
+        if (Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any())
+            throw new InstanceException($"{target} already has files, so it can't be filled from {source}.");
+
+        var files = Installations.OwnFiles(source, appFiles, target).ToList();
+        if (context.DryRun)
+        {
+            context.Log.Info($"Would copy {files.Count} files from {source} to {target}");
+            return;
+        }
+        foreach (var file in files)
+        {
+            var destination = Path.Combine(target, file);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(Path.Combine(source, file), destination);
+        }
+        context.Log.Info($"Copied {files.Count} files from {source} to {target}");
     }
 
     internal async Task RunStepsAsync(IReadOnlyList<DeployStep> steps, StepContext context, CancellationToken cancellationToken)
@@ -131,6 +186,9 @@ public sealed class DeployRunner(IUserInteraction user, IDeployLog log)
         }
     }
 }
+
+/// <summary>The chosen instance can't be deployed, for example because a new instance's folder already has files.</summary>
+internal sealed class InstanceException(string message) : Exception(message);
 
 internal sealed class StepFailedException(DeployStep step, Exception inner) : Exception(inner.Message, inner)
 {

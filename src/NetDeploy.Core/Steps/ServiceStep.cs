@@ -24,6 +24,17 @@ public sealed class ServiceStep : DeployStep
 
     public override string Describe() => $"{Action} service {Service}";
 
+    public override string Explain() => Action switch
+    {
+        ServiceAction.Uninstall => $"Stops the Windows service \"{Service}\" and deletes it: sc.exe stop {Service}, then sc.exe delete {Service}.",
+        ServiceAction.Stop => $"Stops the Windows service \"{Service}\".",
+        ServiceAction.Start => $"Starts the Windows service \"{Service}\".",
+        _ => $"Creates or updates the Windows service \"{Service}\" to run {Binary}.",
+    };
+
+    protected internal override IEnumerable<DeployStep> DefaultCleanup() =>
+        Action == ServiceAction.Install ? [new ServiceStep { Action = ServiceAction.Uninstall, Service = Service, TimeoutSeconds = TimeoutSeconds }] : [];
+
     public override async Task RunAsync(StepContext context, CancellationToken cancellationToken)
     {
         var name = context.Resolve(Service);

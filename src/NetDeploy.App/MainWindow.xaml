@@ -99,7 +99,73 @@
                             </StackPanel>
 
                             <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,6,4,0">
-                                <ItemsControl ItemsSource="{Binding Parameters}" IsEnabled="{Binding IsIdle}" Focusable="False" />
+                                <StackPanel IsEnabled="{Binding IsIdle}">
+                                    <ItemsControl ItemsSource="{Binding Parameters}" Focusable="False" />
+
+                                    <!-- Where the deploy goes: an install found in the folder, or a new one -->
+                                    <StackPanel DataContext="{Binding Install}" Visibility="{Binding Converter={StaticResource NullToCollapsed}}" Margin="0,4,0,0">
+                                        <TextBlock Text="INSTALL" Style="{StaticResource Caption}" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                        <ListBox ItemsSource="{Binding Targets}" SelectedItem="{Binding Selected}" HorizontalContentAlignment="Stretch"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                            <ListBox.ItemContainerStyle>
+                                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
+                                                    <Setter Property="Padding" Value="8,0" />
+                                                </Style>
+                                            </ListBox.ItemContainerStyle>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid x:Name="Row" Height="32" Background="Transparent">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="28" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <materialDesign:PackIcon Kind="{Binding Icon}" Width="18" Height="18" Foreground="{StaticResource Brand}"
+                                                                                 VerticalAlignment="Center" Margin="0,0,10,0" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="13" VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Install.Directory}" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding Detail}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                        <Button x:Name="Remove" Grid.Column="3" Style="{StaticResource MaterialDesignIconButton}" Width="26" Height="26" Padding="0"
+                                                                Foreground="{StaticResource Danger}" ToolTip="Remove this install" Visibility="Hidden"
+                                                                Command="{Binding DataContext.RemoveInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}">
+                                                            <materialDesign:PackIcon Kind="TrashCanOutline" Width="16" Height="16" />
+                                                        </Button>
+                                                    </Grid>
+                                                    <DataTemplate.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsMouseOver, ElementName=Row}" Value="True" />
+                                                                <Condition Binding="{Binding IsNew}" Value="False" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter TargetName="Remove" Property="Visibility" Value="Visible" />
+                                                        </MultiDataTrigger>
+                                                    </DataTemplate.Triggers>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+
+                                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,10,0,0" Padding="10,8"
+                                                 materialDesign:HintAssist.Hint="Instance name (empty for a single install)"
+                                                 Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                 Visibility="{Binding AllowsInstances, Converter={StaticResource BoolToVisibility}}" />
+                                        <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}" Margin="0,10,0,0" Padding="10,8"
+                                                  materialDesign:HintAssist.Hint="Start from a copy of"
+                                                  ItemsSource="{Binding CopySources}" SelectedItem="{Binding CopyFrom}" DisplayMemberPath="CopyLabel"
+                                                  Visibility="{Binding CanCopy, Converter={StaticResource BoolToVisibility}}" />
+
+                                        <!-- Exactly what the deploy will do to the installs, or why it can't -->
+                                        <DockPanel Margin="2,10,0,0" Visibility="{Binding Problem, Converter={StaticResource NullToVisible}}">
+                                            <materialDesign:PackIcon Kind="{Binding PlanIcon}" Foreground="{StaticResource Brand}" Width="16" Height="16" Margin="0,1,8,0" />
+                                            <TextBlock Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource InkMuted}" />
+                                        </DockPanel>
+                                        <DockPanel Margin="2,10,0,0" Visibility="{Binding Problem, Converter={StaticResource NullToCollapsed}}">
+                                            <materialDesign:PackIcon Kind="AlertCircleOutline" Foreground="{StaticResource Danger}" Width="16" Height="16" Margin="0,1,8,0" />
+                                            <TextBlock Text="{Binding Problem}" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Danger}" />
+                                        </DockPanel>
+                                    </StackPanel>
+                                </StackPanel>
                             </ScrollViewer>
                         </DockPanel>
                     </materialDesign:Card>

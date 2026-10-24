@@ -45,6 +45,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool ShowUnchangedFiles { get; set; }
 
+    /// <summary>Where the deploy goes, for a package with an install block; otherwise null.</summary>
+    [ObservableProperty]
+    public partial InstallViewModel? Install { get; set; }
+
     [ObservableProperty]
     public partial string Title { get; set; }
 
@@ -62,7 +66,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(OpenPackageCommand), nameof(DryRunCommand), nameof(DeployCommand), nameof(CancelCommand), nameof(RollBackCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenPackageCommand), nameof(DryRunCommand), nameof(DeployCommand), nameof(CancelCommand), nameof(RollBackCommand), nameof(RemoveInstallCommand))]
     public partial bool IsRunning { get; set; }
 
     public bool IsIdle => !IsRunning;
@@ -103,6 +107,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             parameter.PropertyChanged += (_, _) => OnParameterChanged();
             Parameters.Add(parameter);
         }
+
+        Install = manifest.Install is { } install
+            ? new InstallViewModel(install, manifest.App.Version, Installations.AppFiles(package))
+            : null;
+        if (Install is not null)
+            Install.PropertyChanged += (_, e) =>
+            {
+                // The instance name is part of folder, service and task names.
+                if (e.PropertyName == nameof(InstallViewModel.Name))
+                    OnInstanceChanged();
+            };
+        RefreshInstalls();
 
         Steps.Clear();
         foreach (var step in StepViewModel.Flatten(manifest.Steps))
@@ -172,13 +188,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (Install?.Problem is { } installProblem)
+        {
+            MessageBox.Show(installProblem, "Check where to install", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         if (!dryRun && NeedsElevation)
         {
             MessageBox.Show("This package needs administrator rights. Use Restart as administrator first.", "Administrator rights needed", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        if (!dryRun && !Confirm($"Deploy {Title}?", "Deploy"))
+        if (!dryRun && !Confirm(Install is null ? $"Deploy {Title}?" : $"Deploy {Title}?{Environment.NewLine}{Environment.NewLine}{Install.Summary}", "Deploy"))
             return;
 
         foreach (var step in Steps)
@@ -203,6 +225,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 FileActions = FilePlans.OfType<FilePlanViewModel>().ToDictionary(plan => (DeployStep)plan.Step, plan => plan.ChosenActions),
             };
+            if (Install is not null)
+                options = Install.Apply(options);
+            var replaced = Install?.Replaced;
             var outcome = await Task.Run(() => runner.RunAsync(package, values, dryRun, options, token));
 
             Status = outcome.Result switch
@@ -218,6 +243,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 if (Confirm($"{Status}{Environment.NewLine}{Environment.NewLine}Restore the backup and restart the services this deploy stopped?", "Roll back"))
                     await RestoreAsync(log);
             }
+
+            // A rename or a conversion leaves the old install behind until the new one works.
+            if (!dryRun && outcome.Result == DeployResult.Succeeded && replaced is not null
+                && Confirm($"The new install is in place. Remove the old one in {replaced.Directory} now? You'll OK each step.", "Remove the old install"))
+                await RemoveAsync(replaced, log);
+            RefreshInstalls();
         }
         finally
         {
@@ -225,6 +256,42 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _cancellation = null;
             IsRunning = false;
         }
+    }
+
+    /// <summary>Removes an install found in the folder, confirming each step.</summary>
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private async Task RemoveInstallAsync(InstallTarget target)
+    {
+        if (target.Install is not { } install
+            || !Confirm($"Remove {target.Label} in {install.Directory}?{Environment.NewLine}{Environment.NewLine}You'll see and OK each step before it runs.", "Remove install"))
+            return;
+
+        IsRunning = true;
+        try
+        {
+            Log.Clear();
+            using var log = UiLog.Create(Log, _package!.Manifest.App.Name, "remove");
+            await RemoveAsync(install, log);
+            RefreshInstalls();
+        }
+        finally
+        {
+            IsRunning = false;
+        }
+    }
+
+    private async Task RemoveAsync(Installation install, IDeployLog log)
+    {
+        var package = _package!;
+        var all = Install!.Installs.ToList();
+        var values = ParameterValues(includeSecrets: true);
+        var result = await Task.Run(() => new InstallRemover(_user, log).RemoveAsync(install, all, package, values, CancellationToken.None));
+        Status = result switch
+        {
+            DeployResult.Succeeded => $"Removed {install.Directory}.",
+            DeployResult.Failed => $"Removing {install.Directory} had errors. See the log.",
+            _ => "Removal stopped. Steps already run are not undone.",
+        };
     }
 
     private async Task RestoreAsync(IDeployLog log)
@@ -253,7 +320,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (_package is null)
             return;
 
-        var values = Parameters.ToDictionary(parameter => parameter.Name, parameter => parameter.Value, StringComparer.OrdinalIgnoreCase);
+        var values = ParameterValues(includeSecrets: true);
         var earlier = FilePlans.OfType<FilePlanViewModel>().ToDictionary(plan => plan.Step);
         FilePlans.Clear();
         foreach (var step in Steps.Where(step => step.Step is CopyFilesStep))
@@ -289,6 +356,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnParameterChanged()
     {
+        RefreshInstalls();
+        OnInstanceChanged();
+    }
+
+    private void OnInstanceChanged()
+    {
         RefreshSteps();
         FilesAreStale = FilePlans.Count > 0;
     }
@@ -296,11 +369,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void RefreshSteps()
     {
         // Secrets are left as {Name} so they never show in the plan.
-        var values = Parameters
-            .Where(parameter => parameter.Type != InputType.Secret)
-            .ToDictionary(parameter => parameter.Name, parameter => parameter.Value, StringComparer.OrdinalIgnoreCase);
+        var values = ParameterValues(includeSecrets: false);
         foreach (var step in Steps)
             step.Refresh(values);
+    }
+
+    /// <summary>Looks for installs in the install folder. It only lists the folder and its subfolders, so it is cheap.</summary>
+    private void RefreshInstalls()
+    {
+        if (Install is null || _package?.Manifest.Install is not { } install)
+            return;
+        Install.Refresh(Placeholders.Resolve(install.Folder, ParameterValues(includeSecrets: false)));
+    }
+
+    /// <summary>The parameter values, plus {Instance}, {InstanceSuffix} and {InstanceDir} for the chosen install.</summary>
+    private Dictionary<string, string> ParameterValues(bool includeSecrets)
+    {
+        var values = Parameters
+            .Where(parameter => includeSecrets || parameter.Type != InputType.Secret)
+            .ToDictionary(parameter => parameter.Name, parameter => parameter.Value, StringComparer.OrdinalIgnoreCase);
+        if (_package?.Manifest.Install is { } install && Install is not null)
+            foreach (var (name, value) in Installations.Variables(Placeholders.Resolve(install.Folder, values), Install.Name))
+                values[name] = value;
+        return values;
     }
 
     private static bool Confirm(string message, string title) =>

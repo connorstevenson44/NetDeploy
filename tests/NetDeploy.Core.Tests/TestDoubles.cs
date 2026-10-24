@@ -67,4 +67,14 @@ internal sealed class FakeUser : IUserInteraction
         ResolveReview?.Invoke(files);
         return Task.FromResult(!CancelReview);
     }
+
+    /// <summary>Answers for each cleanup step in turn; Run once they run out.</summary>
+    public Queue<CleanupDecision> CleanupDecisions { get; } = new();
+    public List<(string Title, string Explanation)> CleanupPrompts { get; } = [];
+
+    public Task<CleanupDecision> ConfirmCleanupAsync(string title, string explanation, int number, int total, CancellationToken cancellationToken)
+    {
+        CleanupPrompts.Add((title, explanation));
+        return Task.FromResult(CleanupDecisions.Count > 0 ? CleanupDecisions.Dequeue() : CleanupDecision.Run);
+    }
 }

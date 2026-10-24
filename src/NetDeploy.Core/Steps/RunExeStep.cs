@@ -19,6 +19,8 @@ public sealed class RunExeStep : DeployStep
 
     public override string Describe() => $"Run {Path.GetFileName(ExePath)}";
 
+    public override string Explain() => $"Runs {ExePath} {Args}".TrimEnd() + ".";
+
     public override async Task RunAsync(StepContext context, CancellationToken cancellationToken)
     {
         var exe = context.ResolvePath(ExePath);

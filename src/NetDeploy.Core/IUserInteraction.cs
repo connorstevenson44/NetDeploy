@@ -16,4 +16,12 @@ public interface IUserInteraction
     /// Returns false if the user cancelled. When readOnly is true (a dry run) nothing will be written.
     /// </summary>
     Task<bool> ReviewConfigsAsync(IReadOnlyList<ConfigFileUpdate> files, bool readOnly, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Asks before one step of removing an install runs, showing exactly what it will do.
+    /// number counts from 1 up to total.
+    /// </summary>
+    Task<CleanupDecision> ConfirmCleanupAsync(string title, string explanation, int number, int total, CancellationToken cancellationToken);
 }
+
+public enum CleanupDecision { Run, Skip, Cancel }

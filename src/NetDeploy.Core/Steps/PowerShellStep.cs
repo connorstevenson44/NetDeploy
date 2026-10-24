@@ -18,6 +18,10 @@ public sealed class PowerShellStep : DeployStep
 
     public override string Describe() => ScriptFile is not null ? $"Run {Path.GetFileName(ScriptFile)}" : "Run PowerShell script";
 
+    public override string Explain() => ScriptFile is not null
+        ? $"Runs the PowerShell script {ScriptFile} {Args}".TrimEnd() + "."
+        : $"Runs this PowerShell:{Environment.NewLine}{Script}";
+
     public override async Task RunAsync(StepContext context, CancellationToken cancellationToken)
     {
         if (context.DryRun)

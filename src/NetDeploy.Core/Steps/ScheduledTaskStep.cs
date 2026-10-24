@@ -46,6 +46,13 @@ public sealed class ScheduledTaskStep : DeployStep
 
     public override string Describe() => $"{Action} scheduled task {TaskName}";
 
+    public override string Explain() => Action == ScheduledTaskAction.Delete
+        ? $"Deletes the scheduled task \"{TaskName}\": schtasks /Delete /TN \"{TaskName}\" /F."
+        : $"{Action} the scheduled task \"{TaskName}\".";
+
+    protected internal override IEnumerable<DeployStep> DefaultCleanup() =>
+        Action == ScheduledTaskAction.CreateOrUpdate ? [new ScheduledTaskStep { Action = ScheduledTaskAction.Delete, TaskName = TaskName }] : [];
+
     public override async Task RunAsync(StepContext context, CancellationToken cancellationToken)
     {
         var name = context.Resolve(TaskName);

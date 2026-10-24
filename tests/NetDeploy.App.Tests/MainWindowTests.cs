@@ -57,6 +57,7 @@ public class MainWindowTests
                     Assert.DoesNotContain(viewModel.Steps, step => step.State == StepState.Failed);
                     await SaveDialogScreenshotsAsync();
                     await SaveFilesScreenshotAsync(window, viewModel);
+                    await SaveInstallScreenshotAsync(window, viewModel);
                 }
                 catch (Exception ex)
                 {
@@ -100,6 +101,12 @@ public class MainWindowTests
         review.SelectedFile = review.Files.Single(file => file.FileName == "appsettings.Production.json");
         await SaveScreenshotAsync(merge, "5-config-override");
         merge.Close();
+
+        var cleanup = new CleanupWindow("Uninstall service OrdersService-east",
+            "Stops the Windows service \"OrdersService-east\" and deletes it: sc.exe stop OrdersService-east, then sc.exe delete OrdersService-east.", 1, 4);
+        cleanup.Show();
+        await SaveScreenshotAsync(cleanup, "8-cleanup");
+        cleanup.Close();
     }
 
     /// <summary>Opens a package next to a server that has an older copy, and shows the Files tab.</summary>
@@ -149,6 +156,23 @@ public class MainWindowTests
         plan.Items.OfType<FileRowViewModel>().Single(row => row.Path == "plugins/Fax.dll").Action = FileAction.Keep;
         Assert.IsType<FilePlanError>(viewModel.FilePlans[1]);
         await SaveScreenshotAsync(window, "6-files");
+    }
+
+    /// <summary>Opens the sample next to a folder with a hand-made single install and an instance, and names the single one.</summary>
+    private static async Task SaveInstallScreenshotAsync(Window window, MainViewModel viewModel)
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "installs", Path.GetRandomFileName())).FullName;
+        File.WriteAllText(Path.Combine(folder, "OrdersService.exe"), "");
+        Directory.CreateDirectory(Path.Combine(folder, "east"));
+        File.WriteAllText(Path.Combine(folder, "east", "OrdersService.exe"), "");
+
+        viewModel.Load(SamplePath);
+        viewModel.Parameters.Single(p => p.Name == "InstallDir").Value = folder;
+        viewModel.SelectedTab = MainViewModel.StepsTab;
+        viewModel.Install!.Name = "main";
+        Assert.Equal(InstallPlan.Convert, viewModel.Install.Plan);
+        Assert.Contains(viewModel.Steps, step => step.Title == "Stop service OrdersService-main");
+        await SaveScreenshotAsync(window, "7-install");
     }
 
     /// <summary>A server running version 2.3 with its own override, and a package for 2.4 that renames a setting and adds one.</summary>
@@ -227,5 +251,8 @@ public class MainWindowTests
 
         public Task<bool> ReviewConfigsAsync(IReadOnlyList<ConfigFileUpdate> files, bool readOnly, CancellationToken cancellationToken) =>
             Task.FromResult(true);
+
+        public Task<CleanupDecision> ConfirmCleanupAsync(string title, string explanation, int number, int total, CancellationToken cancellationToken) =>
+            Task.FromResult(CleanupDecision.Run);
     }
 }

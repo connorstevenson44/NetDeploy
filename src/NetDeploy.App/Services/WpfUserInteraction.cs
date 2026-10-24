@@ -25,4 +25,12 @@ internal sealed class WpfUserInteraction : IUserInteraction
     public Task<bool> ReviewConfigsAsync(IReadOnlyList<ConfigFileUpdate> files, bool readOnly, CancellationToken cancellationToken) =>
         Application.Current.Dispatcher.InvokeAsync(() =>
             new MergeWindow(new MergeViewModel(files, readOnly)) { Owner = Owner }.ShowDialog() == true).Task;
+
+    public Task<CleanupDecision> ConfirmCleanupAsync(string title, string explanation, int number, int total, CancellationToken cancellationToken) =>
+        Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var window = new CleanupWindow(title, explanation, number, total) { Owner = Owner };
+            window.ShowDialog();
+            return window.Decision;
+        }).Task;
 }
