@@ -35,3 +35,24 @@ jobs:
         with:
           name: Screenshots
           path: tests/NetDeploy.App.Tests/bin/Release/net10.0-windows/screenshots/
+
+  packages:
+    # Builds the test packages, then deploys, upgrades and removes them on the runner.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build test packages
+        run: dotnet run testpackages/build.cs
+
+      - name: Deploy, upgrade and remove them
+        run: dotnet run --project testpackages/e2e -- testpackages/dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TestPackages
+          path: testpackages/dist/

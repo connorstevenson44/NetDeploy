@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- A .NET Framework 4.8 app, so it reads its settings from Fabrikam.Reports.exe.config (App.config).
+       Plugins are separate dlls in plugins\ that it finds when it runs. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <LangVersion>latest</LangVersion>
+    <DebugType>none</DebugType>
+    <Product>Fabrikam Reports</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Configuration" />
+  </ItemGroup>
+</Project>

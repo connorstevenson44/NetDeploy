@@ -1,0 +1,1 @@
+{ReportTitle}: {RowCount} rows, total {Total}.

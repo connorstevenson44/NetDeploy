@@ -2,21 +2,32 @@ namespace NetDeploy.Core.Steps;
 
 internal static class FileSystem
 {
-    public static void CopyDirectory(string source, string target)
+    /// <summary>Copies everything in source except the skip folders, which are full paths of folders inside it.</summary>
+    public static void CopyDirectory(string source, string target, IReadOnlyCollection<string>? skip = null)
     {
         Directory.CreateDirectory(target);
-        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories).Where(path => !IsUnder(path, skip)))
             Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
-        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories).Where(path => !IsUnder(path, skip)))
             File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)), overwrite: true);
     }
 
-    public static void ReplaceDirectory(string source, string target)
+    /// <summary>Makes target a copy of source, leaving the keep folders (full paths inside target) as they are.</summary>
+    public static void ReplaceDirectory(string source, string target, IReadOnlyCollection<string>? keep = null)
     {
         if (Directory.Exists(target))
-            Directory.Delete(target, recursive: true);
+        {
+            foreach (var file in Directory.EnumerateFiles(target))
+                File.Delete(file);
+            foreach (var directory in Directory.EnumerateDirectories(target).Where(path => !IsUnder(path, keep)))
+                Directory.Delete(directory, recursive: true);
+        }
         CopyDirectory(source, target);
     }
+
+    private static bool IsUnder(string path, IReadOnlyCollection<string>? folders) =>
+        folders is not null && folders.Any(folder =>
+            path.Equals(folder, StringComparison.OrdinalIgnoreCase) || path.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>True when two files have the same bytes. Compares sizes first, then reads both in chunks.</summary>
     public static bool SameContents(string first, string second)

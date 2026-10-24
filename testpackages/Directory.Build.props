@@ -1,0 +1,3 @@
+<Project>
+  <!-- The test apps stand alone: they don't take the NetDeploy build settings above. -->
+</Project>

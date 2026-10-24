@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Test packages built by testpackages/build.cs
+testpackages/dist/

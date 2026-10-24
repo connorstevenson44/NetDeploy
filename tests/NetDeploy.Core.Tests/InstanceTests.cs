@@ -137,6 +137,28 @@ public sealed class InstanceTests : IDisposable
     }
 
     [Fact]
+    public async Task Updating_the_single_install_leaves_the_instances_inside_it_alone()
+    {
+        await DeployAsync();
+        await DeployAsync("west");
+        await DeployAsync("west");
+        _server.File("west/logs/today.log", "running");
+
+        var plan = new CopyFilesStep { From = "app", To = _server.Path, DeleteExtra = true }.PlanFiles(_package.Path, new Dictionary<string, string>());
+        Assert.DoesNotContain(plan.Entries, entry => entry.Path.StartsWith("west"));
+
+        var outcome = await DeployAsync();
+        var backup = Directory.GetDirectories(_server.Path + ".backups").Order().Last();
+        Assert.False(Directory.Exists(Path.Combine(backup, "west")));
+        Assert.False(Directory.Exists(Path.Combine(backup, "west.backups")));
+
+        _server.File("Orders.exe", "broken");
+        outcome.Rollback.Restore(_log);
+        Assert.Equal("v2", _server.Read("Orders.exe"));
+        Assert.Equal("running", _server.Read("west/logs/today.log"));
+    }
+
+    [Fact]
     public async Task A_new_instance_needs_an_empty_folder_and_a_plain_name()
     {
         await DeployAsync("east");
@@ -175,6 +197,7 @@ public sealed class InstanceTests : IDisposable
     {
         await DeployAsync();
         await DeployAsync("east");
+        await DeployAsync("east");
         var single = Find().First();
         _user.CleanupDecisions.Enqueue(CleanupDecision.Skip); // the task, which isn't there
 
@@ -183,6 +206,7 @@ public sealed class InstanceTests : IDisposable
         Assert.Contains("except east", _user.CleanupPrompts.Last().Explanation);
         Assert.False(_server.Exists("Orders.exe"));
         Assert.True(_server.Exists("east/Orders.exe"));
+        Assert.True(Directory.Exists(_server.Combine("east.backups")));
     }
 
     [Fact]

@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../schema/deploy.schema.json",
+  "schemaVersion": 1,
+  "app": { "name": "Fabrikam.Reports", "version": "2.1.0" },
+  "requiresAdmin": true,
+  "install": { "folder": "{InstallDir}" },
+  "parameters": {
+    "InstallDir": { "label": "Install folder", "type": "folder", "default": "C:\\Apps\\Fabrikam.Reports" },
+    "PublishWeb": { "label": "Publish the report site", "type": "yesNo", "default": "false" }
+  },
+  "steps": [
+    {
+      "type": "checkPrerequisite",
+      "name": ".NET Framework 4",
+      "check": { "kind": "registryValue", "key": "HKLM\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full", "valueName": "Release" }
+    },
+    {
+      "type": "checkPrerequisite",
+      "name": ".NET Framework 4.8 or later",
+      "check": { "kind": "powershell", "script": "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full').Release -ge 528040" }
+    },
+    {
+      "type": "scheduledTask",
+      "action": "disable",
+      "name": "Pause the hourly report",
+      "task": "\\Fabrikam\\Reports hourly",
+      "when": { "powershell": "[bool](Get-ScheduledTask -TaskPath '\\Fabrikam\\' -TaskName 'Reports hourly' -ErrorAction SilentlyContinue)" }
+    },
+    { "type": "backup", "path": "{InstanceDir}", "keep": 2 },
+    {
+      "type": "copyFiles",
+      "name": "Copy the app",
+      "from": "app",
+      "to": "{InstanceDir}",
+      "preserve": ["data/**", "reports/**"],
+      "deleteExtra": true,
+      "takeNew": ["appSettings:KeepReports"]
+    },
+    { "type": "runExe", "name": "Create the sample data (kept when it is there)", "path": "{InstanceDir}\\Fabrikam.Reports.exe", "args": "--init" },
+    {
+      "type": "if",
+      "condition": { "ask": "Run a report now to check the install?" },
+      "then": [
+        { "type": "runExe", "name": "Run a report", "path": "{InstanceDir}\\Fabrikam.Reports.exe", "args": "--run" }
+      ]
+    },
+    {
+      "type": "scheduledTask",
+      "name": "Schedule the hourly report",
+      "action": "createOrUpdate",
+      "task": "\\Fabrikam\\Reports hourly",
+      "program": "{InstanceDir}\\Fabrikam.Reports.exe",
+      "arguments": "--run",
+      "schedule": { "kind": "hourly" },
+      "runAs": "{TaskUser}",
+      "inputs": {
+        "TaskUser": { "label": "Run the hourly report as", "type": "choice", "options": ["SYSTEM", "NETWORK SERVICE", "LOCAL SERVICE"], "default": "SYSTEM" }
+      }
+    },
+    {
+      "type": "if",
+      "name": "Publish the report site",
+      "condition": { "all": [ { "value": "{PublishWeb}", "equals": "true" }, { "powershell": "[bool](Get-Service W3SVC -ErrorAction SilentlyContinue)" } ] },
+      "then": [
+        { "type": "powershell", "file": "scripts/publish-web.ps1", "args": "-SiteFolder \"{InstanceDir}\\wwwroot\"" }
+      ],
+      "else": [
+        { "type": "powershell", "script": "Write-Output 'The report site is not published: PublishWeb is {PublishWeb}, or IIS is not installed.'" }
+      ]
+    },
+    { "type": "runExe", "name": "Check the settings and plugins", "path": "{InstanceDir}\\Fabrikam.Reports.exe", "args": "--check" }
+  ]
+}

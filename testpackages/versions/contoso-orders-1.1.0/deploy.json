@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../schema/deploy.schema.json",
+  "schemaVersion": 1,
+  "app": { "name": "Contoso.Orders", "version": "1.1.0" },
+  "requiresAdmin": true,
+  "install": { "folder": "{InstallDir}", "instances": true },
+  "parameters": {
+    "InstallDir": { "label": "Install folder", "type": "folder", "default": "C:\\Apps\\Contoso.Orders" },
+    "DataDir": { "label": "Database folder", "type": "folder", "default": "C:\\ProgramData\\Contoso.Orders" },
+    "Environment": { "label": "Environment", "type": "choice", "options": ["Development", "Staging", "Production"], "default": "Staging" },
+    "PaymentsApiKey": { "label": "Payments API key (new in 1.1)", "type": "secret", "optional": true }
+  },
+  "steps": [
+    {
+      "type": "checkPrerequisite",
+      "name": ".NET Framework 4.8, for the export tool",
+      "check": { "kind": "powershell", "script": "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full').Release -ge 528040" }
+    },
+    { "type": "service", "action": "stop", "service": "Contoso.Orders{InstanceSuffix}" },
+    { "type": "backup", "path": "{InstanceDir}", "keep": 2 },
+    {
+      "type": "runExe",
+      "name": "Check the old version's settings first",
+      "path": "{InstanceDir}\\Contoso.Orders.exe",
+      "args": "check",
+      "continueOnError": true,
+      "when": { "ask": "Run a settings check on the old version first?" }
+    },
+    {
+      "type": "copyFiles",
+      "name": "Copy the app",
+      "from": "app",
+      "to": "{InstanceDir}",
+      "preserve": ["logs/**", "exports/**", "export/exports/**"],
+      "deleteExtra": true,
+      "takeNew": ["Logging"]
+    },
+    {
+      "type": "powershell",
+      "name": "Point the service at its database",
+      "file": "scripts/set-settings.ps1",
+      "args": "-Settings \"{InstanceDir}\\appsettings.json\" -Database \"{DataDir}\\db{InstanceSuffix}\\orders.db\" -ApiKey \"{PaymentsApiKey}\""
+    },
+    {
+      "type": "runExe",
+      "name": "Create or upgrade the database",
+      "path": "{InstanceDir}\\Contoso.Orders.exe",
+      "args": "migrate --db \"{DataDir}\\db{InstanceSuffix}\\orders.db\" --seed",
+      "timeoutMinutes": 5,
+      "cleanup": [
+        { "type": "deleteFolder", "name": "Delete the database", "path": "{DataDir}\\db{InstanceSuffix}" }
+      ]
+    },
+    {
+      "type": "scheduledTask",
+      "name": "Schedule the nightly export",
+      "action": "createOrUpdate",
+      "task": "\\Contoso\\Orders Export{InstanceSuffix}",
+      "program": "{InstanceDir}\\export\\Contoso.Orders.Export.exe",
+      "schedule": { "kind": "daily", "time": "02:00" },
+      "runAs": "SYSTEM"
+    },
+    {
+      "type": "service",
+      "action": "install",
+      "service": "Contoso.Orders{InstanceSuffix}",
+      "displayName": "Contoso Orders {Instance}",
+      "binary": "{InstanceDir}\\Contoso.Orders.exe",
+      "startup": "delayedAutomatic"
+    },
+    {
+      "type": "if",
+      "name": "Lock down production",
+      "condition": { "value": "{Environment}", "equals": "Production" },
+      "then": [
+        { "type": "powershell", "file": "scripts/harden.ps1", "args": "-InstallDir \"{InstanceDir}\"" }
+      ],
+      "else": [
+        { "type": "powershell", "script": "Write-Output 'Not production ({Environment}): nothing to lock down.'" }
+      ]
+    },
+    { "type": "runExe", "name": "Check the settings", "path": "{InstanceDir}\\Contoso.Orders.exe", "args": "check" },
+    { "type": "service", "action": "start", "service": "Contoso.Orders{InstanceSuffix}" }
+  ]
+}
