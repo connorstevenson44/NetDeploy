@@ -12,11 +12,11 @@ class Cases {
         {Name: "Open a package", Run: OpenPackage, Needs: "A clean computer",
             Covers: "The start screen, opening a package, its settings, and the Steps and deploy.json tabs"},
         {Name: "Try a deploy without changing anything", Run: DryRun, Needs: "Case 1",
-            Covers: "Naming a new install, a dry run, the list of files and the settings files it would write, and nothing being written"},
+            Covers: "Naming a new install, a dry run, the list of files and the settings files it would write, the summary of what it would change, and nothing being written"},
         {Name: "Install the app for the first time (main)", Run: AddMain, Needs: "Case 2",
             Covers: "A real deploy: the Windows service, the scheduled task, the database, the settings, and the green dot for a running service"},
-        {Name: "Notice when a service stops", Run: SpotStoppedService, Needs: "Case 3",
-            Covers: "A service stopped outside NetDeploy, Refresh, and the dot beside the install going red, then green again"},
+        {Name: "Start, stop and restart a service", Run: ControlService, Needs: "Case 3",
+            Covers: "A service stopped outside NetDeploy and Refresh, then Stop, Start and Restart from the buttons beside an install, with the dot following along"},
         {Name: "Install it a second time, for Production (blue)", Run: AddBlue, Needs: "Case 3",
             Covers: "Picking from a list of choices, a second install beside the first, and the steps that only run for Production"},
         {Name: "Change settings on the server", Run: EditOnServer, Needs: "Case 3",
@@ -24,26 +24,32 @@ class Cases {
         {Name: "Throw away changes you don't want", Run: ThrowAwayChanges, Needs: "Case 6",
             Covers: "Undo all in the editor, and Discard for everything waiting to be written"},
         {Name: "Cancel an upgrade halfway, then roll it back", Run: CancelAndRollBack, Needs: "Case 5",
-            Covers: "A secret setting, the files an upgrade adds and deletes, a yes/no question, Cancel during a deploy, and Roll back"},
-        {Name: "Upgrade main to 1.1.0, keeping the server's changes", Run: UpgradeMain, Needs: "Case 8",
-            Covers: "Showing the files that haven't changed, changing what happens to a file, how settings are combined, a renamed setting, and settings that need a value"},
-        {Name: "Rename blue to green", Run: RenameBlue, Needs: "Case 9",
+            Covers: "The arrow saying the package is newer, a secret setting, the files an upgrade adds and deletes, a yes/no question, Cancel during a deploy, and Roll back"},
+        {Name: "Put a backup back", Run: RestoreBackup, Needs: "Case 8",
+            Covers: "The history of an install's deploys, a file lost on the server, and Restore beside a backup an earlier deploy made"},
+        {Name: "Upgrade main to 1.1.0, keeping the server's changes", Run: UpgradeMain, Needs: "Case 9",
+            Covers: "Each install's own remembered settings, showing the files that haven't changed, changing what happens to a file, how settings are combined, a renamed setting, and settings that need a value"},
+        {Name: "Rename blue to green", Run: RenameBlue, Needs: "Case 10",
             Covers: "Changing an install's name, Rename, and removing the old install one step at a time"},
-        {Name: "Copy main as a new install (qa)", Run: CloneMain, Needs: "Case 10",
+        {Name: "Copy main as a new install (qa)", Run: CloneMain, Needs: "Case 11",
             Covers: "Clone from the buttons that show when you point at an install, and a new install that starts as a copy"},
-        {Name: "Change your mind while removing an install", Run: StopRemoving, Needs: "Case 11",
+        {Name: "Deploy from the command line", Run: DeployFromCommandLine, Needs: "Case 12",
+            Covers: "NetDeploy.exe deploy as a pipeline would run it: a mistake in the command, a deploy with a secret from the environment, and the deploy showing in the history"},
+        {Name: "Change your mind while removing an install", Run: StopRemoving, Needs: "Case 12",
             Covers: "Stop removing, at the first step, leaving the install as it was"},
-        {Name: "Remove an install someone copied by hand", Run: RemoveHandCopy, Needs: "Case 9",
+        {Name: "Remove an install someone copied by hand", Run: RemoveHandCopy, Needs: "Case 10",
             Covers: "A folder copied outside NetDeploy showing up as an install, and Skip this step for what it never had"},
         {Name: "Edit a deploy.json", Run: EditConfig, Needs: "Any time",
             Covers: "Open config, the list of steps, the form and the text view, a problem shown as you type, and Save"},
-        {Name: "Look after an install folder without a package", Run: ManageFolder, Needs: "Case 11",
+        {Name: "Look after an install folder without a package", Run: ManageFolder, Needs: "Case 12",
             Covers: "Open folder, the version of each install, running a program with what to pass it, deleting a file, and Up"},
+        {Name: "Pick up where you left off", Run: PickUpWhereYouLeftOff, Needs: "Case 12",
+            Covers: "The start screen's Recent list, a package opening with the install folder and each install's settings from last time, and the sign for the same version"},
         {Name: "Install Fabrikam.Reports 2.0.0", Run: AddReports, Needs: "No Fabrikam.Reports yet",
             Covers: "An older-style .NET Framework app, a question during the deploy, and a window asking for a step's details"},
-        {Name: "Upgrade Fabrikam.Reports to 2.1.0", Run: UpgradeReports, Needs: "Case 16",
+        {Name: "Upgrade Fabrikam.Reports to 2.1.0", Run: UpgradeReports, Needs: "Case 19",
             Covers: "Settings changed by hand on the server, a tick box setting, combining older-style settings files, and plugins swapped"},
-        {Name: "Remove every install", Run: RemoveAll, Needs: "Cases 11 and 17",
+        {Name: "Remove every install", Run: RemoveAll, Needs: "Cases 12 and 20",
             Covers: "Remove from the buttons that show when you point at an install, each step confirmed, and a clean computer at the end"},
     ]
 }
@@ -92,12 +98,18 @@ DryRun() {
     Runner.Say("Each settings file is shown just as it would be written. In a dry run they can't be changed.")
     App.ContinueStage()
     status := App.WaitStatus(["Dry run finished."])
+    App.Find({Type: "Text", Name: "Dry run: what the deploy would change"}, "the dry run's summary above the log")
+    files := App.Hover({Type: "Text", Name: "Files: ", mm: "StartsWith"},
+        "Above the log, a summary counts the files a deploy would add, replace and delete, and lists the steps that would change the server").Name
     Runner.Checkpoint("The dry run changed nothing", [
         Check.Missing(OrdersDir),
         Check.Missing(OrdersData),
         Check.Service("Contoso.Orders-main", ""),
         Check.Exists(App.LogFile(status)),
+        Check.Make("The summary says every file would be added, and none replaced or deleted",
+            () => RegExMatch(files, "^Files: [1-9]\d* added, 0 replaced, 0 deleted\.$") ? "" : "it says " files),
     ], [
+        "The summary above the log lists the service, the scheduled task and the scripts the deploy would run.",
         "The Log tab lists each step and what it would have done.",
         "The Steps tab marks every step as done or skipped.",
         "The bar at the bottom says Dry run finished. Nothing was changed.",
@@ -143,23 +155,37 @@ AddMain() {
     ])
 }
 
-; ===== Notice when a service stops =====
+; ===== Start, stop and restart a service =====
 
-SpotStoppedService() {
+ControlService() {
+    main := OrdersDir "\main"
     App.GoToRoot()
     Runner.Step("Stop main's service outside NetDeploy, as if it had crashed")
     Machine.SetService("Contoso.Orders-main", "Stop")
     App.Refresh("Click Refresh above the folder list, so NetDeploy looks at the services again")
     App.Hover({Type: "Text", Name: "Contoso.Orders-main: stopped", mm: 2}, "The dot beside main is red now. Pointing at it says the service has stopped")
-    Runner.Step("Start main's service again, outside NetDeploy")
-    Machine.SetService("Contoso.Orders-main", "Start")
-    App.Refresh("Click Refresh again")
+    App.InstallButton(main, "Start its services", "Start main's service again, with the button that shows when you point at main")
+    App.WaitStatus(["Contoso.Orders-main: start done."], 120000)
     App.Hover({Type: "Text", Name: "Contoso.Orders-main: running", mm: 2}, "And the dot is green again")
-    Runner.Checkpoint("NetDeploy shows how main's service is doing", [
+    App.InstallButton(main, "Stop its services", "Stop main's service from NetDeploy")
+    App.Answer("Stop service", "Yes", "Yes, stop it", "Stop Contoso.Orders-main?")
+    App.WaitStatus(["Contoso.Orders-main: stop done."], 120000)
+    App.Hover({Type: "Text", Name: "Contoso.Orders-main: stopped", mm: 2}, "NetDeploy asked first, then stopped it: the dot is red")
+    stopped := Machine.ServiceState("Contoso.Orders-main")
+    App.InstallButton(main, "Start its services", "Start it again")
+    App.WaitStatus(["Contoso.Orders-main: start done."], 120000)
+    App.InstallButton(main, "Restart its services", "Restart main's service")
+    App.Answer("Restart service", "Yes", "Yes, restart it", "Restart Contoso.Orders-main?")
+    App.WaitStatus(["Contoso.Orders-main: restart done."], 120000)
+    App.Hover({Type: "Text", Name: "Contoso.Orders-main: running", mm: 2}, "After the restart the dot is green")
+    Runner.Checkpoint("NetDeploy shows how main's service is doing, and starts and stops it", [
+        Check.Make("Stop from NetDeploy stopped the service", () => stopped = "Stopped" ? "" : "it was " StrLower(stopped)),
         Check.Service("Contoso.Orders-main", "Running"),
+        Check.Heartbeat(main "\logs\heartbeat.log", "1.0.0"),
     ], [
         "The dot beside main went red while its service was stopped, and green once it was started.",
-        "Pointing at the dot named the service and said whether it was running.",
+        "Stop and Restart asked first; Start didn't.",
+        "The bar at the bottom said what was done each time.",
     ], [
         Tool.Services("Contoso.Orders"),
     ])
@@ -281,6 +307,8 @@ CancelAndRollBack() {
     App.WaitHeader("Contoso.Orders 1.1.0")
     App.Type({Type: "Edit", Name: "Payments API key (new in 1.1)"}, ApiKey, "Type the payments API key, a secret setting new in 1.1", true)
     App.GoToRoot()
+    App.Hover(App.Find({Type: "Text", Name: "The package (1.1.0) is newer: deploying here updates it."}, "the arrow beside blue's version", , App.FolderRow(blue)),
+        "The green arrow beside blue's version points up: the open package is newer than what is installed")
     App.GoInto(blue)
     App.Find({Type: "Button", Name: "Update"}, "the Update button")
     Runner.Say("blue is on 1.0.0, so the button says Update.")
@@ -311,6 +339,35 @@ CancelAndRollBack() {
     ])
 }
 
+; ===== Put a backup back =====
+
+RestoreBackup() {
+    blue := OrdersDir "\blue"
+    App.GoToRoot()
+    App.GoInto(blue)
+    App.Hover({Type: "Text", Name: "1.1.0 stopped, rolled back"},
+        "HISTORY lists the deploys made to blue, newest first: the upgrade that was stopped and rolled back, then the first install")
+    Runner.Step("Delete blue's README.txt outside NetDeploy, as if someone had removed it by mistake")
+    FileDelete(blue "\README.txt")
+    App.Click({Type: "Button", HelpText: "Put this backup back in place of the folder's files"},
+        "Click Restore beside the backup the upgrade took of blue, under BACKUPS")
+    App.Answer("Restore backup", "Yes", "Yes, put it back", "Put back the backup from")
+    App.WaitStatus(["Restored "], 180000)
+    Runner.Checkpoint("blue is back as the backup had it", [
+        Check.Exists(blue "\README.txt"),
+        Check.Version(blue "\Contoso.Orders.exe", "1.0.0"),
+        Check.Service("Contoso.Orders-blue", "Running"),
+    ], [
+        "Restore asked first, and said the services would be stopped and started again.",
+        "The Log tab shows the service stopped, the files put back and the service started.",
+        "HISTORY showed the stopped upgrade with the time and who ran it.",
+    ], [
+        Tool.Folder(blue, "Open blue"),
+        Tool.Folder(blue ".backups", "Open the backups"),
+        Tool.Services("Contoso.Orders"),
+    ])
+}
+
 ; ===== Upgrade main, keeping the server's changes =====
 
 UpgradeMain() {
@@ -318,6 +375,8 @@ UpgradeMain() {
     unchanged := {Type: "Button", HelpText: "Show files that are the same on the server"}
     App.GoToRoot()
     App.GoInto(main)
+    environment := App.Selection({Type: "ComboBox", Name: "Environment"}, "the Environment box")
+    Runner.Say("blue was deployed for Production, but main for Staging: going into main brings back the settings main was last deployed with, so Environment says " environment ".")
     App.ClickButton("Update", "Click Update to upgrade main")
     App.WaitStage("Check the files")
     App.Click(unchanged, "Click the eye, to also list the files that are already the same on the server")
@@ -352,6 +411,8 @@ UpgradeMain() {
         Check.Json(settings, "LegacyMode", "<absent>"),
         Check.Json(settings, "Payments:ApiKey", ApiKey),
         Check.Json(settings, "Logging:LogLevel:Contoso.Orders", "Debug"),
+        Check.Make("Environment said Staging for main, as main was last deployed", () => environment = "Staging" ? "" : "it said " environment),
+        Check.Missing(main "\PRODUCTION.txt"),
         Check.Exists(main "\appsettings.Production.json"),
         Check.Missing(main "\templates\password-reset.html"),
         Check.Exists(main "\templates\return-received.html"),
@@ -447,6 +508,47 @@ CloneMain() {
     ], [
         Tool.Folder(qa, "Open qa"),
         Tool.File(qa "\appsettings.json"),
+        Tool.Services("Contoso.Orders"),
+    ])
+}
+
+; ===== Deploy from the command line =====
+
+DeployFromCommandLine() {
+    qa := OrdersDir "\qa"
+    zip := Package("Contoso.Orders-1.1.0")
+    deploys := Machine.HistoryCount(qa)
+    Runner.Step("Run NetDeploy.exe deploy Contoso.Orders-1.1.0.zip without saying which install, as a pipeline might by mistake")
+    mistake := Machine.NetDeploy(App.Exe, "deploy", zip)
+    Runner.Say("It changes nothing, ends with exit code " mistake.Code ", and says what is missing: " mistake.First)
+    Runner.Step("Deploy 1.1.0 to qa again from the command line: NetDeploy.exe deploy Contoso.Orders-1.1.0.zip --install qa --yes, "
+        . "with the payments API key in the NETDEPLOY_PaymentsApiKey environment variable, so it stays out of the command")
+    EnvSet("NETDEPLOY_PaymentsApiKey", ApiKey)
+    run := Machine.NetDeploy(App.Exe, "deploy", zip, "--install", "qa", "--yes")
+    EnvSet("NETDEPLOY_PaymentsApiKey")
+    output := Runner.ResultsDir "\command-line.txt"
+    FileAppend(mistake.Output "`r`n`r`n" run.Output, output, "UTF-8")
+    Runner.Say("It printed the deploy's log as it went, and ended with exit code " run.Code ".")
+    App.GoToRoot()
+    App.Refresh("Click Refresh, so NetDeploy reads the folder and its history again")
+    App.GoInto(qa)
+    App.Hover({Type: "Text", Name: "1.1.0 deployed"}, "HISTORY starts with the deploy the command line just made")
+    Runner.Checkpoint("qa was deployed from the command line", [
+        Check.Make("Without --install it stopped with exit code 2 and asked for one",
+            () => mistake.Code = 2 && InStr(mistake.Output, "--install") ? "" : "exit code " mistake.Code ": " mistake.First),
+        Check.Make("The deploy ended with exit code 0 and said Deploy finished.",
+            () => run.Code = 0 && InStr(run.Output, "Deploy finished.") ? "" : "exit code " run.Code),
+        Check.Make("The API key never showed in what it printed", () => InStr(run.Output, ApiKey) ? "it is there" : ""),
+        Check.Make("The deploy was added to the history", () => (now := Machine.HistoryCount(qa)) = deploys + 1 ? "" : "it has " now " deploys to qa, not " deploys + 1),
+        Check.Service("Contoso.Orders-qa", "Running"),
+        Check.Json(qa "\appsettings.json", "Payments:ApiKey", ApiKey),
+        Check.Json(qa "\appsettings.json", "Orders:Region", "west"),
+    ], [
+        "What the command printed is in command-line.txt: the log, then the log file's path at the end.",
+        "The newest deploy under HISTORY is by you, a minute ago.",
+    ], [
+        Tool.File(output, "Open what it printed"),
+        Tool.Folder(qa, "Open qa"),
         Tool.Services("Contoso.Orders"),
     ])
 }
@@ -562,6 +664,41 @@ ManageFolder() {
         "The title bar says Contoso.Orders and C:\Apps\Contoso.Orders, and there is no PACKAGE section.",
     ], [
         Tool.Folder(qa, "Open qa"),
+    ])
+}
+
+; ===== Pick up where you left off =====
+
+PickUpWhereYouLeftOff() {
+    App.Start()
+    App.Find({Type: "Text", Name: "RECENT"}, "the Recent list on the start screen")
+    Runner.Say("NetDeploy starts afresh, and the start screen lists what was opened lately: the packages, the install folder and the deploy.json's folder.")
+    App.Click({Type: "Button", Name: "Contoso.Orders-1.1.0.zip"}, "Click Contoso.Orders-1.1.0.zip in the Recent list, to open it again")
+    App.WaitHeader("Contoso.Orders 1.1.0")
+    folder := App.Find({Type: "Edit", Name: "Install folder"}, "the Install folder box").Value
+    Runner.Say("The install folder is the one it was last deployed to, " folder ", without typing it again.")
+    App.GoToRoot()
+    App.Hover(App.Find({Type: "Text", Name: "The package is the same version (1.1.0)."}, "the sign beside main's version", , App.FolderRow(OrdersDir "\main")),
+        "main is on 1.1.0 already, so the sign beside its version says the package is the same version")
+    App.GoInto(OrdersDir "\green")
+    green := App.Selection({Type: "ComboBox", Name: "Environment"}, "the Environment box")
+    Runner.Say("green started out as blue, for Production, and Environment says " green ".")
+    App.GoToRoot()
+    App.GoInto(OrdersDir "\main")
+    main := App.Selection({Type: "ComboBox", Name: "Environment"}, "the Environment box")
+    App.Hover({Type: "Text", Name: "Reinstall main"}, "Environment says " main " for main. Below the folders, the plan says Reinstall, as main is already on this version")
+    Runner.Checkpoint("NetDeploy remembered what was opened and how each install was set up", [
+        Check.Make("The install folder was filled in as " OrdersDir, () => folder = OrdersDir ? "" : "it was " folder),
+        Check.Make("Environment said Production for green", () => green = "Production" ? "" : "it said " green),
+        Check.Make("Environment said Staging for main", () => main = "Staging" ? "" : "it said " main),
+        Check.Make("The remembered settings are in your own settings, not beside NetDeploy.exe or in an install",
+            () => !FileExist(Machine.SettingsFile) ? "there is no " Machine.SettingsFile
+                : (Machine.Count(OrdersDir, "settings.json", "FR") + Machine.Count(App.ExeFolder, "settings.json")) ? "a settings.json is beside NetDeploy.exe or in an install" : ""),
+    ], [
+        "The Recent list showed the packages, C:\Apps\Contoso.Orders and the editor folder, newest first.",
+        "The payments API key box is empty: secrets are never remembered.",
+    ], [
+        Tool.File(Machine.SettingsFile, "Open the settings"),
     ])
 }
 

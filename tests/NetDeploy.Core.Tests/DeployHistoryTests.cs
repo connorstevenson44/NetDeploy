@@ -27,6 +27,20 @@ public sealed class DeployHistoryTests : IDisposable
     }
 
     [Fact]
+    public void A_folder_written_another_way_still_finds_its_deploys()
+    {
+        var history = new DeployHistory(_folder.Combine("history"));
+        var main = Path.Combine(_folder.Path, "Apps", "main");
+        // As a folder typed with the other slash, a trailing one and a "..", such as C:/Apps/x/../main/, is recorded.
+        var typed = Path.Combine(_folder.Path, "Apps", "x", "..", "main").Replace(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + "/";
+        Assert.True(history.TryAdd(Record(typed, "1.0.0", DateTimeOffset.Now)));
+        // A file edited by hand can hold a folder that isn't a path at all.
+        Assert.True(history.TryAdd(Record("not\0a path", "9.9.9", DateTimeOffset.Now)));
+
+        Assert.Equal(["1.0.0"], history.For(main).Select(record => record.Version));
+    }
+
+    [Fact]
     public void A_missing_or_damaged_history_reads_as_empty()
     {
         var history = new DeployHistory(_folder.Combine("history"));

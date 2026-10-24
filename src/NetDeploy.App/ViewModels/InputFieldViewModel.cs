@@ -13,12 +13,7 @@ public sealed partial class InputFieldViewModel : ObservableObject
     {
         Name = name;
         Field = field;
-        Value = field.Default ?? field.Type switch
-        {
-            InputType.YesNo => "false",
-            InputType.Choice => field.Options?.FirstOrDefault() ?? "",
-            _ => "",
-        };
+        Value = field.Initial;
     }
 
     public string Name { get; }

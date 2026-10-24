@@ -39,10 +39,10 @@ public sealed class InstallTests : IDisposable
             Directory.Delete(backups, recursive: true);
     }
 
-    private async Task<DeployOutcome> DeployAsync(string instance, string? seedFrom = null)
+    private async Task<DeployOutcome> DeployAsync(string instance, string? seedFrom = null, string? installDir = null)
     {
         using var package = DeployPackage.Open(_package.Path);
-        var values = new Dictionary<string, string> { ["InstallDir"] = _server.Path, ["Password"] = "s3cret" };
+        var values = new Dictionary<string, string> { ["InstallDir"] = installDir ?? _server.Path, ["Password"] = "s3cret" };
         var options = new DeployOptions { Instance = instance, SeedFrom = seedFrom };
         return await new DeployRunner(_user, _log).RunAsync(package, values, dryRun: false, options, TestContext.Current.CancellationToken);
     }
@@ -83,6 +83,20 @@ public sealed class InstallTests : IDisposable
         Assert.Equal(DeployResult.Failed, outcome.Result);
         Assert.Null(outcome.FailedStep);
         Assert.Contains(_log.Entries, entry => entry.Level == LogLevel.Error);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Apps")]
+    public async Task An_install_folder_that_isnt_a_full_path_fails_before_any_step(string installDir)
+    {
+        var outcome = await DeployAsync("east", installDir: installDir);
+
+        Assert.Equal(DeployResult.Failed, outcome.Result);
+        Assert.Null(outcome.FailedStep);
+        Assert.False(outcome.Rollback.IsAvailable);
+        Assert.False(Directory.Exists(Path.Combine(installDir, "east")));
+        Assert.Contains(_log.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains(installDir.Length == 0 ? "Set the install folder" : "isn't a full path"));
     }
 
     [Fact]

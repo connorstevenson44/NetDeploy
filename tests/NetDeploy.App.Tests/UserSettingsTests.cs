@@ -91,6 +91,63 @@ public sealed class UserSettingsTests : IDisposable
         Assert.Equal(At("package"), viewModel.Recent.Single().Path);
     }
 
+    [Fact]
+    public void Each_install_gets_back_the_values_it_was_last_deployed_with()
+    {
+        var settings = UserSettings.InMemory();
+        var east = At("server/east");
+        Write("server/east/main/Orders.exe", "");
+        Write("server/east/blue/Orders.exe", "");
+        settings.SaveValues("Orders", east, new Dictionary<string, string> { ["InstallDir"] = east, ["Environment"] = "Staging" }, Path.Combine(east, "main"));
+        settings.SaveValues("Orders", east, new Dictionary<string, string> { ["InstallDir"] = east, ["Environment"] = "Production" }, Path.Combine(east, "blue"));
+        using var viewModel = new MainViewModel(new NoUser(), settings);
+        var environment = () => viewModel.Parameters.Single(parameter => parameter.Name == "Environment").Value;
+        InstallTarget Target(string? name) => viewModel.Install!.Targets.Single(target => target.Install?.Name == name);
+
+        viewModel.Load(At("package"));
+        Assert.Equal("blue", viewModel.Install!.Selected?.Label);
+        Assert.Equal("Production", environment());
+
+        viewModel.Install.Selected = Target("main");
+        Assert.Equal("Staging", environment());
+
+        // What was typed for an install stays while it is still the one picked.
+        viewModel.Parameters.Single(parameter => parameter.Name == "Environment").Value = "Test";
+        viewModel.Install.Selected = Target("main");
+        Assert.Equal("Test", environment());
+
+        // A new install that starts from a copy of blue starts from blue's values.
+        viewModel.Install.Selected = Target(null);
+        viewModel.Install.CopyFrom = viewModel.Install.CopySources.Single(source => source.Install?.Name == "blue");
+        Assert.Equal("Production", environment());
+        Assert.Equal(east, viewModel.FolderField!.Value);
+    }
+
+    [Fact]
+    public void A_remembered_value_the_package_no_longer_takes_is_left_out()
+    {
+        Write("choices/app/Orders.exe", "");
+        Write("choices/deploy.json", """
+            {
+              "schemaVersion": 1,
+              "app": { "name": "Orders", "version": "3.0.0" },
+              "parameters": {
+                "Environment": { "type": "choice", "options": ["Staging", "Production"] },
+                "Workers": { "type": "number", "default": "4" },
+                "Region": { "default": "east" }
+              },
+              "steps": [ { "type": "copyFiles", "from": "app", "to": "C:\\Apps\\Orders" } ]
+            }
+            """);
+        var settings = UserSettings.InMemory();
+        settings.SaveValues("Orders", "", new Dictionary<string, string> { ["Environment"] = "QA", ["Workers"] = "many", ["Region"] = "west" });
+        using var viewModel = new MainViewModel(new NoUser(), settings);
+
+        viewModel.Load(At("choices"));
+
+        Assert.Equal(["Staging", "4", "west"], viewModel.Parameters.Select(parameter => parameter.Value));
+    }
+
     private sealed class NoUser : IUserInteraction
     {
         public Task<bool> AskYesNoAsync(string question, CancellationToken cancellationToken) => Task.FromResult(false);

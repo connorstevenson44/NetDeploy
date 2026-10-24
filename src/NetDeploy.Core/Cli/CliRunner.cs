@@ -94,7 +94,7 @@ public sealed class CliRunner(TextWriter output, DeployHistory history, bool isA
         var problems = new List<string>();
         foreach (var (name, field) in manifest.Parameters)
         {
-            values[name] = options.ValueOf(name) ?? CliUser.DefaultOf(field);
+            values[name] = options.ValueOf(name) ?? field.Initial;
             if (CliUser.Problem(name, field, values[name]) is { } problem)
                 problems.Add(problem);
         }

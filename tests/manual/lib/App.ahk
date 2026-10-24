@@ -40,6 +40,14 @@ class App {
         }
     }
 
+    ; The folder NetDeploy.exe is in, where it keeps its logs.
+    static ExeFolder {
+        get {
+            SplitPath(this.Exe, , &folder)
+            return folder
+        }
+    }
+
     static Close() {
         Runner.Step("Close NetDeploy")
         WinClose(this.Hwnd)
@@ -260,6 +268,17 @@ class App {
         item.SelectionItemPattern.Select()
         try element.ExpandCollapsePattern.Collapse()
         Runner.Wait(Runner.Pace // 2)
+    }
+
+    ; What a drop-down shows as picked, such as "Staging".
+    static Selection(target, what) {
+        element := this.Resolve(target, what)
+        try {
+            if (picked := element.SelectionPattern.GetSelection()).Length
+                return picked[1].Name
+        }
+        try return element.Value
+        return ""
     }
 
     ; Ticks or clears a check box.

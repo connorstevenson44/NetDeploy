@@ -1,4 +1,3 @@
-using System.Globalization;
 using NetDeploy.Core.Config;
 
 namespace NetDeploy.Core.Cli;
@@ -24,7 +23,7 @@ internal sealed class CliUser(CliOptions options, IDeployLog log) : IUserInterac
     public Task<IReadOnlyDictionary<string, string>?> AskInputsAsync(
         string title, IReadOnlyDictionary<string, InputField> fields, CancellationToken cancellationToken)
     {
-        var answers = fields.ToDictionary(field => field.Key, field => options.ValueOf(field.Key) ?? DefaultOf(field.Value));
+        var answers = fields.ToDictionary(field => field.Key, field => options.ValueOf(field.Key) ?? field.Value.Initial);
         var problems = answers.Select(answer => Problem(answer.Key, fields[answer.Key], answer.Value)).OfType<string>().ToList();
         if (problems.Count > 0)
             throw new OperationCanceledException($"{title} asks for inputs: {string.Join(" ", problems)}");
@@ -54,27 +53,10 @@ internal sealed class CliUser(CliOptions options, IDeployLog log) : IUserInterac
 
     internal static string Count(int settings) => settings == 1 ? "1 config setting needs" : $"{settings} config settings need";
 
-    /// <summary>The value a field starts with in the window when it has no default.</summary>
-    internal static string DefaultOf(InputField field) => field.Default ?? field.Type switch
+    /// <summary>Why a value can't be used for a parameter or input, saying how to pass one that is missing; null when it can.</summary>
+    internal static string? Problem(string name, InputField field, string value) => field.Problem(name, value) switch
     {
-        InputType.YesNo => "false",
-        InputType.Choice => field.Options?.FirstOrDefault() ?? "",
-        _ => "",
+        { } missing when value.Length == 0 => $"{missing} Pass --param {name}=<value>.",
+        var problem => problem,
     };
-
-    /// <summary>Why a value can't be used for a parameter or input, or null when it can.</summary>
-    internal static string? Problem(string name, InputField field, string value)
-    {
-        var label = field.Label is { } text && !text.Equals(name, StringComparison.OrdinalIgnoreCase) ? $"{text} ({name})" : name;
-        if (value.Length == 0)
-            return field.Optional ? null : $"{label} needs a value: pass --param {name}=<value>.";
-        return field.Type switch
-        {
-            InputType.Number when !double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _) => $"{label} must be a number.",
-            InputType.YesNo when !bool.TryParse(value, out _) => $"{label} must be true or false.",
-            InputType.Choice when field.Options is { } choices && !choices.Contains(value, StringComparer.OrdinalIgnoreCase) =>
-                $"{label} must be one of {string.Join(", ", choices)}.",
-            _ => null,
-        };
-    }
 }
