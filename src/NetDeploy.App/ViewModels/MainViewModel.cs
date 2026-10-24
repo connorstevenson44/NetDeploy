@@ -10,6 +10,9 @@ using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.ViewModels;
 
+/// <summary>What the window shows: the home screen, a package to deploy, or an install folder.</summary>
+public enum AppScreen { Home, Deploy, Folder }
+
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly IUserInteraction _user;
@@ -50,10 +53,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial InstallViewModel? Install { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HeaderTitle))]
     public partial string Title { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HeaderDetail))]
     public partial string? PackagePath { get; set; }
+
+    /// <summary>The header: the package on the deploy screen, the folder on the folder screen.</summary>
+    public string HeaderTitle => Screen switch
+    {
+        AppScreen.Deploy => Title,
+        AppScreen.Folder => Path.GetFileName(Folder?.Root.TrimEnd(Path.DirectorySeparatorChar)) ?? "",
+        _ => "Deploy or manage a .NET app",
+    };
+
+    public string? HeaderDetail => Screen switch
+    {
+        AppScreen.Deploy => PackagePath,
+        AppScreen.Folder => Folder?.Root,
+        _ => null,
+    };
 
     [ObservableProperty]
     public partial string Status { get; set; }
@@ -65,8 +85,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool HasPackage { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHome), nameof(IsDeploy), nameof(IsFolder), nameof(HeaderTitle), nameof(HeaderDetail))]
+    public partial AppScreen Screen { get; set; }
+
+    public bool IsHome => Screen == AppScreen.Home;
+    public bool IsDeploy => Screen == AppScreen.Deploy;
+    public bool IsFolder => Screen == AppScreen.Folder;
+
+    /// <summary>The install folder typed on the home screen.</summary>
+    [ObservableProperty]
+    public partial string FolderPath { get; set; } = "";
+
+    /// <summary>The install folder being managed, on the folder screen.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HeaderTitle), nameof(HeaderDetail))]
+    public partial InstallFolderViewModel? Folder { get; set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(OpenPackageCommand), nameof(DryRunCommand), nameof(DeployCommand), nameof(CancelCommand), nameof(RollBackCommand), nameof(RemoveInstallCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenPackageCommand), nameof(DryRunCommand), nameof(DeployCommand), nameof(CancelCommand), nameof(RollBackCommand), nameof(RemoveInstallCommand),
+        nameof(RunFileCommand), nameof(RemoveFolderInstallCommand), nameof(CloneInstallCommand), nameof(FinalizeFolderCommand), nameof(HomeCommand))]
     public partial bool IsRunning { get; set; }
 
     public bool IsIdle => !IsRunning;
@@ -93,6 +131,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _package?.Dispose();
         _package = package;
         HasPackage = true;
+        Screen = AppScreen.Deploy;
         _rollback = null;
 
         var manifest = package.Manifest;
@@ -143,6 +182,142 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var dialog = new OpenFileDialog { Title = "Open a deploy package", Filter = "Deploy packages (*.zip)|*.zip" };
         if (dialog.ShowDialog() == true)
             Load(dialog.FileName);
+    }
+
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private void Home() => Screen = AppScreen.Home;
+
+    [RelayCommand]
+    private void BrowseFolder()
+    {
+        var dialog = new OpenFolderDialog { Title = "Open an install folder" };
+        if (dialog.ShowDialog() != true)
+            return;
+        FolderPath = dialog.FolderName;
+        OpenFolder();
+    }
+
+    /// <summary>Shows an install folder: its installs, its files, and tools to change them.</summary>
+    [RelayCommand]
+    private void OpenFolder()
+    {
+        var path = FolderPath.Trim().Trim('"');
+        if (!Path.IsPathFullyQualified(path) || !Directory.Exists(path))
+        {
+            MessageBox.Show($"\"{path}\" isn't a folder on this computer.", "Open an install folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        Folder = new InstallFolderViewModel(path);
+        Log.Clear();
+        Status = "Hover a file for its tools. Edits and deletes are only made when you finalize.";
+        Screen = AppScreen.Folder;
+    }
+
+    /// <summary>Runs an exe, script or batch file from the folder, after asking for its arguments.</summary>
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private async Task RunFileAsync(FolderFileViewModel file)
+    {
+        var answers = await _user.AskInputsAsync($"Run {file.Name}",
+            new Dictionary<string, InputField> { ["Arguments"] = new() { Label = "Arguments", Optional = true } }, CancellationToken.None);
+        if (answers is null)
+            return;
+
+        IsRunning = true;
+        _cancellation = new CancellationTokenSource();
+        try
+        {
+            using var log = UiLog.Create(Log, Path.GetFileName(Folder!.Root), "run");
+            var token = _cancellation.Token;
+            var exitCode = await Task.Run(() => FileRunner.RunAsync(file.FullPath, answers["Arguments"], log, token));
+            Status = $"{file.Name} exited with code {exitCode}.";
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or System.ComponentModel.Win32Exception or IOException)
+        {
+            Status = $"{file.Name} didn't finish: {ex.Message}";
+        }
+        finally
+        {
+            _cancellation.Dispose();
+            _cancellation = null;
+            IsRunning = false;
+            Folder?.Reload();
+        }
+    }
+
+    /// <summary>Writes the staged settings edits and deletes the staged files, after showing exactly what will happen.</summary>
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private void FinalizeFolder()
+    {
+        var folder = Folder!;
+        if (!folder.HasPending
+            || !Confirm($"Make these changes in {folder.Root}?{Environment.NewLine}{Environment.NewLine}{folder.PendingSummary}", "Finalize"))
+            return;
+        try
+        {
+            folder.Apply();
+            Status = "Changes written.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(ex.Message, "Some changes weren't made", MessageBoxButton.OK, MessageBoxImage.Error);
+            folder.Reload();
+        }
+    }
+
+    /// <summary>
+    /// Removes an install found in the folder. With a package open whose install block matches, its undo steps run
+    /// too; otherwise the install's services and its folder are removed.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private async Task RemoveFolderInstallAsync(InstallTarget target)
+    {
+        var folder = Folder!;
+        if (target.Install is not { } install
+            || !Confirm($"Remove {target.Label} in {install.Directory}?{Environment.NewLine}{Environment.NewLine}You'll see and OK each step before it runs.", "Remove install"))
+            return;
+
+        IsRunning = true;
+        try
+        {
+            using var log = UiLog.Create(Log, Path.GetFileName(folder.Root), "remove");
+            var all = folder.Installs.Select(other => other.Install).OfType<Installation>().ToList();
+            var result = await Task.Run(() => new InstallRemover(_user, log).RemoveAsync(install, all, null, new Dictionary<string, string>(), CancellationToken.None));
+            Status = result == DeployResult.Succeeded ? $"Removed {install.Directory}." : "Removal stopped or had errors. See the log.";
+        }
+        finally
+        {
+            IsRunning = false;
+            folder.Reload();
+        }
+    }
+
+    /// <summary>
+    /// Clones an install: opens a package to deploy as a new instance that starts from a copy of this one, so its
+    /// settings and data come along. The deploy itself runs from the deploy screen as usual.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private void CloneInstall(InstallTarget target)
+    {
+        if (target.Install is not { } source)
+            return;
+        var dialog = new OpenFileDialog { Title = "Open the package to deploy for the clone", Filter = "Deploy packages (*.zip)|*.zip" };
+        if (dialog.ShowDialog() != true)
+            return;
+        Load(dialog.FileName);
+        if (_package?.Manifest.Install is not { Instances: true } install || Install is null)
+        {
+            MessageBox.Show("This package doesn't support instances, so it can't make a clone.", "Clone", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Point the install folder at the one the source lives in, then start a new instance from it.
+        var installFolder = source.IsInstance ? Path.GetDirectoryName(source.Directory)! : source.Directory;
+        if (Placeholders.Unresolved(install.Folder) is [var parameter] && install.Folder == $"{{{parameter}}}")
+            if (Parameters.FirstOrDefault(field => field.Name.Equals(parameter, StringComparison.OrdinalIgnoreCase)) is { } field)
+                field.Value = installFolder;
+        Install.Selected = Install.Targets.First(choice => choice.IsNew);
+        Install.CopyFrom = Install.CopySources.FirstOrDefault(choice => choice.Install?.Directory == source.Directory);
+        Status = "Name the new instance, then deploy.";
     }
 
     [RelayCommand]

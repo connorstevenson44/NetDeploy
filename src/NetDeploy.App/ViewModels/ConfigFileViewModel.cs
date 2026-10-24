@@ -137,6 +137,7 @@ public sealed partial class ConfigFileViewModel : ObservableObject
         Items = BuildItems();
     }
 
+    public ConfigFileUpdate Update => _update;
     public string FileName => _update.FileName;
     public string Folder => Path.GetDirectoryName(_update.TargetPath) ?? "";
     public ConfigFileKind Kind => _update.Kind;
