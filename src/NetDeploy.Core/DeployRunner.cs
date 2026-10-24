@@ -4,7 +4,11 @@ public enum StepState { Pending, Running, Succeeded, Skipped, Failed }
 
 public enum DeployResult { Succeeded, Failed, Cancelled }
 
-public sealed record DeployOutcome(DeployResult Result, RollbackPlan Rollback, DeployStep? FailedStep = null, Exception? Error = null);
+public sealed record DeployOutcome(DeployResult Result, RollbackPlan Rollback, DeployStep? FailedStep = null, Exception? Error = null)
+{
+    /// <summary>The install's folder, once it is known; null for a package without an install block.</summary>
+    public string? InstallDirectory { get; init; }
+}
 
 /// <summary>Runs a package's steps in order, stopping at the first failure.</summary>
 public sealed class DeployRunner(IUserInteraction user, IDeployLog log)
@@ -36,29 +40,30 @@ public sealed class DeployRunner(IUserInteraction user, IDeployLog log)
         var app = package.Manifest.App;
         maskingLog.Info($"{(dryRun ? "Dry run of" : "Deploying")} {app.Name} {app.Version}"
             + (context.Options.Instance.Length > 0 ? $" as {context.Options.Instance}" : ""));
+        string? instanceDirectory = null;
         try
         {
-            var instanceDirectory = SetInstance(package.Manifest.Install, context);
+            instanceDirectory = SetInstance(package.Manifest.Install, context);
             if (context.Options.SeedFrom is { } seed && instanceDirectory is not null)
                 SeedInstance(seed, instanceDirectory, context);
             await RunStepsAsync(package.Manifest.Steps, context, cancellationToken);
             maskingLog.Info(dryRun ? "Dry run finished. Nothing was changed." : "Deploy finished.");
-            return new DeployOutcome(DeployResult.Succeeded, context.Rollback);
+            return new DeployOutcome(DeployResult.Succeeded, context.Rollback) { InstallDirectory = instanceDirectory };
         }
         catch (StepFailedException ex)
         {
-            return new DeployOutcome(DeployResult.Failed, context.Rollback, ex.Step, ex.InnerException);
+            return new DeployOutcome(DeployResult.Failed, context.Rollback, ex.Step, ex.InnerException) { InstallDirectory = instanceDirectory };
         }
         // Steps report their own failures; these are from setting up the install before the first step.
         catch (Exception ex) when (ex is InstanceException or IOException or UnauthorizedAccessException)
         {
             maskingLog.Error(ex.Message);
-            return new DeployOutcome(DeployResult.Failed, context.Rollback, Error: ex);
+            return new DeployOutcome(DeployResult.Failed, context.Rollback, Error: ex) { InstallDirectory = instanceDirectory };
         }
         catch (OperationCanceledException ex)
         {
             maskingLog.Warn(ex.Message);
-            return new DeployOutcome(DeployResult.Cancelled, context.Rollback);
+            return new DeployOutcome(DeployResult.Cancelled, context.Rollback) { InstallDirectory = instanceDirectory };
         }
     }
 

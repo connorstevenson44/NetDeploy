@@ -29,6 +29,37 @@ Logs are written to a `logs` folder next to the exe, or to `%LOCALAPPDATA%\NetDe
 What NetDeploy remembers for you, the recent list and the values each app was last deployed with, is kept in
 `%LOCALAPPDATA%\NetDeploy\settings.json`, never beside the exe or in an install folder. Secrets are never saved.
 
+Every deploy, from the window or the command line, is added to the machine's history in
+`%ProgramData%\NetDeploy\history`, one small file per deploy: the app and version, the install and its folder, when,
+who, how it ended, whether it was rolled back, and its log. Everyone who deploys on the server sees the same history,
+and it survives a restore, rename or removal of the install, since nothing is kept in the install folder.
+
+## Command line
+
+The same exe deploys without its window, for pipelines and scheduled jobs:
+
+```powershell
+.\NetDeploy.exe deploy Contoso.Orders-1.1.0.zip --install main --param Environment=Production --yes | Write-Output
+if ($LASTEXITCODE -ne 0) { throw "The deploy failed." }
+```
+
+| Option | What it does |
+| --- | --- |
+| `--install <name>` | The install to add or update, for a package with an `install` block. Without it, the installs in the folder are listed. |
+| `--param <Name=Value>` | A parameter's value, or a step input's. A value not given is read from the environment variable `NETDEPLOY_<Name>`, then from its default. Pass secrets that way, so they stay out of the command line. |
+| `--dry-run` | Shows what would change, and changes nothing. |
+| `--yes` | Answers yes to the package's questions (`ask` conditions). Without it, a question stops the deploy. |
+| `--no-rollback` | Leaves a failed deploy as it is. Otherwise its backup is restored and the services it stopped are started again. |
+
+Config files merge as they would in the window before anyone changes a row, so `takeNew` paths take the package's
+value and the server keeps its own. A setting that still needs a value or a choice stops the deploy before any config
+file is written; set it in the server's config or deploy once from the window. A dry run lists them and fails at the
+end. The log goes to the console and to the `logs` folder, and the exit code is 0 when the deploy finished, 1 when it
+failed or stopped, and 2 for a mistake in the command or the package. `NetDeploy.exe help` lists the options.
+
+NetDeploy.exe is a windowed app, so PowerShell waits for it and sets `$LASTEXITCODE` only when its output is piped, as
+above. A `.cmd` script waits by itself.
+
 ## The workspace
 
 Everything happens in one window. Open or drop a package, an install folder, or a `deploy.json`, or pick one you
@@ -44,7 +75,7 @@ last deployed with.
   stop or restart its services, clone it, or remove it. The dot beside an install says whether its Windows services are
   running (green), stopped (red) or in between (amber); hover it for each service. A question mark means no service runs
   from that install. Inside an install, the backups earlier deploys made of it are listed under its folders, each with
-  **Restore**.
+  **Restore**, and under them its **History**: the latest deploys to it, who made them, how each ended, and its log.
 - **Right:** tabs for **Files** (every file in the folder you are in, as a tree whose folders fold, with a filter box:
   edit any text file, run a script, or stage a delete, all written together with **Finalize**),
   **Steps**, **deploy.json** (the visual editor) and **Log**.

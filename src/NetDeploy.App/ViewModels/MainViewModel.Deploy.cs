@@ -198,12 +198,15 @@ public sealed partial class MainViewModel
             _ => "Cancelled.",
         } + $" Log: {log.FilePath}";
 
+        var rolledBack = false;
         if (!dryRun && outcome.Result != DeployResult.Succeeded && outcome.Rollback.IsAvailable)
         {
             _rollback = outcome.Rollback;
             if (Confirm($"{Status}{Environment.NewLine}{Environment.NewLine}Restore the backup and restart the services this deploy stopped?", "Roll back"))
-                await RestoreAsync(log);
+                rolledBack = await RestoreAsync(log);
         }
+        if (!dryRun && _history?.TryAdd(DeployRecord.For(package, options, outcome, rolledBack, log.FilePath)) == false)
+            log.Warn($"This deploy couldn't be added to the history in {_history.Folder}.");
 
         // A rename or a conversion leaves the old install behind until the new one works.
         if (!dryRun && outcome.Result == DeployResult.Succeeded && replaced is not null
@@ -249,7 +252,8 @@ public sealed partial class MainViewModel
         };
     }
 
-    private async Task RestoreAsync(IDeployLog log)
+    /// <summary>Restores the last deploy's backup, and returns whether it worked.</summary>
+    private async Task<bool> RestoreAsync(IDeployLog log)
     {
         var rollback = _rollback!;
         try
@@ -257,11 +261,13 @@ public sealed partial class MainViewModel
             await Task.Run(() => rollback.Restore(log));
             _rollback = null;
             Status = "Rolled back to the backup.";
+            return true;
         }
         catch (Exception ex)
         {
             log.Error($"Rollback failed: {ex.Message}");
             MessageBox.Show(ex.Message, "Rollback failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
         }
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
 using System.Windows;
@@ -66,6 +67,40 @@ public sealed record BackupViewModel(InstallBackup Backup, string Folder)
 {
     public string Label => Backup.Taken.ToString("d MMM yyyy, HH:mm:ss", System.Globalization.CultureInfo.CurrentCulture);
     public string Path => Backup.Directory;
+}
+
+/// <summary>A deploy to the folder, as the folder view lists it under the folder.</summary>
+public sealed partial class HistoryEntryViewModel(DeployRecord record)
+{
+    public DeployRecord Record => record;
+    public DeployResult Result => record.Result;
+
+    public PackIconKind Icon => record.Result switch
+    {
+        DeployResult.Succeeded => PackIconKind.CheckCircleOutline,
+        DeployResult.Failed => PackIconKind.AlertCircleOutline,
+        _ => PackIconKind.Cancel,
+    };
+
+    /// <summary>Such as "1.1.0 deployed" or "1.1.0 failed, rolled back".</summary>
+    public string Label => $"{record.Version} " + record.Result switch
+    {
+        DeployResult.Succeeded => "deployed",
+        DeployResult.Failed => record.RolledBack ? "failed, rolled back" : "failed",
+        _ => record.RolledBack ? "stopped, rolled back" : "stopped",
+    };
+
+    public string Detail => $"{record.Time.LocalDateTime.ToString("d MMM yyyy, HH:mm", System.Globalization.CultureInfo.CurrentCulture)} by {record.User}";
+
+    public bool HasLog => record.Log is { } log && File.Exists(log);
+
+    /// <summary>Opens the deploy's log in the program Windows uses for .log files.</summary>
+    [RelayCommand]
+    private void OpenLog()
+    {
+        if (HasLog)
+            Process.Start(new ProcessStartInfo(record.Log!) { UseShellExecute = true });
+    }
 }
 
 /// <summary>How an install's Windows services are doing, as the dot beside it shows.</summary>
@@ -232,10 +267,14 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     /// <summary>The most files listed for one folder, so picking the top of a drive by mistake stays quick.</summary>
     internal const int MaxFiles = 5000;
 
+    /// <summary>The most deploys listed under a folder: the latest are the ones that say what is there now.</summary>
+    internal const int MaxHistory = 10;
+
     private readonly Dictionary<string, ConfigFileViewModel> _opened = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _deletes = new(StringComparer.OrdinalIgnoreCase);
     private readonly InstallViewModel? _target;
     private readonly IReadOnlyCollection<string> _appFiles;
+    private readonly DeployHistory? _history;
     private readonly FileTree<FolderFileViewModel> _tree;
     private Dictionary<string, Installation> _installsByFolder = [];
     private IReadOnlyDictionary<string, IReadOnlyList<string>> _servicesByFolder = new Dictionary<string, IReadOnlyList<string>>();
@@ -248,11 +287,13 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     /// <param name="path">The install folder.</param>
     /// <param name="target">With a package open, where its deploy goes; the view goes to it.</param>
     /// <param name="appFiles">The package's app files, which tell its installs apart from other folders.</param>
-    public InstallFolderViewModel(string path, InstallViewModel? target = null, IReadOnlyCollection<string>? appFiles = null)
+    /// <param name="history">The deploys made on this machine, listed under the folder they went to.</param>
+    public InstallFolderViewModel(string path, InstallViewModel? target = null, IReadOnlyCollection<string>? appFiles = null, DeployHistory? history = null)
     {
         Root = Path.GetFullPath(path);
         _target = target;
         _appFiles = appFiles ?? [];
+        _history = history;
         _tree = new FileTree<FolderFileViewModel>(file => file.Folder, file => file.RelativePath, ShowFiles);
         // Services start and stop on their own, so their states are read again every few seconds.
         _serviceTimer = new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => RefreshServices(), Dispatcher.CurrentDispatcher);
@@ -335,6 +376,13 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     public partial IReadOnlyList<BackupViewModel> Backups { get; private set; } = [];
 
     public bool HasBackups => Backups.Count > 0;
+
+    /// <summary>The latest deploys to the folder the view is in, newest first.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHistory))]
+    public partial IReadOnlyList<HistoryEntryViewModel> History { get; private set; } = [];
+
+    public bool HasHistory => History.Count > 0;
 
     public int EditCount => _opened.Values.Sum(file => file.ChangeCount);
     public int EditedFileCount => _opened.Values.Count(file => file.HasChanges);
@@ -478,6 +526,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         FileFilter = "";
         _tree.Filter = "";
         Backups = ReadBackups(folder.FullPath);
+        History = _history?.For(folder.FullPath).Take(MaxHistory).Select(record => new HistoryEntryViewModel(record)).ToList() ?? [];
         Listing = ListFilesAsync(folder.FullPath);
         RefreshServices();
         _serviceTimer.Start();

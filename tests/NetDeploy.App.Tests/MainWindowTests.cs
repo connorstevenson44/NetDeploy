@@ -39,7 +39,8 @@ public class MainWindowTests
                 Dispatcher.ExitAllFrames();
             };
 
-            viewModel = new MainViewModel(new AutoAnswerUser());
+            var history = new DeployHistory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "history", Path.GetRandomFileName()));
+            viewModel = new MainViewModel(new AutoAnswerUser(), history: history);
             var window = new MainWindow(viewModel);
             window.Show();
 
@@ -70,7 +71,7 @@ public class MainWindowTests
                     await SaveDialogScreenshotsAsync();
                     await SaveFilesScreenshotAsync(window, viewModel);
                     await SaveInstallScreenshotsAsync(window, viewModel);
-                    await SaveFolderScreenshotAsync(window, viewModel);
+                    await SaveFolderScreenshotAsync(window, viewModel, history);
                     await SaveEditorScreenshotsAsync(window, viewModel);
                 }
                 catch (Exception ex)
@@ -231,7 +232,7 @@ public class MainWindowTests
     }
 
     /// <summary>Opens an install folder on its own, edits a setting and stages a delete.</summary>
-    private static async Task SaveFolderScreenshotAsync(Window window, MainViewModel viewModel)
+    private static async Task SaveFolderScreenshotAsync(Window window, MainViewModel viewModel, DeployHistory history)
     {
         var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "folder", Path.GetRandomFileName())).FullName;
         void Write(string path, string text)
@@ -254,6 +255,10 @@ public class MainWindowTests
         Write("tools/reindex.bat", "@echo done");
         Write("logs/2026-10-01.log", "x");
         Write("east/OrdersService.exe", "");
+        var east = Path.Combine(root, "east");
+        history.TryAdd(new DeployRecord("OrdersService", "2.4.0", "east", east, DateTimeOffset.Now.AddDays(-9), @"CONTOSO\dana", DeployResult.Succeeded, false, null));
+        history.TryAdd(new DeployRecord("OrdersService", "2.5.0", "east", east, DateTimeOffset.Now.AddDays(-2), @"CONTOSO\sam", DeployResult.Failed, true, null));
+        history.TryAdd(new DeployRecord("OrdersService", "2.5.1", "east", east, DateTimeOffset.Now.AddHours(-3), @"CONTOSO\sam", DeployResult.Succeeded, false, null));
 
         viewModel.ShowFolder(root);
         Assert.False(viewModel.HasPackage);
@@ -298,6 +303,12 @@ public class MainWindowTests
         await folder.Listing;
         await Dispatcher.Yield(DispatcherPriority.ContextIdle);
         Assert.Contains(folder.Items, item => item is FolderViewModel);
+
+        // An install lists the deploys made to it, newest first
+        folder.GoIntoCommand.Execute(folder.Rows.OfType<FolderNodeViewModel>().Single(node => node.Name == "east"));
+        await folder.Listing;
+        Assert.Equal(["2.5.1 deployed", "2.5.0 failed, rolled back", "2.4.0 deployed"], folder.History.Select(entry => entry.Label));
+        await SaveScreenshotAsync(window, "11e-folder-history");
     }
 
     /// <summary>Opens the sample's deploy.json: its folder opens as the package, with the config on its own tab.</summary>

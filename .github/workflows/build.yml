@@ -52,6 +52,12 @@ jobs:
       - name: Deploy, upgrade and remove them
         run: dotnet run --project testpackages/e2e -- testpackages/dist
 
+      - name: Publish the portable exe
+        run: dotnet publish src/NetDeploy.App -p:PublishProfile=Portable
+
+      - name: Deploy one with the command line
+        run: ./testpackages/cli.ps1 -Exe artifacts/portable/NetDeploy.exe -Dist testpackages/dist
+
       - uses: actions/upload-artifact@v4
         with:
           name: TestPackages

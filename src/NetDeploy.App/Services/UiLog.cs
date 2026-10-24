@@ -17,7 +17,7 @@ public sealed class LogEntry(DateTime time, LogLevel level, string message)
     public LogLevel Level { get; } = level;
     public string Message { get; } = message;
 
-    public override string ToString() => $"{Time:HH:mm:ss} {Level,-7} {Message}";
+    public override string ToString() => LogFiles.Line(Time, Level, Message);
 }
 
 /// <summary>
@@ -39,34 +39,18 @@ internal sealed class UiLog : IDeployLog, IDisposable
     {
         _entries = entries;
         _file = file;
-        _file.AutoFlush = true;
     }
 
-    public string FilePath => ((FileStream)_file.BaseStream).Name;
+    public string FilePath => LogFiles.PathOf(_file);
 
-    public static UiLog Create(ObservableCollection<LogEntry> entries, string appName, string kind) =>
-        new(entries, CreateFile($"{appName}-{DateTime.Now:yyyyMMdd-HHmmss}-{kind}.log"));
+    public static UiLog Create(ObservableCollection<LogEntry> entries, string appName, string kind) => new(entries, LogFiles.Create(appName, kind));
 
     /// <summary>Saves an unexpected error's full details and returns the file's path.</summary>
     public static string WriteCrashReport(Exception exception)
     {
-        using var file = CreateFile($"crash-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+        using var file = LogFiles.Create($"crash-{DateTime.Now:yyyyMMdd-HHmmss}.log");
         file.Write(exception.ToString());
-        return ((FileStream)file.BaseStream).Name;
-    }
-
-    /// <summary>Logs go next to the exe so they travel with it, or to LocalAppData if that folder is read-only.</summary>
-    private static StreamWriter CreateFile(string fileName)
-    {
-        try
-        {
-            return new StreamWriter(LogPath(AppContext.BaseDirectory, fileName));
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
-            var localData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NetDeploy");
-            return new StreamWriter(LogPath(localData, fileName));
-        }
+        return LogFiles.PathOf(file);
     }
 
     public void Write(LogLevel level, string message)
@@ -94,11 +78,5 @@ internal sealed class UiLog : IDeployLog, IDisposable
     {
         lock (_gate)
             _file.Dispose();
-    }
-
-    private static string LogPath(string root, string fileName)
-    {
-        var folder = Directory.CreateDirectory(Path.Combine(root, "logs")).FullName;
-        return Path.Combine(folder, fileName);
     }
 }

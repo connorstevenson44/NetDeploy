@@ -835,6 +835,41 @@
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
                                         </StackPanel>
+
+                                        <!-- The deploys made to this folder from this machine, newest first -->
+                                        <StackPanel Margin="0,14,0,0" Visibility="{Binding Folder.HasHistory, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                                            <StackPanel Orientation="Horizontal" Margin="6,0,0,4">
+                                                <materialDesign:PackIcon Kind="ClipboardTextClockOutline" Width="14" Height="14" Foreground="{StaticResource Brand}"
+                                                                         VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <TextBlock Text="HISTORY" Style="{StaticResource SectionLabel}" />
+                                            </StackPanel>
+                                            <ItemsControl ItemsSource="{Binding Folder.History}" Focusable="False">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:HistoryEntryViewModel}">
+                                                        <DockPanel Margin="6,2,0,2" ToolTip="{Binding Record.Log}">
+                                                            <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Height="26" Padding="8,0"
+                                                                    Content="Log" Tag="{x:Static materialDesign:PackIconKind.TextBoxOutline}" ContentTemplate="{StaticResource IconLabel}"
+                                                                    ToolTip="Open this deploy's log" Command="{Binding OpenLogCommand}"
+                                                                    Visibility="{Binding HasLog, Converter={StaticResource BoolToVisibility}}" />
+                                                            <materialDesign:PackIcon x:Name="ResultIcon" Kind="{Binding Icon}" Width="14" Height="14" Foreground="{StaticResource Success}"
+                                                                                     VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                            <StackPanel VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Label}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                        <DataTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding Result}" Value="{x:Static core:DeployResult.Failed}">
+                                                                <Setter TargetName="ResultIcon" Property="Foreground" Value="{StaticResource Danger}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Result}" Value="{x:Static core:DeployResult.Cancelled}">
+                                                                <Setter TargetName="ResultIcon" Property="Foreground" Value="{StaticResource Warning}" />
+                                                            </DataTrigger>
+                                                        </DataTemplate.Triggers>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
                             </DockPanel>
