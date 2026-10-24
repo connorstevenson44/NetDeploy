@@ -67,6 +67,16 @@ public sealed partial class FilesStageViewModel : ReviewStageViewModel
             plan.ShowUnchanged(value);
     }
 
+    /// <summary>Text the files' paths must have in them to be listed; empty lists them all.</summary>
+    [ObservableProperty]
+    public partial string FileFilter { get; set; } = "";
+
+    partial void OnFileFilterChanged(string value)
+    {
+        foreach (var plan in Plans.OfType<FilePlanViewModel>())
+            plan.Filter(value);
+    }
+
     private void OnPlanChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(FilePlanViewModel.Items))
@@ -80,7 +90,7 @@ public sealed partial class FilesStageViewModel : ReviewStageViewModel
         {
             items.Add(plan);
             if (plan is FilePlanViewModel files)
-                items.AddRange(files.HasItems ? files.Items : [new FilesMatch()]);
+                items.AddRange(files.HasItems ? files.Items : FileFilter.Length > 0 ? [] : [new FilesMatch()]);
         }
         return items;
     }

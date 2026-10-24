@@ -214,4 +214,62 @@ public class ConfigFileViewModelTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void The_whole_file_can_be_edited_as_text_and_the_diff_shows_what_it_changes()
+    {
+        var changes = 0;
+        var file = Review(() => changes++);
+
+        file.EditAsTextCommand.Execute(null);
+        Assert.True(file.IsTextMode);
+        Assert.Equal(Server, file.NowText);
+        Assert.Contains("\"Timeout\": 60", file.Text);
+
+        // An array and a new section, which the lines can't add
+        file.Text = file.Text.TrimEnd().TrimEnd('}') + ", \"Hosts\": [\"a\", \"b\"], \"Alerts\": { \"Email\": \"ops@x\" } }";
+        Assert.Null(file.TextError);
+        Assert.True(changes > 0);
+
+        file.ShowDiffCommand.Execute(null);
+        Assert.False(file.IsTextMode);
+        Assert.Equal("[\"a\",\"b\"]", Setting(file, "Hosts").Value);
+        Assert.Equal(SettingStatus.Edited, Setting(file, "Alerts:Email").Status);
+        Assert.Single(file.Items.OfType<SectionLine>(), section => section.Name == "Alerts" && !section.IsClosing);
+    }
+
+    [Fact]
+    public void Text_that_cant_be_read_says_why_and_blocks_writing_the_files()
+    {
+        var plan = ConfigMerger.Plan(Base, Server, Package, ConfigFormats.For("appsettings.json"), new MergeOptions([]));
+        var review = new MergeViewModel([new ConfigFileUpdate(@"C:\App\appsettings.json", ConfigFileKind.Update, plan, Package)], isReadOnly: false);
+        var file = review.Files[0];
+        Setting(file, "ApiKey").Value = "k-1";
+        file.EditAsTextCommand.Execute(null);
+
+        file.Text = "{ \"Db\": ";
+
+        Assert.True(file.HasTextError);
+        Assert.False(review.CanApply);
+
+        file.DropTextCommand.Execute(null);
+        Assert.False(file.HasTextError);
+        Assert.True(review.CanApply);
+        Assert.Equal("k-1", Setting(file, "ApiKey").Value);
+    }
+
+    [Fact]
+    public void Dropping_the_text_puts_the_settings_back()
+    {
+        var file = Review();
+        file.EditAsTextCommand.Execute(null);
+        file.Text = "{ \"Db\": \"other\" }";
+        Assert.Equal(SettingStatus.Removed, Setting(file, "Timeout").Status);
+
+        file.DropTextCommand.Execute(null);
+
+        Assert.False(file.IsTextMode);
+        Assert.Equal("prod", Setting(file, "Db").Value);
+        Assert.Equal(SettingStatus.Changed, Setting(file, "Timeout").Status);
+    }
 }

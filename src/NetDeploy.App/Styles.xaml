@@ -54,6 +54,45 @@
         <Setter Property="BorderThickness" Value="1,0" />
     </Style>
 
+    <!-- A bar to drag between two panes. The grip in its middle shows it can be dragged; it turns blue under the mouse.
+         The line down it is BorderBrush, so a splitter in the gap between two cards can leave it out. -->
+    <Style x:Key="PaneSplitter" TargetType="GridSplitter">
+        <Setter Property="Width" Value="9" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+        <Setter Property="ResizeDirection" Value="Columns" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Cursor" Value="SizeWE" />
+        <Setter Property="ToolTip" Value="Drag to resize" />
+        <Setter Property="BorderBrush" Value="{StaticResource Hairline}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridSplitter">
+                    <Grid Background="Transparent">
+                        <Rectangle x:Name="Line" Width="1" Fill="{TemplateBinding BorderBrush}" HorizontalAlignment="Center" />
+                        <Border x:Name="Grip" Width="4" Height="32" CornerRadius="2" Background="{StaticResource InputOutline}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Line" Property="Fill" Value="{StaticResource Brand}" />
+                            <Setter TargetName="Grip" Property="Background" Value="{StaticResource Brand}" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Line" Property="Fill" Value="{StaticResource Brand}" />
+                            <Setter TargetName="Grip" Property="Background" Value="{StaticResource Brand}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="GapSplitter" TargetType="GridSplitter" BasedOn="{StaticResource PaneSplitter}">
+        <Setter Property="Width" Value="12" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+
     <!-- A long list that only builds the rows on screen. Every list of files, settings or log lines uses it, so a
          folder with thousands of files scrolls as smoothly as one with ten. The lists mix row types (folder headings
          and files, sections and settings), so rows are not recycled: a recycled row briefly binds its old template to

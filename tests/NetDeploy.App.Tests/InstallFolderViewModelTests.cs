@@ -95,6 +95,39 @@ public class InstallFolderViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task The_files_are_a_tree_whose_folders_fold_and_a_filter_narrows_them()
+    {
+        Write("logs/2026/october.log", "x");
+        var folder = await OpenAsync();
+        var logs = folder.Items.OfType<FolderViewModel>().Single(heading => heading.Path == "logs");
+        Assert.True(logs.IsExpanded);
+        Assert.Contains(folder.Items.OfType<FolderFileViewModel>(), file => file.RelativePath == "logs/2026/october.log");
+
+        logs.ToggleCommand.Execute(null);
+        Assert.False(folder.Items.OfType<FolderViewModel>().Single(heading => heading.Path == "logs").IsExpanded);
+        Assert.DoesNotContain(folder.Items, item => item is FolderViewModel { Path: "logs/2026" });
+        Assert.DoesNotContain(folder.Items.OfType<FolderFileViewModel>(), file => file.Folder.StartsWith("logs"));
+
+        folder.FileFilter = "october";
+        Assert.Equal(["logs", "logs/2026"], folder.Items.OfType<FolderViewModel>().Select(heading => heading.Path));
+        Assert.Equal(["logs/2026/october.log"], folder.Items.OfType<FolderFileViewModel>().Select(file => file.RelativePath));
+
+        folder.FileFilter = "nothing like this";
+        Assert.False(folder.HasFiles);
+        Assert.Equal("No files match the filter.", folder.NoFilesText);
+    }
+
+    [Fact]
+    public async Task An_install_with_no_service_shows_a_question_mark()
+    {
+        var folder = await OpenAsync();
+        await folder.CheckServices;
+
+        Assert.Equal(ServiceState.NotFound, Row(folder, "east").ServiceState);
+        Assert.Equal(ServiceState.Unknown, Row(folder, "logs").ServiceState);
+    }
+
+    [Fact]
     public async Task A_huge_folder_lists_only_the_first_files()
     {
         for (var i = 0; i <= InstallFolderViewModel.MaxFiles; i++)

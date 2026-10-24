@@ -19,8 +19,6 @@
                 <ResourceDictionary Source="FileTemplates.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <app:BoolToStarConverter x:Key="OpenFileWidth" Star="2" />
-
             <!-- A toolbar button on the brand bar -->
             <Style x:Key="BarButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
                 <Setter Property="Height" Value="34" />
@@ -136,7 +134,35 @@
                 </StackPanel>
             </DataTemplate>
 
-            <!-- A folder: clicking it goes into it. Installs show their version and kind. -->
+            <!-- How an install's services are doing: a green dot when they run, red when they're stopped, amber for
+                 anything between, and a question mark when no service runs from the install. Hover it for each one. -->
+            <DataTemplate x:Key="ServiceDot">
+                <TextBlock x:Name="Dot" Text="●" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center" Background="Transparent"
+                           ToolTip="{Binding ServiceTip}" AutomationProperties.Name="{Binding ServiceTip}" Visibility="Collapsed" />
+                <DataTemplate.Triggers>
+                    <DataTrigger Binding="{Binding ServiceState}" Value="{x:Static vm:ServiceState.Running}">
+                        <Setter TargetName="Dot" Property="Foreground" Value="{StaticResource Success}" />
+                        <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding ServiceState}" Value="{x:Static vm:ServiceState.Stopped}">
+                        <Setter TargetName="Dot" Property="Foreground" Value="{StaticResource Danger}" />
+                        <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding ServiceState}" Value="{x:Static vm:ServiceState.Mixed}">
+                        <Setter TargetName="Dot" Property="Foreground" Value="{StaticResource Warning}" />
+                        <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding ServiceState}" Value="{x:Static vm:ServiceState.NotFound}">
+                        <Setter TargetName="Dot" Property="Text" Value="?" />
+                        <Setter TargetName="Dot" Property="FontSize" Value="12" />
+                        <Setter TargetName="Dot" Property="FontWeight" Value="Bold" />
+                        <Setter TargetName="Dot" Property="Foreground" Value="{StaticResource InkFaint}" />
+                        <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                </DataTemplate.Triggers>
+            </DataTemplate>
+
+            <!-- A folder: clicking it goes into it. Installs show their version, kind and how their services are doing. -->
             <DataTemplate DataType="{x:Type vm:FolderNodeViewModel}">
                 <Button x:Name="Row" Style="{StaticResource FolderRow}" ToolTip="{Binding FullPath}"
                         Command="{Binding DataContext.Folder.GoIntoCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
@@ -155,6 +181,7 @@
                                     Visibility="{Binding Detail.Length, Converter={StaticResource NonZeroToVisible}}">
                                 <TextBlock Text="{Binding Detail}" />
                             </Border>
+                            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource ServiceDot}" />
                         </StackPanel>
                         <ContentControl x:Name="Actions" Grid.Column="2" Content="{Binding}" ContentTemplate="{StaticResource InstallActions}"
                                         Focusable="False" Margin="4,0,0,0" Visibility="Collapsed" />
@@ -263,6 +290,8 @@
                                           ToolTip="Show files that are the same on the server">
                                 <materialDesign:PackIcon Kind="EyeOutline" Width="18" Height="18" />
                             </ToggleButton>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource FilterBox}" Width="200" Margin="0,0,8,0"
+                                     Text="{Binding FileFilter, UpdateSourceTrigger=PropertyChanged, Delay=150}" />
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <StackPanel.Resources>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
@@ -490,9 +519,9 @@
 
             <Grid Visibility="{Binding IsEmpty, Converter={StaticResource InverseBoolToVisibility}}" Margin="12">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="340" MinWidth="300" MaxWidth="600" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="340" MinWidth="300" MaxWidth="900" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" MinWidth="480" />
                 </Grid.ColumnDefinitions>
 
                 <!-- ===== Left: the package, then the install folder ===== -->
@@ -701,6 +730,7 @@
                                                     Visibility="{Binding CurrentFolder.Detail.Length, Converter={StaticResource NonZeroToVisible}, FallbackValue=Collapsed}">
                                                 <TextBlock Text="{Binding CurrentFolder.Detail}" />
                                             </Border>
+                                            <ContentPresenter Content="{Binding CurrentFolder}" ContentTemplate="{StaticResource ServiceDot}" />
                                         </StackPanel>
                                         <ContentControl Grid.Column="3" Content="{Binding CurrentFolder}" ContentTemplate="{StaticResource InstallActions}" Focusable="False">
                                             <ContentControl.Style>
@@ -732,8 +762,7 @@
                     </materialDesign:Card>
                 </DockPanel>
 
-                <GridSplitter Grid.Column="1" Width="12" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent"
-                              ResizeBehavior="PreviousAndNext" Focusable="False" ToolTip="Drag to resize" />
+                <GridSplitter Grid.Column="1" Style="{StaticResource GapSplitter}" />
 
                 <!-- ===== Right: the tabs, or the review a deploy is waiting on ===== -->
                 <materialDesign:Card Grid.Column="2" Style="{StaticResource Panel}" Padding="0">
@@ -745,9 +774,12 @@
                             <TabItem Header="Files" Tag="{x:Static materialDesign:PackIconKind.FileTreeOutline}" HeaderTemplate="{StaticResource TabHeader}"
                                      Visibility="{Binding HasFolder, Converter={StaticResource BoolToVisibility}}">
                                 <Grid DataContext="{Binding Folder}">
+                                    <!-- The files, a splitter, and the settings file being edited. With no file open, the list takes
+                                         the whole width; the columns keep the widths dragged to for the next file. -->
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" MinWidth="220" />
-                                        <ColumnDefinition Width="{Binding HasOpenFile, Converter={StaticResource OpenFileWidth}}" />
+                                        <ColumnDefinition Width="*" MinWidth="200" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="2*" MinWidth="320" />
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*" />
@@ -755,6 +787,16 @@
                                     </Grid.RowDefinitions>
 
                                     <DockPanel>
+                                        <DockPanel.Style>
+                                            <Style TargetType="DockPanel">
+                                                <Setter Property="Grid.ColumnSpan" Value="3" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasOpenFile}" Value="True">
+                                                        <Setter Property="Grid.ColumnSpan" Value="1" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DockPanel.Style>
                                         <Border Style="{StaticResource PaneHeader}">
                                             <DockPanel>
                                                 <ProgressBar DockPanel.Dock="Right" Style="{StaticResource MaterialDesignCircularProgressBar}" IsIndeterminate="True"
@@ -771,20 +813,26 @@
                                             </DockPanel>
                                         </Border>
 
+                                        <Border DockPanel.Dock="Top" Padding="10,8,10,4">
+                                            <TextBox Style="{StaticResource FilterBox}" Text="{Binding FileFilter, UpdateSourceTrigger=PropertyChanged, Delay=150}" />
+                                        </Border>
+
                                         <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource Caption}" Margin="14,6"
                                                    Visibility="{Binding IsCapped, Converter={StaticResource BoolToVisibility}}"
                                                    Text="Showing the first 5,000 files. Go into a subfolder on the left to see the rest." />
 
                                         <Grid>
-                                            <ItemsControl ItemsSource="{Binding Items}" Style="{StaticResource VirtualList}" Padding="0,0,0,8" />
-                                            <TextBlock Text="No files in this folder." Style="{StaticResource Caption}" Margin="44,16"
+                                            <ItemsControl ItemsSource="{Binding Items}" Style="{StaticResource VirtualList}" Padding="0,2,0,8" />
+                                            <TextBlock Text="{Binding NoFilesText}" Style="{StaticResource Caption}" Margin="44,16"
                                                        Visibility="{Binding HasFiles, Converter={StaticResource InverseBoolToVisibility}}" />
                                         </Grid>
                                     </DockPanel>
 
+                                    <GridSplitter Grid.Column="1" Style="{StaticResource PaneSplitter}"
+                                                  Visibility="{Binding HasOpenFile, Converter={StaticResource BoolToVisibility}}" />
+
                                     <!-- The settings file being edited, as a side-by-side diff -->
-                                    <DockPanel Grid.Column="1" Visibility="{Binding HasOpenFile, Converter={StaticResource BoolToVisibility}}">
-                                        <Border DockPanel.Dock="Left" Width="1" Background="{StaticResource Hairline}" />
+                                    <DockPanel Grid.Column="2" Visibility="{Binding HasOpenFile, Converter={StaticResource BoolToVisibility}}">
                                         <Border Style="{StaticResource PaneHeader}">
                                             <DockPanel>
                                                 <Button DockPanel.Dock="Right" Style="{StaticResource PaneButton}" Command="{Binding CloseFileCommand}" ToolTip="Close">
@@ -799,7 +847,7 @@
                                     </DockPanel>
 
                                     <!-- Staged changes, written together. The bar spans both panes, so its text has room. -->
-                                    <Border Grid.Row="1" Grid.ColumnSpan="2" Background="{StaticResource BrandTint}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="14,8,12,8"
+                                    <Border Grid.Row="1" Grid.ColumnSpan="3" Background="{StaticResource BrandTint}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="14,8,12,8"
                                             Visibility="{Binding HasPending, Converter={StaticResource BoolToVisibility}}">
                                         <DockPanel>
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">

@@ -88,4 +88,17 @@ public class XmlMergeTests
 
         Assert.Contains("""<add key="Legacy" value="1" />""", plan.BuildResult());
     }
+
+    [Fact]
+    public void Editing_the_whole_file_as_text_keeps_edits_outside_the_merged_sections()
+    {
+        var plan = ConfigMerger.Plan(null, Current, Incoming, Xml, new MergeOptions([]));
+        var text = plan.BuildText().Replace("<new />", "<edited />").Replace("""<add key="Retries" value="3" />""", """<add key="Retries" value="5" />""");
+
+        plan.Edit(text);
+
+        Assert.Equal(MergeChoice.Edit, plan.Rows.Single(r => r.Path == "appSettings:Retries").Choice);
+        Assert.Contains("<edited />", plan.BuildResult());
+        Assert.True(plan.ChangesStartFile);
+    }
 }

@@ -1,5 +1,7 @@
 using System.IO;
+using System.Text.Json;
 using System.Windows;
+using System.Xml;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NetDeploy.Core.Config;
@@ -189,15 +191,17 @@ public sealed partial class SettingViewModel : DiffLine
 
 /// <summary>
 /// One config file as a side-by-side diff: the file now on the left and the file after the change on the right, line
-/// by line, with every setting editable in place on the right.
+/// by line, with every setting editable in place on the right. The whole file can also be edited as text, for what
+/// the lines can't do, such as arrays or new sections; the diff then shows what the text changes.
 /// </summary>
 public sealed partial class ConfigFileViewModel : ObservableObject
 {
     private readonly ConfigFileUpdate _update;
     private readonly Action _changed;
-    private readonly List<SettingViewModel> _settings;
-    private readonly Section _root;
-    private readonly List<DiffLine> _lines;
+    private List<SettingViewModel> _settings = [];
+    private Section _root = null!;
+    private List<DiffLine> _lines = [];
+    private string _text = "";
     private bool _showUnchanged;
     private bool _batching;
 
@@ -205,11 +209,7 @@ public sealed partial class ConfigFileViewModel : ObservableObject
     {
         _update = update;
         _changed = changed;
-        var format = update.Plan.Format;
-        _settings = GroupBySection(update.Plan.Rows.Select(row => new SettingViewModel(row, format, OnSettingChanged)).ToList());
-        _root = Section.Build(_settings, format);
-        _lines = _root.Lines().ToList();
-        Layout();
+        Build();
         Items = BuildItems();
     }
 
@@ -247,6 +247,68 @@ public sealed partial class ConfigFileViewModel : ObservableObject
     [ObservableProperty]
     public partial IReadOnlyList<DiffLine> Items { get; private set; }
 
+    /// <summary>True while the whole file is edited as text, in place of the diff.</summary>
+    [ObservableProperty]
+    public partial bool IsTextMode { get; private set; }
+
+    /// <summary>The server's file as it is now, beside the text being edited.</summary>
+    public string NowText => _update.Plan.CurrentText ?? "";
+
+    /// <summary>The whole file after the change. Text that reads as a settings file is taken as it is typed.</summary>
+    public string Text
+    {
+        get => _text;
+        set
+        {
+            if (!SetProperty(ref _text, value))
+                return;
+            try
+            {
+                _update.Plan.Edit(value);
+                TextError = null;
+            }
+            catch (Exception ex) when (ex is JsonException or XmlException or InvalidDataException)
+            {
+                TextError = ex.Message;
+                _changed();
+                return;
+            }
+            Rebuild();
+        }
+    }
+
+    /// <summary>Why the text can't be read, or null when it can.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTextError))]
+    public partial string? TextError { get; private set; }
+
+    public bool HasTextError => TextError is not null;
+
+    /// <summary>Shows the whole file as text to edit, starting from the file the diff would write.</summary>
+    [RelayCommand]
+    private void EditAsText()
+    {
+        _update.Plan.StartTextEdit();
+        _text = _update.Plan.BuildText();
+        OnPropertyChanged(nameof(Text));
+        TextError = null;
+        IsTextMode = true;
+    }
+
+    /// <summary>Back to the diff, which shows what the text changed.</summary>
+    [RelayCommand]
+    private void ShowDiff() => IsTextMode = false;
+
+    /// <summary>Drops what was typed: the settings go back to how they were before the text was edited.</summary>
+    [RelayCommand]
+    private void DropText()
+    {
+        _update.Plan.CancelTextEdit();
+        TextError = null;
+        Rebuild();
+        IsTextMode = false;
+    }
+
     public void ShowUnchanged(bool show)
     {
         _showUnchanged = show;
@@ -282,11 +344,33 @@ public sealed partial class ConfigFileViewModel : ObservableObject
         OnSettingChanged();
     }
 
+    /// <summary>Builds the lines again from the plan's rows, for after the text adds or drops a setting.</summary>
+    private void Rebuild()
+    {
+        Build();
+        Items = BuildItems();
+        NotifyCounts();
+    }
+
+    private void Build()
+    {
+        var format = _update.Plan.Format;
+        _settings = GroupBySection(_update.Plan.Rows.Select(row => new SettingViewModel(row, format, OnSettingChanged)).ToList());
+        _root = Section.Build(_settings, format);
+        _lines = _root.Lines().ToList();
+        Layout();
+    }
+
     private void OnSettingChanged()
     {
         if (_batching)
             return;
         Layout();
+        NotifyCounts();
+    }
+
+    private void NotifyCounts()
+    {
         OnPropertyChanged(nameof(ChangeCount));
         OnPropertyChanged(nameof(ConflictCount));
         OnPropertyChanged(nameof(HasConflicts));

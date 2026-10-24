@@ -67,7 +67,7 @@ public sealed partial class FileRowViewModel : ObservableObject
     public string Folder { get; }
     public string Name { get; }
     public int Depth => Folder.Length == 0 ? 0 : Folder.Count(c => c == '/') + 1;
-    public Thickness Indent => new(Depth * 16, 0, 0, 0);
+    public Thickness IconMargin => FileTree.IconMargin(Depth);
     public FileState State => _entry.State;
     public FileAction DefaultAction => _entry.DefaultAction;
     public IReadOnlyList<FileActionOption> Options { get; }
@@ -117,6 +117,7 @@ public sealed partial class FileRowViewModel : ObservableObject
 public sealed partial class FilePlanViewModel : ObservableObject
 {
     private readonly List<FileRowViewModel> _rows;
+    private readonly FileTree<FileRowViewModel> _tree;
     private bool _showUnchanged;
 
     public FilePlanViewModel(CopyFilesStep step, string title, FilePlan plan)
@@ -124,6 +125,7 @@ public sealed partial class FilePlanViewModel : ObservableObject
         Step = step;
         Title = title;
         Target = plan.Target;
+        _tree = new FileTree<FileRowViewModel>(row => row.Folder, row => row.Path, () => Items = BuildItems());
         _rows = plan.Entries
             .Select(entry => new FileRowViewModel(entry, OnCountsChanged))
             .OrderBy(row => row.Folder, StringComparer.OrdinalIgnoreCase)
@@ -162,6 +164,13 @@ public sealed partial class FilePlanViewModel : ObservableObject
         Items = BuildItems();
     }
 
+    /// <summary>Lists only the files whose path has the text in it.</summary>
+    public void Filter(string text)
+    {
+        _tree.Filter = text;
+        Items = BuildItems();
+    }
+
     private void OnCountsChanged()
     {
         OnPropertyChanged(nameof(NewCount));
@@ -170,6 +179,5 @@ public sealed partial class FilePlanViewModel : ObservableObject
         OnPropertyChanged(nameof(KeepCount));
     }
 
-    private List<object> BuildItems() =>
-        FolderHeadings.Interleave(_rows.Where(row => _showUnchanged || row.IsNotable), row => row.Folder);
+    private List<object> BuildItems() => _tree.Build(_rows.Where(row => _showUnchanged || row.IsNotable));
 }
