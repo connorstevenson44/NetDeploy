@@ -38,7 +38,7 @@ public class XmlMergeTests
     [Fact]
     public void AppSettings_and_connection_strings_merge_by_key_and_other_sections_come_from_the_package()
     {
-        var plan = ConfigMerger.Plan(null, Current, Incoming, Xml, new MergeOptions([], false));
+        var plan = ConfigMerger.Plan(null, Current, Incoming, Xml, new MergeOptions([]));
 
         Assert.Equal(MergeChoice.KeepCurrent, plan.Rows.Single(r => r.Path == "appSettings:Mode").Choice);
         Assert.Equal(MergeChoice.TakeIncoming, plan.Rows.Single(r => r.Path == "appSettings:Retries").Choice);
@@ -46,7 +46,7 @@ public class XmlMergeTests
         Assert.Equal(MergeChoice.KeepCurrent, plan.Rows.Single(r => r.Path == "connectionStrings:Orders").Choice);
 
         var merged = plan.BuildResult();
-        Assert.StartsWith("<?xml", merged);
+        Assert.Matches(@"^<\?xml[^>]*\?>\r?\n<configuration>", merged);
         Assert.Contains("<!-- keep this comment -->", merged);
         Assert.Contains("""value="Live" """, merged);
         Assert.Contains("""key="Retries" """, merged);
@@ -71,7 +71,8 @@ public class XmlMergeTests
     [Fact]
     public void A_kept_setting_missing_from_the_package_is_added_back_whole()
     {
-        var plan = ConfigMerger.Plan(null, Current, Incoming, Xml, new MergeOptions([], KeepRemoved: true));
+        var plan = ConfigMerger.Plan(null, Current, Incoming, Xml, new MergeOptions([]));
+        plan.Rows.Single(row => row.Path == "appSettings:Legacy").Choice = MergeChoice.KeepCurrent;
 
         Assert.Contains("""<add key="Legacy" value="1" />""", plan.BuildResult());
     }

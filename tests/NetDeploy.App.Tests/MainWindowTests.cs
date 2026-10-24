@@ -91,14 +91,36 @@ public class MainWindowTests
         await SaveScreenshotAsync(inputs, "3-inputs");
         inputs.Close();
 
-        const string server = """{ "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" }, "Logging": { "LogLevel": { "Default": "Warning" } }, "Cleanup": { "KeepDays": 14 }, "Legacy": { "Mode": "on" } }""";
-        var incoming = File.ReadAllText(Path.Combine(SamplePath, "app", "appsettings.json"));
-        var format = ConfigFormats.For("appsettings.json");
-        var plan = ConfigMerger.Plan(server.Replace("14", "30"), server, incoming, format, new MergeOptions([], KeepRemoved: false));
-        var merge = new MergeWindow(new MergeViewModel(@"C:\Services\OrdersService\appsettings.json", plan, isReadOnly: false));
+        var review = new MergeViewModel(SampleConfigReview(), isReadOnly: false);
+        var merge = new MergeWindow(review);
         merge.Show();
-        await SaveScreenshotAsync(merge, "4-merge");
+        await SaveScreenshotAsync(merge, "4-config-review");
+        review.SelectedFile = review.Files.Single(file => file.FileName == "appsettings.Production.json");
+        await SaveScreenshotAsync(merge, "5-config-override");
         merge.Close();
+    }
+
+    /// <summary>A server running version 2.3 with its own override, and a package for 2.4 that renames a setting and adds one.</summary>
+    private static IReadOnlyList<ConfigFileUpdate> SampleConfigReview()
+    {
+        var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "review", Path.GetRandomFileName())).FullName;
+        void Write(string path, string text)
+        {
+            var full = Path.Combine(root, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            File.WriteAllText(full, text);
+        }
+
+        const string v23 = """{ "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" }, "Logging": { "LogLevel": { "Default": "Information" } }, "Smtp": { "Server": "localhost", "Port": 25 }, "Cleanup": { "KeepDays": 30 } }""";
+        Write("server/appsettings.json", v23.Replace("\"KeepDays\": 30", "\"KeepDays\": 14"));
+        Write("server/.deploy/base/appsettings.json", v23);
+        Write("server/appsettings.Production.json", """{ "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" }, "Smtp": { "Server": "mail.contoso.com" } }""");
+        Write("server/OrdersService.exe.config", """<configuration><appSettings><add key="Region" value="East" /><add key="Batch:Size" value="500" /></appSettings></configuration>""");
+        Write("package/appsettings.json", """{ "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" }, "Logging": { "LogLevel": { "Default": "Warning" } }, "Smtp": { "Host": "localhost", "Port": 25 }, "Cleanup": { "KeepDays": 30 }, "Payments": { "ApiKey": "" } }""");
+        Write("package/OrdersService.exe.config", """<configuration><appSettings><add key="Region" value="West" /><add key="Batch:Size" value="250" /><add key="Batch:Retry" value="3" /></appSettings></configuration>""");
+
+        return ConfigUpdates.Plan(Path.Combine(root, "package"), Path.Combine(root, "server"),
+            ["appsettings.json", "OrdersService.exe.config"], new MergeOptions(["Logging"]));
     }
 
     private static async Task SaveScreenshotAsync(Window window, string name)
@@ -152,7 +174,7 @@ public class MainWindowTests
             string title, IReadOnlyDictionary<string, InputField> fields, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyDictionary<string, string>?>(fields.ToDictionary(f => f.Key, f => f.Value.Default ?? "x"));
 
-        public Task<bool> ReviewMergeAsync(string filePath, MergePlan plan, bool readOnly, CancellationToken cancellationToken) =>
+        public Task<bool> ReviewConfigsAsync(IReadOnlyList<ConfigFileUpdate> files, bool readOnly, CancellationToken cancellationToken) =>
             Task.FromResult(true);
     }
 }

@@ -27,7 +27,6 @@ public class ManifestLoaderTests
         Assert.Contains(typeof(ServiceStep), types);
         Assert.Contains(typeof(BackupStep), types);
         Assert.Contains(typeof(CopyFilesStep), types);
-        Assert.Contains(typeof(MergeConfigStep), types);
         Assert.Contains(typeof(RunExeStep), types);
         Assert.Contains(typeof(ScheduledTaskStep), types);
         Assert.Contains(typeof(IfStep), types);

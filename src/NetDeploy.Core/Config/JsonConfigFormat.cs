@@ -50,6 +50,16 @@ internal sealed class JsonConfigFormat : IConfigFormat
         }
     }
 
+    public IReadOnlyList<string> SplitPath(string path) => path.Split(':');
+
+    public string OpenSection(string? name) => name is null ? "{" : $"{Quote(name)}: {{";
+
+    public string CloseSection(string? name) => "}";
+
+    public string Line(string key, string value) => $"{Quote(key)}: {value}";
+
+    private static string Quote(string key) => JsonSerializer.Serialize(key, Compact);
+
     private static JsonObject ParseObject(string text) =>
         JsonNode.Parse(text, documentOptions: ReadOptions) as JsonObject
         ?? throw new InvalidDataException("The JSON file's root must be an object.");

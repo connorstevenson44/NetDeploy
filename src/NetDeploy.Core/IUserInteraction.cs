@@ -12,8 +12,8 @@ public interface IUserInteraction
         string title, IReadOnlyDictionary<string, InputField> fields, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Shows the merge table so the user can review and change each row.
+    /// Shows how each config file will be merged so the user can review and change each setting.
     /// Returns false if the user cancelled. When readOnly is true (a dry run) nothing will be written.
     /// </summary>
-    Task<bool> ReviewMergeAsync(string filePath, MergePlan plan, bool readOnly, CancellationToken cancellationToken);
+    Task<bool> ReviewConfigsAsync(IReadOnlyList<ConfigFileUpdate> files, bool readOnly, CancellationToken cancellationToken);
 }

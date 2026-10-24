@@ -2,7 +2,7 @@ namespace NetDeploy.Core.Config;
 
 public enum MergeChoice { KeepCurrent, TakeIncoming, Edit, Remove }
 
-public sealed record MergeOptions(IReadOnlyList<string> TakeNew, bool KeepRemoved);
+public sealed record MergeOptions(IReadOnlyList<string> TakeNew);
 
 /// <summary>One setting in the merge table.</summary>
 public sealed class MergeRow(string path, string? baseValue, string? current, string? incoming, MergeChoice? choice, string reason)
@@ -14,8 +14,8 @@ public sealed class MergeRow(string path, string? baseValue, string? current, st
 
     public string? Current { get; } = current;
     public string? Incoming { get; } = incoming;
-    public string Reason { get; } = reason;
-    public bool IsConflict { get; } = choice is null;
+    public string Reason { get; private set; } = reason;
+    public bool IsConflict { get; private set; } = choice is null;
 
     /// <summary>False when the server and the package already agree.</summary>
     public bool IsChanged => Current != Incoming;
@@ -33,11 +33,23 @@ public sealed class MergeRow(string path, string? baseValue, string? current, st
         MergeChoice.TakeIncoming => Incoming,
         MergeChoice.Edit => EditedValue,
         MergeChoice.Remove => null,
-        _ => throw new InvalidOperationException($"'{Path}' changed on both sides and needs a choice."),
+        _ => throw new InvalidOperationException($"'{Path}' needs a choice: {Reason}"),
     };
+
+    /// <summary>Makes the user decide this row, for example because its value is still a placeholder.</summary>
+    internal void RequireChoice(string reason)
+    {
+        Choice = null;
+        IsConflict = true;
+        Reason = reason;
+    }
 }
 
-public sealed class MergePlan(IConfigFormat format, string incomingText, IReadOnlyList<MergeRow> rows)
+/// <summary>
+/// The rows of one file and how to write it. The result starts from startText (the package's file, or the
+/// server's file when startIsCurrent) and applies every row whose result differs from that side.
+/// </summary>
+public sealed class MergePlan(IConfigFormat format, string startText, IReadOnlyList<MergeRow> rows, bool startIsCurrent = false)
 {
     public IConfigFormat Format { get; } = format;
     public IReadOnlyList<MergeRow> Rows { get; } = rows;
@@ -56,11 +68,14 @@ public sealed class MergePlan(IConfigFormat format, string incomingText, IReadOn
         }
     }
 
-    /// <summary>The merged file: the incoming file with every row whose result differs from it applied.</summary>
+    /// <summary>The merged file.</summary>
     public string BuildResult() =>
-        Format.Write(incomingText, Rows
-            .Where(row => row.Result != row.Incoming)
+        Format.Write(startText, Rows
+            .Where(row => row.Result != (startIsCurrent ? row.Current : row.Incoming))
             .Select(row => KeyValuePair.Create(row.Path, row.Result)));
+
+    /// <summary>True when writing the result would change the file the plan starts from.</summary>
+    public bool ChangesStartFile => Rows.Any(row => row.Result != (startIsCurrent ? row.Current : row.Incoming));
 }
 
 /// <summary>
@@ -104,7 +119,7 @@ public static class ConfigMerger
             if (current is null)
                 return (MergeChoice.TakeIncoming, "New in the package");
             if (incoming is null)
-                return Removed(options);
+                return Removed();
             return (MergeChoice.KeepCurrent, "Differs; no earlier package to compare with");
         }
 
@@ -112,7 +127,7 @@ public static class ConfigMerger
         if (current == original)
         {
             if (incoming is null)
-                return Removed(options);
+                return Removed();
             return (MergeChoice.TakeIncoming, original is null ? "New in the package" : "Changed in the package");
         }
 
@@ -122,10 +137,7 @@ public static class ConfigMerger
         return (null, "Changed on both sides");
     }
 
-    private static (MergeChoice?, string) Removed(MergeOptions options) =>
-        options.KeepRemoved
-            ? (MergeChoice.KeepCurrent, "Removed from the package; kept")
-            : (MergeChoice.Remove, "Removed from the package");
+    private static (MergeChoice?, string) Removed() => (MergeChoice.Remove, "Removed from the package");
 
     private static bool IsUnder(string path, string prefix) =>
         path.Equals(prefix, StringComparison.OrdinalIgnoreCase)

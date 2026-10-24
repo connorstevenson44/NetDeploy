@@ -41,9 +41,9 @@ internal sealed class FakeUser : IUserInteraction
     public List<IReadOnlyDictionary<string, InputField>> InputRequests { get; } = [];
     public bool CancelInputs { get; set; }
 
-    public List<MergePlan> Merges { get; } = [];
-    public Action<MergePlan>? ResolveMerge { get; set; }
-    public bool CancelMerge { get; set; }
+    public List<IReadOnlyList<ConfigFileUpdate>> Reviews { get; } = [];
+    public Action<IReadOnlyList<ConfigFileUpdate>>? ResolveReview { get; set; }
+    public bool CancelReview { get; set; }
 
     public Task<bool> AskYesNoAsync(string question, CancellationToken cancellationToken)
     {
@@ -61,10 +61,10 @@ internal sealed class FakeUser : IUserInteraction
         return Task.FromResult(answers);
     }
 
-    public Task<bool> ReviewMergeAsync(string filePath, MergePlan plan, bool readOnly, CancellationToken cancellationToken)
+    public Task<bool> ReviewConfigsAsync(IReadOnlyList<ConfigFileUpdate> files, bool readOnly, CancellationToken cancellationToken)
     {
-        Merges.Add(plan);
-        ResolveMerge?.Invoke(plan);
-        return Task.FromResult(!CancelMerge);
+        Reviews.Add(files);
+        ResolveReview?.Invoke(files);
+        return Task.FromResult(!CancelReview);
     }
 }

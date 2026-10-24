@@ -22,7 +22,7 @@ internal sealed class WpfUserInteraction : IUserInteraction
             return window.ShowDialog() == true ? window.Answers : null;
         }).Task;
 
-    public Task<bool> ReviewMergeAsync(string filePath, MergePlan plan, bool readOnly, CancellationToken cancellationToken) =>
+    public Task<bool> ReviewConfigsAsync(IReadOnlyList<ConfigFileUpdate> files, bool readOnly, CancellationToken cancellationToken) =>
         Application.Current.Dispatcher.InvokeAsync(() =>
-            new MergeWindow(new MergeViewModel(filePath, plan, readOnly)) { Owner = Owner }.ShowDialog() == true).Task;
+            new MergeWindow(new MergeViewModel(files, readOnly)) { Owner = Owner }.ShowDialog() == true).Task;
 }

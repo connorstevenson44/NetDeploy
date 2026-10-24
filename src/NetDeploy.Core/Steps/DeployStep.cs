@@ -6,7 +6,6 @@ namespace NetDeploy.Core;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(Steps.CheckPrerequisiteStep), "checkPrerequisite")]
 [JsonDerivedType(typeof(Steps.CopyFilesStep), "copyFiles")]
-[JsonDerivedType(typeof(Steps.MergeConfigStep), "mergeConfig")]
 [JsonDerivedType(typeof(Steps.RunExeStep), "runExe")]
 [JsonDerivedType(typeof(Steps.PowerShellStep), "powershell")]
 [JsonDerivedType(typeof(Steps.BackupStep), "backup")]

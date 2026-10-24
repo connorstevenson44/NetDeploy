@@ -17,13 +17,7 @@
     },
     { "type": "service", "action": "stop", "service": "OrdersService" },
     { "type": "backup", "path": "{InstallDir}" },
-    { "type": "copyFiles", "from": "app", "to": "{InstallDir}", "preserve": ["appsettings.json", "logs/**"] },
-    {
-      "type": "mergeConfig",
-      "source": "app/appsettings.json",
-      "target": "{InstallDir}\\appsettings.json",
-      "takeNew": ["Logging"]
-    },
+    { "type": "copyFiles", "from": "app", "to": "{InstallDir}", "preserve": ["logs/**"], "takeNew": ["Logging"] },
     {
       "type": "runExe",
       "name": "Migrate database",
@@ -52,7 +46,7 @@
       "type": "if",
       "condition": { "powershell": "Test-Path 'D:\\OrdersArchive'" },
       "then": [
-        { "type": "powershell", "file": "scripts/link-archive.ps1", "args": "-InstallDir '{InstallDir}'" }
+        { "type": "powershell", "file": "scripts/link-archive.ps1", "args": "-InstallDir \"{InstallDir}\"" }
       ]
     },
     { "type": "service", "action": "start", "service": "OrdersService" }
