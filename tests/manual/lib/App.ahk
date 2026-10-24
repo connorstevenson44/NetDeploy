@@ -475,11 +475,11 @@ class App {
         return ""
     }
 
-    ; The names on a list's rows that are built now, to tell when scrolling it stops changing anything.
+    ; The text on a list's rows that are built now, to tell when scrolling it stops changing anything.
     static RowNames(list) {
         names := ""
         try {
-            for text in list.FindElements({Type: "Text", AutomationId: "Name"})
+            for text in list.FindElements({Type: "Text"})
                 names .= text.Name "|"
         }
         return names
