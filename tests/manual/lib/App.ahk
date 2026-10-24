@@ -426,7 +426,7 @@ class App {
     ; ===== The Files tab =====
 
     ; A file's name in the Files tab or the files review, by its path from the folder, which is the name's tooltip.
-    ; A file's name in a file list. The lists only build the rows in view, so it scrolls them until the file shows.
+    ; The lists only build the rows in view, so it scrolls them until the file shows.
     static FileName(path) {
         condition := {Type: "Text", HelpText: path}
         end := A_TickCount + 20000 * Runner.TimeoutScale
@@ -439,27 +439,45 @@ class App {
         return this.Find(condition, path " in the file list")
     }
 
-    ; Scrolls each list in the window from the top, a page at a time, until something that matches condition is built.
+    ; Scrolls each list in the window with the mouse wheel, up to its top and then down to its end, until something
+    ; that matches condition is built.
     static ScrollTo(condition) {
         if found := this.TryFind(condition)
             return found
-        for list in this.Main().FindElements({IsScrollPatternAvailable: true}) {
-            try {
-                scroll := list.ScrollPattern
-                if !scroll.VerticallyScrollable
-                    continue
-                scroll.SetScrollPercent(0)
-                Loop 200 {
-                    Sleep(100)
+        CoordMode("Mouse", "Screen")
+        for list in this.Main().FindElements({Type: "List"}) {
+            try box := list.BoundingRectangle
+            catch
+                continue
+            if box.b - box.t < 120
+                continue
+            spot := {l: box.l + 40, t: (box.t + box.b) // 2 - 20, r: box.l + 80, b: (box.t + box.b) // 2 + 20}
+            Runner.KeepClear(spot)
+            MouseMove(spot.l + 20, spot.t + 20, Runner.MouseSpeed)
+            for wheel in ["WheelUp", "WheelDown"] {
+                last := ""
+                Loop 100 {
                     if found := this.TryFind(condition, list)
                         return found
-                    if scroll.VerticalScrollPercent >= 100
+                    if (shown := this.RowNames(list)) = last
                         break
-                    scroll.Scroll(UIA.ScrollAmount.LargeIncrement)
+                    last := shown
+                    Send("{" wheel " 3}")
+                    Sleep(150)
                 }
             }
         }
         return ""
+    }
+
+    ; The names on a list's rows that are built now, to tell when scrolling it stops changing anything.
+    static RowNames(list) {
+        names := ""
+        try {
+            for text in list.FindElements({Type: "Text", AutomationId: "Name"})
+                names .= text.Name "|"
+        }
+        return names
     }
 
     ; One of the buttons on a file's row. In the Files tab they show when the mouse is over the row.
