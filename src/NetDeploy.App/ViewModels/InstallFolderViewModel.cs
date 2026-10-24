@@ -61,6 +61,13 @@ public sealed partial class FolderFileViewModel : ObservableObject
     public partial bool HasEdits { get; set; }
 }
 
+/// <summary>A backup of a folder, as the folder view lists it under the folder.</summary>
+public sealed record BackupViewModel(InstallBackup Backup, string Folder)
+{
+    public string Label => Backup.Taken.ToString("d MMM yyyy, HH:mm:ss", System.Globalization.CultureInfo.CurrentCulture);
+    public string Path => Backup.Directory;
+}
+
 /// <summary>How an install's Windows services are doing, as the dot beside it shows.</summary>
 public enum ServiceState
 {
@@ -80,12 +87,14 @@ public enum ServiceState
 /// <summary>A folder in the install folder, with its install marked. The folder view lists those in the folder it is in.</summary>
 public sealed partial class FolderNodeViewModel : ObservableObject
 {
-    internal FolderNodeViewModel(string path, string name, Installation? install, IReadOnlyList<string>? services = null)
+    internal FolderNodeViewModel(string path, string name, Installation? install, IReadOnlyList<string>? services = null, string? packageVersion = null)
     {
         FullPath = path;
         Name = name;
         Target = install is null ? null : new InstallTarget(install);
         ServiceNames = services ?? [];
+        PackageVersion = packageVersion;
+        Change = packageVersion is null ? null : Installations.Compare(install?.Version, packageVersion);
     }
 
     public string FullPath { get; }
@@ -98,6 +107,23 @@ public sealed partial class FolderNodeViewModel : ObservableObject
 
     /// <summary>The Windows services that run a program in the install.</summary>
     internal IReadOnlyList<string> ServiceNames { get; }
+
+    /// <summary>True when Windows services run from the install, so they can be started and stopped from here.</summary>
+    public bool HasServices => ServiceNames.Count > 0;
+
+    /// <summary>The open package's version, or null with no package open.</summary>
+    public string? PackageVersion { get; }
+
+    /// <summary>How the open package compares with this install, shown as an arrow beside its version; null when unknown.</summary>
+    public VersionChange? Change { get; }
+
+    public string ChangeTip => Change switch
+    {
+        VersionChange.Upgrade => $"The package ({PackageVersion}) is newer: deploying here updates it.",
+        VersionChange.Downgrade => $"The package ({PackageVersion}) is older: deploying here goes back a version.",
+        VersionChange.Same => $"The package is the same version ({PackageVersion}).",
+        _ => "",
+    };
 
     [ObservableProperty]
     public partial ServiceState ServiceState { get; private set; }
@@ -229,7 +255,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         _appFiles = appFiles ?? [];
         _tree = new FileTree<FolderFileViewModel>(file => file.Folder, file => file.RelativePath, ShowFiles);
         // Services start and stop on their own, so their states are read again every few seconds.
-        _serviceTimer = new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => CheckServices = CheckServicesAsync(), Dispatcher.CurrentDispatcher);
+        _serviceTimer = new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => RefreshServices(), Dispatcher.CurrentDispatcher);
         if (target is not null)
             target.PropertyChanged += OnTargetChanged;
         Reload();
@@ -302,6 +328,13 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     public partial ConfigFileViewModel? OpenFile { get; private set; }
 
     public bool HasOpenFile => OpenFile is not null;
+
+    /// <summary>The backups a deploy made of the folder the view is in, newest first, to put one back.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBackups))]
+    public partial IReadOnlyList<BackupViewModel> Backups { get; private set; } = [];
+
+    public bool HasBackups => Backups.Count > 0;
 
     public int EditCount => _opened.Values.Sum(file => file.ChangeCount);
     public int EditedFileCount => _opened.Values.Count(file => file.HasChanges);
@@ -421,7 +454,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
 
     internal FolderNodeViewModel Node(string path) =>
         new(path, IsRoot(path) ? RootName : Path.GetFileName(path),
-            _installsByFolder.GetValueOrDefault(Path.GetFullPath(path)), _servicesByFolder.GetValueOrDefault(Path.GetFullPath(path)));
+            _installsByFolder.GetValueOrDefault(Path.GetFullPath(path)), _servicesByFolder.GetValueOrDefault(Path.GetFullPath(path)), _target?.Version);
 
     /// <summary>
     /// Goes into a folder: lists its folders and its files, and with a package open, makes an install there the
@@ -444,9 +477,25 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         OpenError = null;
         FileFilter = "";
         _tree.Filter = "";
+        Backups = ReadBackups(folder.FullPath);
         Listing = ListFilesAsync(folder.FullPath);
-        CheckServices = CheckServicesAsync();
+        RefreshServices();
         _serviceTimer.Start();
+    }
+
+    /// <summary>Reads the services' states again now, such as after starting or stopping them.</summary>
+    internal void RefreshServices() => CheckServices = CheckServicesAsync();
+
+    private static IReadOnlyList<BackupViewModel> ReadBackups(string folder)
+    {
+        try
+        {
+            return Installations.Backups(folder).Select(backup => new BackupViewModel(backup, folder)).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
     }
 
     /// <summary>

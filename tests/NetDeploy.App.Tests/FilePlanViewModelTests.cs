@@ -1,5 +1,6 @@
 using System.IO;
 using NetDeploy.App.ViewModels;
+using NetDeploy.Core;
 using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.Tests;
@@ -33,6 +34,23 @@ public class FilePlanViewModelTests : IDisposable
 
     private static FileRowViewModel Row(FilePlanViewModel plan, string path) =>
         plan.Items.OfType<FileRowViewModel>().Single(row => row.Path == path);
+
+    [Fact]
+    public void A_dry_runs_summary_counts_the_files_and_lists_the_steps_that_would_change_the_server()
+    {
+        var stop = new ServiceStep { Action = ServiceAction.Stop, Service = "Orders" };
+        var check = new IfStep { Condition = new() { Ask = "Migrate?" }, Then = [new PowerShellStep { Script = "migrate" }] };
+        var steps = StepViewModel.Flatten([stop, _step, check]).ToList();
+        steps[0].State = StepState.Succeeded;
+        steps[1].State = StepState.Succeeded;
+        steps[2].State = StepState.Skipped;
+        steps[3].State = StepState.Skipped;
+
+        var summary = RunSummaryViewModel.For([Plan()], steps);
+
+        Assert.Equal(["Files: 1 added, 1 replaced, 1 deleted.", "Stop service Orders", "2 steps skipped by their conditions."],
+            summary.Lines.Select(line => line.Text));
+    }
 
     [Fact]
     public void Identical_files_are_hidden_and_folders_head_their_files()

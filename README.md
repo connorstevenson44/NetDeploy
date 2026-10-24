@@ -26,17 +26,25 @@ CI uploads a `Screenshots` artifact with each window, so a design change can be 
 
 Logs are written to a `logs` folder next to the exe, or to `%LOCALAPPDATA%\NetDeploy\logs` if that folder is read-only.
 
+What NetDeploy remembers for you, the recent list and the values each app was last deployed with, is kept in
+`%LOCALAPPDATA%\NetDeploy\settings.json`, never beside the exe or in an install folder. Secrets are never saved.
+
 ## The workspace
 
-Everything happens in one window. Open or drop a package, an install folder, or a `deploy.json`.
+Everything happens in one window. Open or drop a package, an install folder, or a `deploy.json`, or pick one you
+opened before from the start screen's **Recent** list. A package opens with the install folder and settings it was
+last deployed with.
 
 - **Left:** the package's settings with **Dry run** and **Deploy**, and below them the install folder, one folder at
   a time: the folders in the one you are in, with installs marked with their version. Click a folder to go into it
   and **Up** to come back. Going into an install makes it the deploy's target, and the **Deploy** button says what it
-  will do (**Add**, **Update** or **Rename**). For a new install, use the **New install** row at the
-  bottom of the install folder and type a name, so the installs already there stay in view. Hover an install to clone
-  or remove it. The dot beside an install says whether its Windows services are running (green), stopped (red) or in
-  between (amber); hover it for each service. A question mark means no service runs from that install.
+  will do (**Add**, **Update** or **Rename**). An arrow beside an install's version says whether the package is newer
+  (up) or older (down). For a new install, use the **New install** row at the
+  bottom of the install folder and type a name, so the installs already there stay in view. Hover an install to start,
+  stop or restart its services, clone it, or remove it. The dot beside an install says whether its Windows services are
+  running (green), stopped (red) or in between (amber); hover it for each service. A question mark means no service runs
+  from that install. Inside an install, the backups earlier deploys made of it are listed under its folders, each with
+  **Restore**.
 - **Right:** tabs for **Files** (every file in the folder you are in, as a tree whose folders fold, with a filter box:
   edit any text file, run a script, or stage a delete, all written together with **Finalize**),
   **Steps**, **deploy.json** (the visual editor) and **Log**.
@@ -46,7 +54,8 @@ Everything happens in one window. Open or drop a package, an install folder, or 
   text file, JSON, XML or plain text, and the file is written as typed, comments and layout included.
 - **Deploy** first shows every file it will add, replace, merge, keep or delete in the right-hand pane, so you can
   change any of them. **Continue** runs the steps; when the copy step gets to the config files, their review shows in
-  the same pane, then the rest of the deploy runs with its log.
+  the same pane, then the rest of the deploy runs with its log. After a **Dry run**, a summary above the log lists the
+  files it would change and each step that would touch the server.
 
 An install folder opened on its own, without a package, works the same way for managing it: edit settings, run tools,
 clone or remove installs.

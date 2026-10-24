@@ -102,6 +102,73 @@ public sealed partial class MainViewModel
         }
     }
 
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private Task StartServicesAsync(FolderNodeViewModel install) => ControlServicesAsync(install, ServiceCommand.Start);
+
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private Task StopServicesAsync(FolderNodeViewModel install) => ControlServicesAsync(install, ServiceCommand.Stop);
+
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private Task RestartServicesAsync(FolderNodeViewModel install) => ControlServicesAsync(install, ServiceCommand.Restart);
+
+    /// <summary>Starts, stops or restarts the Windows services that run from an install. Stopping one is asked first.</summary>
+    private async Task ControlServicesAsync(FolderNodeViewModel install, ServiceCommand command)
+    {
+        var services = install.ServiceNames;
+        var names = string.Join(", ", services);
+        if (services.Count == 0
+            || command != ServiceCommand.Start && !Confirm($"{command} {names}?{Environment.NewLine}{Environment.NewLine}The app stops working until the service is running again.", $"{command} service"))
+            return;
+
+        IsRunning = true;
+        try
+        {
+            using var log = UiLog.Create(Log, LogName, "services");
+            await Task.Run(() => Installations.Control(services, command, log));
+            Status = $"{names}: {command.ToString().ToLowerInvariant()} done.";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or System.ServiceProcess.TimeoutException)
+        {
+            // Without administrator rights Windows refuses, and says so only as "cannot open the service".
+            var hint = Elevation.IsAdministrator ? "" : " Starting and stopping services needs administrator rights.";
+            Status = $"{names}: {ex.Message}{hint}";
+            MessageBox.Show(ex.Message + hint, $"{command} service", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            IsRunning = false;
+            Folder?.RefreshServices();
+        }
+    }
+
+    /// <summary>Puts a backup back in place of the folder it was taken of, after asking.</summary>
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private async Task RestoreBackupAsync(BackupViewModel backup)
+    {
+        if (!Confirm($"Put back the backup from {backup.Label} in {backup.Folder}?{Environment.NewLine}{Environment.NewLine}"
+                + "Every file in the folder is replaced with the backup's. Services that run from it are stopped first and started again after.", "Restore backup"))
+            return;
+
+        IsRunning = true;
+        SelectedTab = LogTab;
+        try
+        {
+            using var log = UiLog.Create(Log, LogName, "restore");
+            await Task.Run(() => Installations.Restore(backup.Backup, backup.Folder, log));
+            Status = $"Restored {backup.Folder} from the backup of {backup.Label}.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ServiceProcess.TimeoutException)
+        {
+            Status = $"The restore didn't finish: {ex.Message}";
+            MessageBox.Show(ex.Message, "Restore failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsRunning = false;
+            RefreshFolder();
+        }
+    }
+
     /// <summary>Writes the staged settings edits and deletes the staged files, after showing exactly what will happen.</summary>
     [RelayCommand(CanExecute = nameof(IsIdle))]
     private void FinalizeFolder()

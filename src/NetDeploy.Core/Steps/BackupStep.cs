@@ -28,7 +28,7 @@ public sealed class BackupStep : DeployStep
         }
 
         var backupRoot = BackupsOf(folder);
-        var backup = Path.Combine(backupRoot, DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture));
+        var backup = Path.Combine(backupRoot, DateTime.Now.ToString(TimestampFormat, CultureInfo.InvariantCulture));
         if (context.DryRun)
         {
             context.Log.Info($"Would back up to {backup}");
@@ -48,6 +48,9 @@ public sealed class BackupStep : DeployStep
 
     /// <summary>Where a folder's backups go: beside it, in &lt;folder&gt;.backups.</summary>
     internal static string BackupsOf(string folder) => folder + ".backups";
+
+    /// <summary>Each backup's folder name: when it was taken.</summary>
+    internal const string TimestampFormat = "yyyyMMdd-HHmmss";
 
     protected override IEnumerable<string> ValidateOptions()
     {

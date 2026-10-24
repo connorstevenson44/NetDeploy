@@ -141,6 +141,9 @@ public sealed partial class FilePlanViewModel : ObservableObject
     public int NewCount => _rows.Count(row => row.State == FileState.New && row.Action != FileAction.Keep);
     public int ReplaceCount => _rows.Count(row => row.State != FileState.New && row.Action is FileAction.Replace or FileAction.Merge);
     public int DeleteCount => _rows.Count(row => row.Action == FileAction.Delete);
+
+    /// <summary>Config files merged with the server's copy, which ReplaceCount includes.</summary>
+    public int MergeCount => _rows.Count(row => row.State != FileState.New && row.Action == FileAction.Merge);
     public int KeepCount => _rows.Count(row => row.Action == FileAction.Keep);
 
     /// <summary>Folder headings and files, in path order.</summary>
