@@ -45,11 +45,13 @@ class Cases {
             Covers: "Open folder, the version of each install, running a program with what to pass it, deleting a file, and Up"},
         {Name: "Pick up where you left off", Run: PickUpWhereYouLeftOff, Needs: "Case 12",
             Covers: "The start screen's Recent list, a package opening with the install folder and each install's settings from last time, and the sign for the same version"},
+        {Name: "Read, follow and search an app's logs", Run: AppLogs, Needs: "Case 10",
+            Covers: "The App logs tab for an app with an nlog.config: the live log growing as the service writes, a search highlighting matches, a regular expression, and Search all marking the zipped archive that has them"},
         {Name: "Install Fabrikam.Reports 2.0.0", Run: AddReports, Needs: "No Fabrikam.Reports yet",
             Covers: "An older-style .NET Framework app, a question during the deploy, and a window asking for a step's details"},
-        {Name: "Upgrade Fabrikam.Reports to 2.1.0", Run: UpgradeReports, Needs: "Case 19",
+        {Name: "Upgrade Fabrikam.Reports to 2.1.0", Run: UpgradeReports, Needs: "Case 20",
             Covers: "Settings changed by hand on the server, a tick box setting, combining older-style settings files, and plugins swapped"},
-        {Name: "Remove every install", Run: RemoveAll, Needs: "Cases 12 and 20",
+        {Name: "Remove every install", Run: RemoveAll, Needs: "Cases 12 and 21",
             Covers: "Remove from the buttons that show when you point at an install, each step confirmed, and a clean computer at the end"},
     ]
 }
@@ -700,6 +702,100 @@ PickUpWhereYouLeftOff() {
     ], [
         Tool.File(Machine.SettingsFile, "Open the settings"),
     ])
+}
+
+; ===== Read, follow and search an app's logs =====
+
+AppLogs() {
+    main := OrdersDir "\main"
+    ; An nlog.config, as an app that logs with NLog has, pointing at the heartbeat log the service writes, and two older
+    ; logs in the archive folder it names, one of them zipped as NLog zips them.
+    Machine.PowerShell("
+    (
+        $main = $args[0]
+        $archive = Join-Path $main 'logs\archive'
+        New-Item -ItemType Directory -Force -Path $archive | Out-Null
+        Set-Content -LiteralPath (Join-Path $main 'nlog.config') -Encoding UTF8 -Value @'
+<?xml version="1.0" encoding="utf-8"?>
+<nlog xmlns="http://www.nlog-project.org/schemas/NLog.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <targets>
+    <target xsi:type="File" name="heartbeat" fileName="${basedir}/logs/heartbeat.log" archiveFileName="${basedir}/logs/archive/heartbeat.{#}.log"
+            archiveAboveSize="1048576" maxArchiveFiles="5" enableArchiveFileCompression="true" />
+  </targets>
+  <rules><logger name="*" minlevel="Info" writeTo="heartbeat" /></rules>
+</nlog>
+'@
+        Set-Content -LiteralPath (Join-Path $archive 'heartbeat.1.log') -Encoding UTF8 -Value @(
+            '2026-10-20 09:00:00 1.0.0 region West | ORD-2001 payment authorised',
+            '2026-10-20 09:00:10 1.0.0 region West | ORD-2002 shipped')
+        $zipped = Join-Path $env:TEMP 'heartbeat.2.log'
+        Set-Content -LiteralPath $zipped -Encoding UTF8 -Value @(
+            '2026-10-19 09:00:00 1.0.0 region West | ORD-1042 payment declined',
+            '2026-10-19 09:00:10 1.0.0 region West | ORD-1042 payment declined again')
+        Compress-Archive -LiteralPath $zipped -DestinationPath (Join-Path $archive 'heartbeat.2.zip') -Force
+        Remove-Item -LiteralPath $zipped
+    )", main)
+    Runner.Say("main now has an nlog.config, as an app that logs with NLog would. It says the log is logs\heartbeat.log, the file the service writes its heartbeat to, with older logs in logs\archive, one of them zipped.")
+    App.GoToRoot()
+    App.GoInto(main)
+    App.Tab("App logs", "Open the App logs tab, which shows because main has an nlog.config")
+    viewer := App.Find({AutomationId: "LogText"}, "the log's text")
+    App.Find({Type: "Button", Name: "heartbeat.log"}, "the live log in the list of logs")
+    live := viewer.Value
+    Runner.Say("The live log is open. The service writes a line every 10 seconds, and it shows here as it is written.")
+    end := A_TickCount + 30000 * Runner.TimeoutScale
+    while StrLen(viewer.Value) <= StrLen(live) && A_TickCount < end
+        Runner.Wait(500)
+    followed := viewer.Value
+
+    App.Type({Type: "Edit", Name: "Search the log"}, "region", "Search the live log for region")
+    first := WaitForName({AutomationId: "MatchCount"}, " of ", "the number of matches")
+    Runner.Say("Each match is highlighted in yellow, the one in view in orange: " first ". The arrows go to the next and the one before.")
+    App.Click({Type: "Button", Name: "Next match"}, "Go to the next match")
+    App.Click({Type: "Button", Name: "Regular expression"}, "Turn on Regular expression")
+    App.Type({Type: "Edit", Name: "Search the log"}, "ORD-10\d+", "Search for ORD-10 and a number, as a regular expression")
+    none := WaitForName({AutomationId: "MatchCount"}, "No matches", "No matches in the live log")
+    App.ClickButton("Search all", "Click Search all, to search every log, the zipped one too")
+    status := WaitForName({AutomationId: "SearchStatus"}, "Found in", "the search of every log finishing", 60000)
+    zipped := App.Find({Type: "Button", Name: "heartbeat.2.log in heartbeat.2.zip, 2 matches"}, "the zipped log, marked with 2 matches")
+    plain := App.TryFind({Type: "Button", Name: "heartbeat.1.log, no matches"})
+    App.Click(zipped, "Open the zipped log that has the matches")
+    end := A_TickCount + 20000 * Runner.TimeoutScale
+    while !InStr(viewer.Value, "ORD-1042") && A_TickCount < end
+        Runner.Wait(500)
+    opened := viewer.Value
+    Runner.Checkpoint("The app's logs could be read, followed and searched", [
+        Check.Make("The live log showed the service's heartbeat", () => InStr(live, "region") ? "" : "it showed: " SubStr(live, 1, 200)),
+        Check.Make("A new heartbeat line showed without doing anything", () => StrLen(followed) > StrLen(live) ? "" : "no new line showed in 30 seconds"),
+        Check.Make("Searching the live log found region", () => RegExMatch(first, "^1 of \d") ? "" : "it said " first),
+        Check.Make("ORD-10 and a number wasn't in the live log", () => none = "No matches" ? "" : "it said " none),
+        Check.Make("Search all found it in 1 of the 3 logs", () => status = "Found in 1 of 3 logs" ? "" : "it said " status),
+        Check.Make("The plain archive was marked as having no matches", () => IsObject(plain) ? "" : "its row didn't say no matches"),
+        Check.Make("The zipped log opened from inside its zip", () => InStr(opened, "ORD-1042 payment declined") ? "" : "it showed: " SubStr(opened, 1, 200)),
+    ], [
+        "The list on the left has LIVE, with heartbeat.log, then ARCHIVED, with heartbeat.1.log and heartbeat.2.log in heartbeat.2.zip.",
+        "heartbeat.2.log has a yellow 2 beside it, and heartbeat.1.log and heartbeat.log are faded.",
+        "Both ORD-1042 in the zipped log are highlighted, the first in orange, and the box above it says 1 of 2.",
+        "Lines are coloured by their level when a log has one, such as ERROR in red.",
+    ], [
+        Tool.Folder(main "\logs", "Open the logs folder"),
+        Tool.File(main "\nlog.config"),
+    ])
+}
+
+; Waits for a control's text to have part in it, such as "Found in" in the status of a search, and returns the text.
+WaitForName(condition, part, what, timeoutMs := 20000) {
+    end := A_TickCount + timeoutMs * Runner.TimeoutScale
+    Loop {
+        Runner.Gate()
+        if (found := App.TryFind(condition)) && InStr(found.Name, part)
+            return found.Name
+        if A_TickCount > end {
+            Runner.Stuck("see " what, IsObject(found) ? "It says: " found.Name : "")
+            end := A_TickCount + timeoutMs * Runner.TimeoutScale
+        }
+        Sleep(300)
+    }
 }
 
 ; ===== Install Fabrikam.Reports =====

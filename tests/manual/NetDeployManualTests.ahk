@@ -4,7 +4,7 @@
 ;   at a time, Esc stops.
 ;   Unattended, as CI runs it:
 ;     AutoHotkey64.exe NetDeployManualTests.ahk --unattended [--exe <NetDeploy.exe>] [--packages <folder>]
-;                      [--results <folder>] [--cases 1-21]
+;                      [--results <folder>] [--cases 1-22]
 
 #Requires AutoHotkey v2.0
 #SingleInstance Force
@@ -178,7 +178,7 @@ class Launcher {
         ui.SetFont("bold")
         ui.Add("Text", "xm w720 y+10", "Cases (each one carries on from where the one before it ended)")
         ui.SetFont("norm")
-        this.List := ui.Add("ListView", "w720 r21 y+4 Checked -Multi", ["#", "Case", "Run after", "What it tries"])
+        this.List := ui.Add("ListView", "w720 r22 y+4 Checked -Multi", ["#", "Case", "Run after", "What it tries"])
         for index, testCase in Cases.All
             this.List.Add("Check", index, testCase.Name, testCase.Needs, testCase.Covers)
         this.List.ModifyCol(1, 30), this.List.ModifyCol(2, 300), this.List.ModifyCol(3, 140), this.List.ModifyCol(4, 900)

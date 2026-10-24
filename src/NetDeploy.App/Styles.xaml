@@ -22,6 +22,7 @@
     <SolidColorBrush x:Key="InkMuted" Color="#5B6B7C" />
     <SolidColorBrush x:Key="InkFaint" Color="#9AA8B6" />
     <SolidColorBrush x:Key="Success" Color="#2E7D32" />
+    <SolidColorBrush x:Key="SuccessTint" Color="#E8F5E9" />
     <SolidColorBrush x:Key="Warning" Color="#9A5B00" />
     <SolidColorBrush x:Key="WarningTint" Color="#FFF4E0" />
     <SolidColorBrush x:Key="Danger" Color="#C62828" />
@@ -46,6 +47,10 @@
             </DrawingGroup>
         </DrawingBrush.Drawing>
     </DrawingBrush>
+
+    <!-- Search matches in a log, as in Visual Studio's find: every match in yellow, the one in view in orange. -->
+    <SolidColorBrush x:Key="SearchHit" Color="#FFF1A8" />
+    <SolidColorBrush x:Key="SearchHitCurrent" Color="#FFC24D" />
 
     <!-- The line between the two sides of a diff -->
     <Style x:Key="DiffDivider" TargetType="Border">

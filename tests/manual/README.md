@@ -71,9 +71,10 @@ ones leave behind (the launcher's Run after column).
 | 16 | Edit a deploy.json | The saved version, and its folder open as the package |
 | 17 | Look after an install folder without a package | Running a program with what to pass it, and deleting a file |
 | 18 | Pick up where you left off | The Recent list, the install folder and each install's settings remembered, the same-version sign |
-| 19 | Install Fabrikam.Reports 2.0.0 | Its data, the first report, the hourly task |
-| 20 | Upgrade Fabrikam.Reports to 2.1.0 | Its two settings files combined, and the plugins swapped |
-| 21 | Remove every install | Services, tasks, databases and folders all gone |
+| 19 | Read, follow and search an app's logs | The live log growing by itself, a search and a regular expression, and Search all finding the zipped log |
+| 20 | Install Fabrikam.Reports 2.0.0 | Its data, the first report, the hourly task |
+| 21 | Upgrade Fabrikam.Reports to 2.1.0 | Its two settings files combined, and the plugins swapped |
+| 22 | Remove every install | Services, tasks, databases and folders all gone |
 
 ## How it works
 

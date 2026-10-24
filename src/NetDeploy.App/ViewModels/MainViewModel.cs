@@ -22,6 +22,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public const int StepsTab = 1;
     public const int ConfigTab = 2;
     public const int LogTab = 3;
+    public const int AppLogsTab = 4;
 
     private readonly IUserInteraction _user;
     private readonly UserSettings _settings;
@@ -325,12 +326,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void SetFolder(string? path)
     {
-        Folder?.Dispose();
+        if (Folder is not null)
+        {
+            Folder.PropertyChanged -= OnFolderChanged;
+            Folder.Dispose();
+        }
         Folder = path is null ? null : new InstallFolderViewModel(path, Install, _appFiles, _history);
+        if (Folder is not null)
+            Folder.PropertyChanged += OnFolderChanged;
         OnPropertyChanged(nameof(FolderNote));
-        // The Files tab hides without a folder; don't leave it showing.
-        if (Folder is null && SelectedTab == FilesTab)
+        // The Files and App logs tabs hide without a folder; don't leave one showing.
+        if (Folder is null && SelectedTab is FilesTab or AppLogsTab)
             SelectedTab = HasPackage ? StepsTab : HasEditor ? ConfigTab : LogTab;
+        else if (Folder?.HasLogs != true && SelectedTab == AppLogsTab)
+            SelectedTab = FilesTab;
+    }
+
+    // The App logs tab hides when the folder the view goes into has no logs; don't leave it showing.
+    private void OnFolderChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(InstallFolderViewModel.HasLogs) && Folder?.HasLogs != true && SelectedTab == AppLogsTab)
+            SelectedTab = FilesTab;
     }
 
     /// <summary>The parameter values, plus {Instance}, {InstanceSuffix} and {InstanceDir} for the chosen install.</summary>

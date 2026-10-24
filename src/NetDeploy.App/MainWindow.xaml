@@ -11,8 +11,8 @@
         WindowStartupLocation="CenterScreen" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
         Closing="OnClosing">
     <!-- One workspace. Left: the package's settings and the install folder's tree. Right: tabs for the files of the
-         folder picked in the tree, the steps, the deploy config and the log; while a deploy waits for the user, its
-         review takes the tabs' place. -->
+         folder picked in the tree, the steps, the deploy config, the log and the app's own logs; while a deploy waits
+         for the user, its review takes the tabs' place. -->
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -1045,6 +1045,12 @@
                                                Margin="20,16" Visibility="{Binding Log.Count, Converter={StaticResource ZeroToVisible}}" />
                                 </Grid>
                                 </DockPanel>
+                            </TabItem>
+
+                            <!-- App logs: the logs the app in the folder writes with NLog, to read, follow and search -->
+                            <TabItem Header="App logs" Tag="{x:Static materialDesign:PackIconKind.TextBoxSearchOutline}" HeaderTemplate="{StaticResource TabHeader}"
+                                     Visibility="{Binding Folder.HasLogs, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                                <app:LogsView DataContext="{Binding Folder.Logs}" />
                             </TabItem>
                         </TabControl>
 

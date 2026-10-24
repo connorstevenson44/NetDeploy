@@ -80,7 +80,17 @@ the settings of the install it copies.
   **Restore**, and under them its **History**: the latest deploys to it, who made them, how each ended, and its log.
 - **Right:** tabs for **Files** (every file in the folder you are in, as a tree whose folders fold, with a filter box:
   edit any text file, run a script, or stage a delete, all written together with **Finalize**),
-  **Steps**, **deploy.json** (the visual editor) and **Log**.
+  **Steps**, **deploy.json** (the visual editor), **Log**, and for an app that logs with NLog, **App logs**.
+- **App logs** shows when the folder you are in, or the install it is in, has an `nlog.config` that writes to files.
+  NLog's file targets say where the logs are: the paths are worked out as far as they can be from outside the app
+  (`${basedir}`, variables, special folders and environment variables are filled in, while the date, level and other
+  parts that change as the app runs match any file), and so are the archive names, numbered with `{#}` or beside the
+  log. The live log opens first and new lines show as the app writes them; scroll up to stop following it. The older
+  and archived logs are listed below it, zipped ones by the files inside them, and open the same way. Type in the
+  search box to highlight the matches in the open log and step through them; **.\*** makes it a regular expression
+  and **Aa** matches case. **Search all** reads every log to its end, zipped ones too, in the background with a
+  progress bar and **Stop**, marking each log with its number of matches and fading those without any. A log longer
+  than 8 MB shows its last 8 MB; Search all still reads all of it.
 - **Files are edited with tracked changes**, as in a word processor. There is one editor: type in it and new text shows
   in green, while text taken out stays where it was, struck through in red. Each change has buttons at the end of its
   line to undo it, or in a deploy to take the package's text instead; **Undo all** starts over. This works for any
