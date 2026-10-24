@@ -73,6 +73,7 @@ public class MainWindowTests
                     await SaveInstallScreenshotsAsync(window, viewModel);
                     await SaveFolderScreenshotAsync(window, viewModel, history);
                     await SaveEditorScreenshotsAsync(window, viewModel);
+                    await SaveAppLogsScreenshotsAsync(window, viewModel);
                 }
                 catch (Exception ex)
                 {
@@ -333,6 +334,96 @@ public class MainWindowTests
 
         // Leave nothing unsaved, so closing the window doesn't ask.
         editor.New();
+    }
+
+    /// <summary>
+    /// Opens an install whose nlog.config writes a live log and zips its archives: the App logs tab, a search in the
+    /// open log, then a search of every log and the zipped log it found.
+    /// </summary>
+    private static async Task SaveAppLogsScreenshotsAsync(Window window, MainViewModel viewModel)
+    {
+        var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "applogs", Path.GetRandomFileName())).FullName;
+        string Write(string path, string text)
+        {
+            var full = Path.Combine(root, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            File.WriteAllText(full, text);
+            return full;
+        }
+        string Lines(DateTime start, params string[] lines) =>
+            string.Concat(lines.Select((line, i) => $"{start.AddSeconds(i * 7):yyyy-MM-dd HH:mm:ss.ffff}|{line}\n"));
+
+        Write("east/OrdersService.exe", "");
+        Write("east/nlog.config", """
+            <nlog xmlns="http://www.nlog-project.org/schemas/NLog.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+              <variable name="logDir" value="${basedir}/logs" />
+              <targets async="true">
+                <target xsi:type="File" name="file" fileName="${logDir}/orders-${shortdate}.log"
+                        archiveFileName="${logDir}/archive/orders.{#}.zip" archiveEvery="Day" maxArchiveFiles="30" enableArchiveFileCompression="true" />
+              </targets>
+              <rules><logger name="*" minlevel="Info" writeTo="file" /></rules>
+            </nlog>
+            """);
+        var today = DateTime.Today.AddHours(9);
+        Write($"east/logs/orders-{today:yyyy-MM-dd}.log", Lines(today,
+            "INFO|OrdersService.Host|Started OrdersService 2.5.1 in Production",
+            "INFO|OrdersService.Orders|ORD-2001 placed by contoso-web, 3 lines, 129.40 EUR",
+            "INFO|OrdersService.Payments|ORD-2001 payment authorised",
+            "WARN|OrdersService.Smtp|mail.contoso.local slow to answer (2.4 s)",
+            "INFO|OrdersService.Orders|ORD-2002 placed by contoso-web, 1 line, 12.00 EUR",
+            "ERROR|OrdersService.Payments|ORD-2002 payment declined: card expired",
+            "INFO|OrdersService.Orders|ORD-2003 placed by partner-api, 12 lines, 1,204.10 EUR",
+            "DEBUG|OrdersService.Cleanup|Removed 14 exports older than 30 days"));
+        var yesterday = today.AddDays(-1);
+        var archive = Path.Combine(root, "east", "logs", "archive");
+        Directory.CreateDirectory(archive);
+        for (var day = 1; day <= 4; day++)
+        {
+            using var zip = System.IO.Compression.ZipFile.Open(Path.Combine(archive, $"orders.{day}.zip"), System.IO.Compression.ZipArchiveMode.Create);
+            var date = yesterday.AddDays(1 - day);
+            var entry = zip.CreateEntry($"orders-{date:yyyy-MM-dd}.log");
+            entry.LastWriteTime = date.AddHours(15);
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write(Lines(date, "INFO|OrdersService.Host|Started OrdersService 2.5.0 in Production",
+                $"INFO|OrdersService.Orders|ORD-1{day}40 placed by contoso-web",
+                day == 2 ? "ERROR|OrdersService.Payments|ORD-1240 payment declined: insufficient funds" : $"INFO|OrdersService.Payments|ORD-1{day}40 payment authorised"));
+        }
+
+        viewModel.ShowFolder(root);
+        var folder = viewModel.Folder!;
+        await folder.Listing;
+        folder.GoIntoCommand.Execute(folder.Rows.OfType<FolderNodeViewModel>().Single(node => node.Name == "east"));
+        await folder.Listing;
+        var logs = Assert.IsType<LogsViewModel>(folder.Logs);
+        await logs.Listing;
+        await logs.Loading;
+        viewModel.SelectedTab = MainViewModel.AppLogsTab;
+        Assert.True(logs.Open!.IsLive);
+        Assert.Equal(5, logs.Logs.Count());
+        await SaveScreenshotAsync(window, "15-app-logs");
+
+        logs.Query = "ORD-2002";
+        await logs.Finding;
+        Assert.Equal("1 of 2", logs.MatchText);
+        await SaveScreenshotAsync(window, "15b-app-logs-search");
+
+        logs.IsRegex = true;
+        logs.Query = @"payment declined";
+        logs.SearchAllCommand.Execute(null);
+        await logs.Searching;
+        Assert.Equal("Found in 2 of 5 logs", logs.SearchStatus);
+        var found = logs.Logs.Single(log => log.IsZipped && log.HasHits);
+        logs.OpenLogCommand.Execute(found);
+        await logs.Loading;
+        await logs.Finding;
+        Assert.Contains("insufficient funds", logs.Text);
+        await SaveScreenshotAsync(window, "15c-app-logs-search-all");
+
+        // Out of the app, the tab goes, and the Files tab shows instead.
+        folder.GoUpCommand.Execute(null);
+        await folder.Listing;
+        Assert.False(folder.HasLogs);
+        Assert.Equal(MainViewModel.FilesTab, viewModel.SelectedTab);
     }
 
     /// <summary>A server running version 2.3 with its own override, and a package for 2.4 that renames a setting and adds one.</summary>

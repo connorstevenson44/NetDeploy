@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using MaterialDesignThemes.Wpf;
 using NetDeploy.Core;
 using NetDeploy.Core.Config;
+using NetDeploy.Core.Logs;
 
 namespace NetDeploy.App.ViewModels;
 
@@ -384,6 +385,16 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
 
     public bool HasHistory => History.Count > 0;
 
+    /// <summary>
+    /// The logs of the app in the folder the view is in, or in the nearest folder above it, when it has an nlog.config;
+    /// null otherwise. They show in their own tab.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLogs))]
+    public partial LogsViewModel? Logs { get; private set; }
+
+    public bool HasLogs => Logs is not null;
+
     public int EditCount => _opened.Values.Sum(file => file.ChangeCount);
     public int EditedFileCount => _opened.Values.Count(file => file.HasChanges);
     public int DeleteCount => _deletes.Count;
@@ -527,9 +538,29 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         _tree.Filter = "";
         Backups = ReadBackups(folder.FullPath);
         History = _history?.For(folder.FullPath).Take(MaxHistory).Select(record => new HistoryEntryViewModel(record)).ToList() ?? [];
+        FindLogs(folder.FullPath);
         Listing = ListFilesAsync(folder.FullPath);
         RefreshServices();
         _serviceTimer.Start();
+    }
+
+    /// <summary>
+    /// Looks for an nlog.config in the folder and the folders above it, up to the install folder. Going deeper into the
+    /// same app, such as into its logs folder, keeps its logs open; reloading the folder reads them again.
+    /// </summary>
+    private void FindLogs(string folder)
+    {
+        string? config = null;
+        for (var path = folder; config is null && path is not null; path = IsRoot(path) ? null : Path.GetDirectoryName(path))
+            config = NLogConfig.Find(path);
+        if (config is not null && Logs is { } logs && logs.ConfigPath.Equals(config, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_reloading)
+                logs.RefreshCommand.Execute(null);
+            return;
+        }
+        Logs?.Dispose();
+        Logs = config is null ? null : new LogsViewModel(config);
     }
 
     /// <summary>Reads the services' states again now, such as after starting or stopping them.</summary>
@@ -679,6 +710,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     public void Dispose()
     {
         _serviceTimer.Stop();
+        Logs?.Dispose();
         _listing?.Cancel();
         _newInstall?.Detach();
         if (_target is not null)
