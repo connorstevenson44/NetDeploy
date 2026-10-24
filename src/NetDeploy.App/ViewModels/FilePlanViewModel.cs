@@ -15,10 +15,14 @@ public sealed record FolderViewModel(string Name, int Depth)
 /// <summary>A copy step whose files can't be listed yet, with the reason.</summary>
 public sealed record FilePlanError(string Title, string Message);
 
-/// <summary>One of the actions a file can take, shown as an icon button.</summary>
-public sealed partial class FileActionOption(FileRowViewModel row, FileAction action) : ObservableObject
+/// <summary>
+/// One of the actions a file can take, shown as an icon button. Every row has all four in the same order, with the
+/// ones that don't apply hidden, so each action lines up in its own column.
+/// </summary>
+public sealed partial class FileActionOption(FileRowViewModel row, FileAction action, bool isAvailable) : ObservableObject
 {
     public FileAction Action => action;
+    public bool IsAvailable => isAvailable;
     public bool IsSelected => row.Action == action;
 
     public PackIconKind Icon => action switch
@@ -39,7 +43,7 @@ public sealed partial class FileActionOption(FileRowViewModel row, FileAction ac
         _ => "Keep the server's file as it is",
     };
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(IsAvailable))]
     private void Choose() => row.Action = action;
 
     internal void Refresh() => OnPropertyChanged(nameof(IsSelected));
@@ -48,6 +52,8 @@ public sealed partial class FileActionOption(FileRowViewModel row, FileAction ac
 /// <summary>One file: how it compares with the server and what the deploy will do with it.</summary>
 public sealed partial class FileRowViewModel : ObservableObject
 {
+    private static readonly FileAction[] ColumnOrder = [FileAction.Merge, FileAction.Replace, FileAction.Keep, FileAction.Delete];
+
     private readonly FilePlanEntry _entry;
     private readonly Action _changed;
 
@@ -58,7 +64,7 @@ public sealed partial class FileRowViewModel : ObservableObject
         var slash = entry.Path.LastIndexOf('/');
         Folder = slash < 0 ? "" : entry.Path[..slash];
         Name = entry.Path[(slash + 1)..];
-        Options = entry.Choices.Select(choice => new FileActionOption(this, choice)).ToList();
+        Options = ColumnOrder.Select(action => new FileActionOption(this, action, entry.Choices.Contains(action))).ToList();
     }
 
     public string Path => _entry.Path;
@@ -156,7 +162,7 @@ public sealed partial class FilePlanViewModel : ObservableObject
             return;
         var chosen = earlier.ChosenActions;
         foreach (var row in _rows)
-            if (chosen.TryGetValue(row.Path, out var action) && row.Options.Any(option => option.Action == action))
+            if (chosen.TryGetValue(row.Path, out var action) && row.Options.Any(option => option.Action == action && option.IsAvailable))
                 row.Action = action;
     }
 

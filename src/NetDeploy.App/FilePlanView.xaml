@@ -21,6 +21,9 @@
             <Setter Property="ToolTip" Value="{Binding Tip}" />
             <Setter Property="Command" Value="{Binding ChooseCommand}" />
             <Style.Triggers>
+                <DataTrigger Binding="{Binding IsAvailable}" Value="False">
+                    <Setter Property="Visibility" Value="Hidden" />
+                </DataTrigger>
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
                         <Condition Binding="{Binding IsSelected}" Value="True" />

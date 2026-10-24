@@ -53,6 +53,8 @@ public class MainWindowTests
                     viewModel.Parameters.Single(p => p.Name == "DbConnection").Value = "asd";
                     await viewModel.DryRunCommand.ExecuteAsync(null);
                     await SaveScreenshotAsync(window, "2-dry-run");
+                    Assert.Contains(viewModel.Log, entry => entry.Message.Contains("Dry run finished"));
+                    Assert.DoesNotContain(viewModel.Steps, step => step.State == StepState.Failed);
                     await SaveDialogScreenshotsAsync();
                     await SaveFilesScreenshotAsync(window, viewModel);
                 }
@@ -73,8 +75,6 @@ public class MainWindowTests
                 ExceptionDispatchInfo.Capture(failure).Throw();
 
             window.Close();
-            Assert.Contains(viewModel.Log, entry => entry.Message.Contains("Dry run finished"));
-            Assert.DoesNotContain(viewModel.Steps, step => step.State == StepState.Failed);
         }, onTimeout: () => $"Status: {viewModel?.Status}");
     }
 

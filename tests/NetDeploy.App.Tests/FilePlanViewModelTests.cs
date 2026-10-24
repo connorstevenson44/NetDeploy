@@ -53,6 +53,7 @@ public class FilePlanViewModelTests : IDisposable
         var plan = Plan();
         var old = Row(plan, "old.dll");
         Assert.True(old.Options.Single(option => option.Action == FileAction.Delete).IsSelected);
+        Assert.Equal([FileAction.Keep, FileAction.Delete], old.Options.Where(option => option.IsAvailable).Select(option => option.Action));
 
         old.Options.Single(option => option.Action == FileAction.Keep).ChooseCommand.Execute(null);
 
