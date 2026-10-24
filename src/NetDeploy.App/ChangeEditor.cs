@@ -39,7 +39,8 @@ public sealed class ChangeEditor : TextEditor
         FontFamily = new FontFamily("Cascadia Mono, Consolas");
         FontSize = 12.5;
         Padding = new Thickness(4, 4, 0, 4);
-        HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+        // Long lines wrap, so a change and the buttons at the end of its line are always in view.
+        WordWrap = true;
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         Options.EnableHyperlinks = false;
         Options.EnableEmailHyperlinks = false;

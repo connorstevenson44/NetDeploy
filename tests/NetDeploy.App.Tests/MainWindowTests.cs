@@ -328,13 +328,58 @@ public class MainWindowTests
             File.WriteAllText(full, text);
         }
 
-        const string v23 = """{ "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" }, "Logging": { "LogLevel": { "Default": "Information" } }, "Smtp": { "Server": "localhost", "Port": 25 }, "Cleanup": { "KeepDays": 30 } }""";
+        const string v23 = """
+            {
+              "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" },
+              "Logging": {
+                "LogLevel": { "Default": "Information" }
+              },
+              "Smtp": {
+                "Server": "localhost",
+                "Port": 25
+              },
+              "Cleanup": { "KeepDays": 30 }
+            }
+            """;
         Write("server/appsettings.json", v23.Replace("\"KeepDays\": 30", "\"KeepDays\": 14"));
         Write("server/.deploy/base/appsettings.json", v23);
-        Write("server/appsettings.Production.json", """{ "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" }, "Smtp": { "Server": "mail.contoso.com" } }""");
-        Write("server/OrdersService.exe.config", """<configuration><appSettings><add key="Region" value="East" /><add key="Batch:Size" value="500" /></appSettings></configuration>""");
-        Write("package/appsettings.json", """{ "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" }, "Logging": { "LogLevel": { "Default": "Warning" } }, "Smtp": { "Host": "localhost", "Port": 25 }, "Cleanup": { "KeepDays": 30 }, "Payments": { "ApiKey": "" } }""");
-        Write("package/OrdersService.exe.config", """<configuration><appSettings><add key="Region" value="West" /><add key="Batch:Size" value="250" /><add key="Batch:Retry" value="3" /></appSettings></configuration>""");
+        Write("server/appsettings.Production.json", """
+            {
+              "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" },
+              "Smtp": { "Server": "mail.contoso.com" }
+            }
+            """);
+        Write("server/OrdersService.exe.config", """
+            <configuration>
+              <appSettings>
+                <add key="Region" value="East" />
+                <add key="Batch:Size" value="500" />
+              </appSettings>
+            </configuration>
+            """);
+        Write("package/appsettings.json", """
+            {
+              "ConnectionStrings": { "Orders": "Server=localhost;Database=Orders" },
+              "Logging": {
+                "LogLevel": { "Default": "Warning" }
+              },
+              "Smtp": {
+                "Host": "localhost",
+                "Port": 25
+              },
+              "Cleanup": { "KeepDays": 30 },
+              "Payments": { "ApiKey": "" }
+            }
+            """);
+        Write("package/OrdersService.exe.config", """
+            <configuration>
+              <appSettings>
+                <add key="Region" value="West" />
+                <add key="Batch:Size" value="250" />
+                <add key="Batch:Retry" value="3" />
+              </appSettings>
+            </configuration>
+            """);
 
         return ConfigUpdates.Plan(Path.Combine(root, "package"), Path.Combine(root, "server"),
             ["appsettings.json", "OrdersService.exe.config"], new MergeOptions(["Logging"]));
