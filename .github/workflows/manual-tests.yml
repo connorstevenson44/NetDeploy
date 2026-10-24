@@ -53,13 +53,33 @@ jobs:
           name: ManualTestBundle
           path: ${{ runner.temp }}/bundle/
 
+      # Waits for AutoHotkey itself, not Start-Process -Wait, which also waits for every process it started, such as
+      # a NetDeploy left open by a failed case. The log is printed as it is written, so a slow step shows while it runs.
       - name: Run the manual tests unattended
         run: |
           $out = "$env:RUNNER_TEMP\ahk-out.txt"; $err = "$env:RUNNER_TEMP\ahk-err.txt"
-          $ahk = Start-Process "$env:RUNNER_TEMP\ahk\AutoHotkey64.exe" -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err `
+          $ahk = Start-Process "$env:RUNNER_TEMP\ahk\AutoHotkey64.exe" -PassThru -RedirectStandardOutput $out -RedirectStandardError $err `
             -ArgumentList '/ErrorStdOut', 'tests\manual\NetDeployManualTests.ahk', '--unattended', '--results', 'tests\manual\results'
-          Get-Content $out, $err -ErrorAction SilentlyContinue
+          $null = $ahk.Handle
+          $printed = 0; $end = (Get-Date).AddMinutes(40)
+          while (-not $ahk.WaitForExit(5000) -and (Get-Date) -lt $end) {
+            $lines = @(Get-Content $out -ErrorAction SilentlyContinue)
+            $lines | Select-Object -Skip $printed; $printed = $lines.Count
+          }
+          Get-Content $out -ErrorAction SilentlyContinue | Select-Object -Skip $printed
+          Get-Content $err -ErrorAction SilentlyContinue
           Get-Content tests\manual\results\*\summary.txt -ErrorAction SilentlyContinue
+          Stop-Process -Name NetDeploy -Force -ErrorAction SilentlyContinue
+          if (-not $ahk.HasExited) {
+            Write-Output "The manual tests were still running after 40 minutes. The screen is in timeout.png."
+            Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+            $bounds = [Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $shot = New-Object Drawing.Bitmap $bounds.Width, $bounds.Height
+            [Drawing.Graphics]::FromImage($shot).CopyFromScreen($bounds.Location, [Drawing.Point]::Empty, $bounds.Size)
+            New-Item tests\manual\results -ItemType Directory -Force | Out-Null
+            $shot.Save("$PWD\tests\manual\results\timeout.png")
+            Stop-Process $ahk -Force; exit 1
+          }
           exit $ahk.ExitCode
 
       - uses: actions/upload-artifact@v4

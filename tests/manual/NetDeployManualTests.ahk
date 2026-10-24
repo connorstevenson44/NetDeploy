@@ -7,7 +7,7 @@
 
 #Requires AutoHotkey v2.0
 #SingleInstance Force
-#Warn VarUnset, StdOut
+#Warn All, StdOut
 SetTitleMatchMode(3)
 
 #Include lib\UIA.ahk
@@ -96,8 +96,13 @@ EnsureAdmin() {
     if A_IsAdmin
         return
     arguments := ""
-    for arg in A_Args
+    for arg in A_Args {
+        if arg = "--unattended" {
+            FileAppend("NetDeploy's manual tests need to run as administrator.`n", "*")
+            ExitApp(4)
+        }
         arguments .= ' "' arg '"'
+    }
     try Run('*RunAs "' A_AhkPath '" /restart "' A_ScriptFullPath '"' arguments)
     ExitApp()
 }
@@ -128,7 +133,9 @@ Main() {
             Runner.Log("RESET", "Cleaning up first: " Join(leftovers, ", "))
             Machine.Reset()
         }
-        ExitApp(Runner.RunCases(SelectCases(Settings.Cases)) ? 1 : 0)
+        failed := Runner.RunCases(SelectCases(Settings.Cases))
+        App.CloseAll()
+        ExitApp(failed ? 1 : 0)
     }
     Launcher.Show()
 }
