@@ -19,7 +19,7 @@
                 <ResourceDictionary Source="FileTemplates.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <app:BoolToStarConverter x:Key="OpenFileWidth" Star="1.4" />
+            <app:BoolToStarConverter x:Key="OpenFileWidth" Star="2" />
 
             <!-- A toolbar button on the brand bar -->
             <Style x:Key="BarButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
@@ -746,9 +746,13 @@
                                      Visibility="{Binding HasFolder, Converter={StaticResource BoolToVisibility}}">
                                 <Grid DataContext="{Binding Folder}">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" MinWidth="260" />
+                                        <ColumnDefinition Width="*" MinWidth="220" />
                                         <ColumnDefinition Width="{Binding HasOpenFile, Converter={StaticResource OpenFileWidth}}" />
                                     </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
                                     <DockPanel>
                                         <Border Style="{StaticResource PaneHeader}">
@@ -764,22 +768,6 @@
                                                         <TextBlock Text="install" />
                                                     </Border>
                                                 </StackPanel>
-                                            </DockPanel>
-                                        </Border>
-
-                                        <!-- Staged changes, written together -->
-                                        <Border DockPanel.Dock="Bottom" Background="{StaticResource BrandTint}" Padding="12,8"
-                                                Visibility="{Binding HasPending, Converter={StaticResource BoolToVisibility}}">
-                                            <DockPanel>
-                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                    <Button Style="{StaticResource QuietButton}" Height="32" Command="{Binding DiscardCommand}" Margin="0,0,6,0"
-                                                            Content="Discard" Tag="{x:Static materialDesign:PackIconKind.Undo}" ContentTemplate="{StaticResource IconLabel}" />
-                                                    <Button Style="{StaticResource PrimaryButton}" Height="32"
-                                                            Command="{Binding DataContext.FinalizeFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            Content="Finalize" Tag="{x:Static materialDesign:PackIconKind.ContentSaveCheckOutline}" ContentTemplate="{StaticResource IconLabel}" />
-                                                </StackPanel>
-                                                <TextBlock Text="{Binding PendingText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Brand}"
-                                                           VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0" />
                                             </DockPanel>
                                         </Border>
 
@@ -809,6 +797,22 @@
                                         </Border>
                                         <app:ConfigFileView DataContext="{Binding OpenFile}" />
                                     </DockPanel>
+
+                                    <!-- Staged changes, written together. The bar spans both panes, so its text has room. -->
+                                    <Border Grid.Row="1" Grid.ColumnSpan="2" Background="{StaticResource BrandTint}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="14,8,12,8"
+                                            Visibility="{Binding HasPending, Converter={StaticResource BoolToVisibility}}">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                <Button Style="{StaticResource QuietButton}" Height="32" Command="{Binding DiscardCommand}" Margin="0,0,6,0"
+                                                        Content="Discard" Tag="{x:Static materialDesign:PackIconKind.Undo}" ContentTemplate="{StaticResource IconLabel}" />
+                                                <Button Style="{StaticResource PrimaryButton}" Height="32"
+                                                        Command="{Binding DataContext.FinalizeFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        Content="Finalize" Tag="{x:Static materialDesign:PackIconKind.ContentSaveCheckOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding PendingText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Brand}"
+                                                       VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0" />
+                                        </DockPanel>
+                                    </Border>
                                 </Grid>
                             </TabItem>
 

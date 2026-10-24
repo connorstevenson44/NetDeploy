@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.Win32;
 
 namespace NetDeploy.Core.Steps;
@@ -107,7 +108,7 @@ public sealed class PrerequisiteCheck
             _ => null,
         };
         if (missing is not null)
-            yield return $"A {Kind} check needs {missing}.";
+            yield return $"A {JsonNamingPolicy.CamelCase.ConvertName(Kind.ToString())} check needs {missing}.";
         if (MinVersion is not null && ParseVersion(MinVersion) is null)
             yield return $"'{MinVersion}' is not a version number.";
     }

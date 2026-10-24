@@ -17,6 +17,7 @@
     <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
     <SolidColorBrush x:Key="Canvas" Color="#F4F7FA" />
     <SolidColorBrush x:Key="Hairline" Color="#DCE4EC" />
+    <SolidColorBrush x:Key="InputOutline" Color="#B4C0CC" />
     <SolidColorBrush x:Key="Ink" Color="#1A2633" />
     <SolidColorBrush x:Key="InkMuted" Color="#5B6B7C" />
     <SolidColorBrush x:Key="InkFaint" Color="#9AA8B6" />
@@ -202,14 +203,17 @@
          empty box. Every text box, password box and drop-down in the app uses one of these. -->
     <Style x:Key="InputBox" TargetType="TextBox" BasedOn="{StaticResource MaterialDesignOutlinedTextBox}">
         <Setter Property="Padding" Value="10,7" />
+        <Setter Property="BorderBrush" Value="{StaticResource InputOutline}" />
         <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
     </Style>
     <Style x:Key="InputPassword" TargetType="PasswordBox" BasedOn="{StaticResource MaterialDesignOutlinedRevealPasswordBox}">
         <Setter Property="Padding" Value="10,7" />
+        <Setter Property="BorderBrush" Value="{StaticResource InputOutline}" />
         <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
     </Style>
     <Style x:Key="InputChoice" TargetType="ComboBox" BasedOn="{StaticResource MaterialDesignOutlinedComboBox}">
         <Setter Property="Padding" Value="10,7" />
+        <Setter Property="BorderBrush" Value="{StaticResource InputOutline}" />
         <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
     </Style>
 

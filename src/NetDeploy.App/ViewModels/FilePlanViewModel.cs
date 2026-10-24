@@ -72,6 +72,17 @@ public sealed partial class FileRowViewModel : ObservableObject
     public FileAction DefaultAction => _entry.DefaultAction;
     public IReadOnlyList<FileActionOption> Options { get; }
 
+    /// <summary>What happens to the file, in a word, beside the action buttons.</summary>
+    public string ActionLabel => (_entry.Action, _entry.State) switch
+    {
+        (FileAction.Replace or FileAction.Merge, FileState.New) => "Add",
+        (FileAction.Replace, _) => "Replace",
+        (FileAction.Merge, _) => "Merge",
+        (FileAction.Delete, _) => "Delete",
+        (FileAction.Keep, FileState.New) => "Skip",
+        _ => "Keep",
+    };
+
     public string StateTip => _entry.State switch
     {
         FileState.New => "Only in the package",

@@ -71,7 +71,7 @@ public sealed class ScheduledTaskStep : DeployStep
 
         if (context.DryRun)
         {
-            context.Log.Info($"Would {Action} scheduled task {name}");
+            context.Log.Info($"Would {(Action == ScheduledTaskAction.CreateOrUpdate ? "create or update" : Action.ToString().ToLowerInvariant())} scheduled task {name}");
             return;
         }
 
