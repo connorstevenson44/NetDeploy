@@ -70,15 +70,31 @@ public sealed class DeployHistory(string folder)
         {
             return [];
         }
-        var key = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
+        var key = Normalize(folder);
         return files
             .Order(StringComparer.Ordinal)
             .TakeLast(MaxRead)
             .Select(Read)
             .OfType<DeployRecord>()
-            .Where(record => record.Folder is { } recorded && Path.TrimEndingDirectorySeparator(recorded).Equals(key, StringComparison.OrdinalIgnoreCase))
+            .Where(record => record.Folder is { } recorded && string.Equals(Normalize(recorded), key, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(record => record.Time)
             .ToList();
+    }
+
+    /// <summary>
+    /// A folder as Windows tells folders apart, so C:/Apps/Orders/main and C:\Apps\Orders\main\ match; null for a
+    /// path that can't be one, such as one from a file edited by hand.
+    /// </summary>
+    private static string? Normalize(string folder)
+    {
+        try
+        {
+            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
     }
 
     private static DeployRecord? Read(string file)

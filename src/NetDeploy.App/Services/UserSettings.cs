@@ -79,19 +79,26 @@ public sealed class UserSettings
     /// <summary>The install folder an app was last deployed to, or null.</summary>
     public string? LastFolder(string app) => _data.Apps.GetValueOrDefault(app)?.LastFolder;
 
-    /// <summary>The values an app was last deployed with into this install folder ("" for an app without one).</summary>
+    /// <summary>
+    /// The values an app was last deployed with into this install folder ("" for an app without one), or into this
+    /// install.
+    /// </summary>
     // A dictionary read back from the file compares names with case, so the copy is what lets them match without it.
     public IReadOnlyDictionary<string, string> Values(string app, string folder) =>
         new Dictionary<string, string>(
             _data.Apps.GetValueOrDefault(app)?.Folders.GetValueOrDefault(Key(folder)) ?? [], StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Remembers the values an app is deployed with. The caller leaves secrets out.</summary>
-    public void SaveValues(string app, string folder, IReadOnlyDictionary<string, string> values)
+    /// <summary>
+    /// Remembers the values an app is deployed with into an install folder, and into the install itself when there
+    /// is one, since installs side by side are often set up differently. The caller leaves secrets out.
+    /// </summary>
+    public void SaveValues(string app, string folder, IReadOnlyDictionary<string, string> values, string? install = null)
     {
         if (!_data.Apps.TryGetValue(app, out var saved))
             _data.Apps[app] = saved = new AppValues();
         saved.LastFolder = folder.Length == 0 ? null : folder;
-        saved.Folders[Key(folder)] = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
+        foreach (var key in new[] { folder, install }.OfType<string>())
+            saved.Folders[Key(key)] = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
         Save();
     }
 

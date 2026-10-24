@@ -4,6 +4,10 @@
 class Machine {
     static Temp := A_Temp "\NetDeployManualTests"
 
+    ; What NetDeploy remembers for the person using it, and the deploys made on this computer.
+    static SettingsFile := EnvGet("LOCALAPPDATA") "\NetDeploy\settings.json"
+    static HistoryFolder := EnvGet("ProgramData") "\NetDeploy\history"
+
     ; Runs a PowerShell script, passing args as $args, and returns what it printed.
     static PowerShell(script, args*) {
         DirCreate(this.Temp)
@@ -22,6 +26,33 @@ class Machine {
         try FileDelete(output)
         RunWait(A_ComSpec ' /c ""' program '" ' arguments ' > "' output '" 2>&1"', , "Hide")
         return FileExist(output) ? FileRead(output) : ""
+    }
+
+    ; Runs NetDeploy.exe from the command line, as a pipeline would, and returns {Code, Output, First}: its exit code,
+    ; what it printed, and the first line of that. Piping its output is what makes PowerShell wait for a windowed exe.
+    static NetDeploy(exe, args*) {
+        printed := this.PowerShell("
+        (
+            $exe = $args[0]
+            $rest = @($args | Select-Object -Skip 1)
+            $output = & $exe @rest | Out-String
+            $output.TrimEnd()
+            "Exit code: $LASTEXITCODE"
+        )", exe, args*)
+        code := RegExMatch(printed, "Exit code: (-?\d+)$", &match) ? Integer(match[1]) : -1
+        output := RegExReplace(printed, "\R?Exit code: -?\d+$")
+        return {Code: code, Output: output, First: Trim(StrSplit(output, "`n")[1], " `r")}
+    }
+
+    ; How many deploys to a folder the history holds.
+    static HistoryCount(folder) {
+        return Integer(this.PowerShell("
+        (
+            $folder, $history = $args
+            @(Get-ChildItem -Path "$history\*.json" -ErrorAction SilentlyContinue |
+                ForEach-Object { try { Get-Content -Raw -LiteralPath $_.FullName | ConvertFrom-Json } catch { } } |
+                Where-Object { $_.folder -eq $folder }).Count
+        )", folder, this.HistoryFolder))
     }
 
     ; "Running", "Stopped" and so on, or "" when there is no such service.
@@ -120,7 +151,7 @@ class Machine {
         return lines.Length ? lines[lines.Length] : ""
     }
 
-    ; Files, or with mode "D" folders, matching pattern in a folder.
+    ; Files, or with mode "D" folders, matching pattern in a folder; "R" in mode looks in its subfolders too.
     static Count(folder, pattern, mode := "F") {
         count := 0
         Loop Files folder "\" pattern, mode
@@ -162,6 +193,15 @@ class Machine {
         for folder in [OrdersDir, ReportsDir, OrdersData]
             if DirExist(folder)
                 found.Push("folder " folder)
+        ; What NetDeploy remembers of the test apps would change what a run sees, such as the settings a package opens with.
+        if FileExist(this.SettingsFile) && RegExMatch(FileRead(this.SettingsFile), '"(Contoso\.Orders|Fabrikam\.Reports)"\s*:')
+            found.Push("NetDeploy's remembered settings for the test apps")
+        Loop Files this.HistoryFolder "\*.json" {
+            if RegExMatch(FileRead(A_LoopFileFullPath), "i)Apps\\\\(Contoso\.Orders|Fabrikam\.Reports)") {
+                found.Push("the test installs' deploy history")
+                break
+            }
+        }
         return found
     }
 

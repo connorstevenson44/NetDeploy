@@ -43,7 +43,8 @@ something, it says what, and you can put NetDeploy right by hand and try again, 
 The speed can be changed at any time from the panel.
 
 Each run saves `run.log`, `summary.txt` and any screenshots in `results\<date and time>` next to the script.
-`tools\Reset-TestMachine.ps1` removes everything the test packages install; **Clean up** in the launcher runs it.
+`tools\Reset-TestMachine.ps1` removes everything the test packages install, and what NetDeploy remembers of them (their
+deploy history, and their remembered settings and recent files); **Clean up** in the launcher runs it.
 
 ## The cases
 
@@ -53,23 +54,26 @@ ones leave behind (the launcher's Run after column).
 | # | Case | What it checks at the end |
 | --- | --- | --- |
 | 1 | Open a package | The package's settings, and its Steps and deploy.json tabs |
-| 2 | Try a deploy without changing anything | Nothing was created |
+| 2 | Try a deploy without changing anything | Nothing was created, and the summary above the log says every file would be added |
 | 3 | Install the app for the first time (main) | The service is running (with a green dot in the folder list), and the task, database, settings and log |
-| 4 | Notice when a service stops | The dot goes red when the service is stopped outside NetDeploy, and green again when it starts |
+| 4 | Start, stop and restart a service | The dot follows a service stopped outside NetDeploy, and Stop, Start and Restart beside the install work |
 | 5 | Install it a second time, for Production (blue) | Both services, the Production steps, separate databases |
 | 6 | Change settings on the server | Region and an Alerts section typed in, one change undone, BatchSize written, README kept |
 | 7 | Throw away changes you don't want | Undo all and Discard leave the files as they were |
-| 8 | Cancel an upgrade halfway, then roll it back | blue is back on 1.0.0 and running |
-| 9 | Upgrade main to 1.1.0, keeping the server's changes | How settings were combined, the renamed setting, the heartbeat on 1.1.0, the upgraded database |
-| 10 | Rename blue to green | green is running, and blue's service, task, database and folder are gone |
-| 11 | Copy main as a new install (qa) | qa has main's settings |
-| 12 | Change your mind while removing an install | Stop removing leaves qa just as it was |
-| 13 | Remove an install someone copied by hand | A copied folder shows up as an install, and removing it skips what it never had |
-| 14 | Edit a deploy.json | The saved version, and its folder open as the package |
-| 15 | Look after an install folder without a package | Running a program with what to pass it, and deleting a file |
-| 16 | Install Fabrikam.Reports 2.0.0 | Its data, the first report, the hourly task |
-| 17 | Upgrade Fabrikam.Reports to 2.1.0 | Its two settings files combined, and the plugins swapped |
-| 18 | Remove every install | Services, tasks, databases and folders all gone |
+| 8 | Cancel an upgrade halfway, then roll it back | The arrow saying the package is newer, and blue back on 1.0.0 and running |
+| 9 | Put a backup back | blue's history, and Restore bringing back a file deleted on the server |
+| 10 | Upgrade main to 1.1.0, keeping the server's changes | main's own settings (Staging, not blue's Production), how settings were combined, the renamed setting, the heartbeat on 1.1.0, the upgraded database |
+| 11 | Rename blue to green | green is running, and blue's service, task, database and folder are gone |
+| 12 | Copy main as a new install (qa) | qa has main's settings |
+| 13 | Deploy from the command line | A mistake exits with 2, a deploy with 0 without showing the secret, and it is in the history |
+| 14 | Change your mind while removing an install | Stop removing leaves qa just as it was |
+| 15 | Remove an install someone copied by hand | A copied folder shows up as an install, and removing it skips what it never had |
+| 16 | Edit a deploy.json | The saved version, and its folder open as the package |
+| 17 | Look after an install folder without a package | Running a program with what to pass it, and deleting a file |
+| 18 | Pick up where you left off | The Recent list, the install folder and each install's settings remembered, the same-version sign |
+| 19 | Install Fabrikam.Reports 2.0.0 | Its data, the first report, the hourly task |
+| 20 | Upgrade Fabrikam.Reports to 2.1.0 | Its two settings files combined, and the plugins swapped |
+| 21 | Remove every install | Services, tasks, databases and folders all gone |
 
 ## How it works
 

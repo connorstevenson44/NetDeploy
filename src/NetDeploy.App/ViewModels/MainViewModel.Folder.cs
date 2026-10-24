@@ -153,6 +153,7 @@ public sealed partial class MainViewModel
         SelectedTab = LogTab;
         try
         {
+            Log.Clear();
             using var log = UiLog.Create(Log, LogName, "restore");
             await Task.Run(() => Installations.Restore(backup.Backup, backup.Folder, log));
             Status = $"Restored {backup.Folder} from the backup of {backup.Label}.";

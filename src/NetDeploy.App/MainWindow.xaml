@@ -183,25 +183,28 @@
                 </DataTemplate.Triggers>
             </DataTemplate>
 
-            <!-- How the open package's version compares with an install's: up when it's newer, down when it's older -->
+            <!-- How the open package's version compares with an install's: up when it's newer, down when it's older.
+                 An icon on its own isn't seen by screen readers, so a Label carries what it means. -->
             <DataTemplate x:Key="VersionChange">
-                <materialDesign:PackIcon x:Name="Arrow" Width="14" Height="14" Margin="4,0,0,0" VerticalAlignment="Center" Background="Transparent"
-                                         ToolTip="{Binding ChangeTip}" AutomationProperties.Name="{Binding ChangeTip}" Visibility="Collapsed" />
+                <Label x:Name="Holder" Padding="0" Margin="4,0,0,0" VerticalAlignment="Center" Background="Transparent" Focusable="False"
+                       ToolTip="{Binding ChangeTip}" AutomationProperties.Name="{Binding ChangeTip}" Visibility="Collapsed">
+                    <materialDesign:PackIcon x:Name="Arrow" Width="14" Height="14" />
+                </Label>
                 <DataTemplate.Triggers>
                     <DataTrigger Binding="{Binding Change}" Value="{x:Static core:VersionChange.Upgrade}">
                         <Setter TargetName="Arrow" Property="Kind" Value="ArrowUpBold" />
                         <Setter TargetName="Arrow" Property="Foreground" Value="{StaticResource Success}" />
-                        <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                        <Setter TargetName="Holder" Property="Visibility" Value="Visible" />
                     </DataTrigger>
                     <DataTrigger Binding="{Binding Change}" Value="{x:Static core:VersionChange.Downgrade}">
                         <Setter TargetName="Arrow" Property="Kind" Value="ArrowDownBold" />
                         <Setter TargetName="Arrow" Property="Foreground" Value="{StaticResource Warning}" />
-                        <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                        <Setter TargetName="Holder" Property="Visibility" Value="Visible" />
                     </DataTrigger>
                     <DataTrigger Binding="{Binding Change}" Value="{x:Static core:VersionChange.Same}">
                         <Setter TargetName="Arrow" Property="Kind" Value="EqualBox" />
                         <Setter TargetName="Arrow" Property="Foreground" Value="{StaticResource InkFaint}" />
-                        <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                        <Setter TargetName="Holder" Property="Visibility" Value="Visible" />
                     </DataTrigger>
                 </DataTemplate.Triggers>
             </DataTemplate>

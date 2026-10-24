@@ -82,7 +82,12 @@ public sealed class DeployRunner(IUserInteraction user, IDeployLog log)
         if (Installations.CheckName(instance) is { } problem)
             throw new InstanceException($"Install name \"{instance}\": {problem}");
 
-        foreach (var (name, value) in Installations.Variables(context.Resolve(install.Folder), instance))
+        // A relative folder would land wherever NetDeploy was started from, and a backup of it be taken from there.
+        var folder = context.Resolve(install.Folder);
+        if (!Path.IsPathFullyQualified(folder))
+            throw new InstanceException(folder.Length == 0 ? "Set the install folder first." : $"The install folder \"{folder}\" isn't a full path.");
+
+        foreach (var (name, value) in Installations.Variables(folder, instance))
             context.Variables[name] = value;
         return context.Variables["InstanceDir"];
     }

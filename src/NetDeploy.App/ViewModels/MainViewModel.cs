@@ -175,8 +175,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             else
                 Parameters.Add(parameter);
         }
-        // The install folder last used brings that folder's settings with it once it is read (RefreshInstalls); a
-        // package that doesn't install into a folder has one set of settings.
+        // The install folder last used brings that folder's settings with it once it is read (RefreshInstalls), and
+        // the install picked in it that install's; a package that doesn't install into a folder has one set of settings.
         RestoreFolder();
         if (manifest.Install is null)
             RestoreValues("");
@@ -188,6 +188,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 // The install name is part of folder, service and task names.
                 if (e.PropertyName == nameof(InstallViewModel.Name))
                     RefreshSteps();
+                else if (e.PropertyName is nameof(InstallViewModel.Selected) or nameof(InstallViewModel.CopyFrom))
+                    RestoreInstallValues();
             };
 
         foreach (var step in StepViewModel.Flatten(manifest.Steps))
@@ -258,6 +260,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _package = null;
         _appFiles = [];
         _installFolder = null;
+        _valuesFrom = null;
         _stepsByDefinition = [];
         Parameters.Clear();
         Steps.Clear();
@@ -299,6 +302,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (folder == _installFolder)
             return;
         _installFolder = folder;
+        _valuesFrom = null;
         RestoreValues(folder);
         // A value just filled in can move the install folder itself, which the refresh that caused has dealt with.
         if (_installFolder != folder)

@@ -64,7 +64,9 @@ above. A `.cmd` script waits by itself.
 
 Everything happens in one window. Open or drop a package, an install folder, or a `deploy.json`, or pick one you
 opened before from the start screen's **Recent** list. A package opens with the install folder and settings it was
-last deployed with.
+last deployed with, and picking an install fills in the settings that install was last deployed with, so installs set
+up differently side by side, such as one for Staging and one for Production, each keep their own. A clone starts with
+the settings of the install it copies.
 
 - **Left:** the package's settings with **Dry run** and **Deploy**, and below them the install folder, one folder at
   a time: the folders in the one you are in, with installs marked with their version. Click a folder to go into it
