@@ -240,7 +240,13 @@ public class MainWindowTests
         }
         Write("OrdersService.exe", "");
         Write("OrdersService.dll", "");
-        Write("appsettings.json", """{ "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" }, "Smtp": { "Host": "mail", "Port": 25 }, "Cleanup": { "KeepDays": 30 } }""");
+        Write("appsettings.json", """
+            {
+              "ConnectionStrings": { "Orders": "Server=sql01;Database=Orders" },
+              "Smtp": { "Host": "mail", "Port": 25 },
+              "Cleanup": { "KeepDays": 30 }
+            }
+            """);
         Write("OrdersService.exe.config", "<configuration><appSettings><add key=\"Region\" value=\"East\" /></appSettings></configuration>");
         Write("tools/migrate.ps1", "Write-Output done");
         Write("tools/reindex.bat", "@echo done");

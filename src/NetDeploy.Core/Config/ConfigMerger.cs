@@ -161,10 +161,18 @@ public sealed class MergePlan(IConfigFormat format, string startText, IReadOnlyL
             row.Take(values.GetValueOrDefault(row.Path));
             _rows.Add(row);
         }
+        // A setting the text adds goes after the one written before it, so the diff keeps the text's order.
         var known = _rows.Select(row => row.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        string? previous = null;
         foreach (var (path, value) in values)
+        {
             if (!known.Contains(path))
-                _rows.Add(new MergeRow(path, null, null, null, MergeChoice.Edit, "Your edit") { EditedValue = value });
+            {
+                var at = _rows.FindIndex(row => string.Equals(row.Path, previous, StringComparison.OrdinalIgnoreCase)) + 1;
+                _rows.Insert(at, new MergeRow(path, null, null, null, MergeChoice.Edit, "Your edit") { EditedValue = value });
+            }
+            previous = path;
+        }
         _editedText = text;
         _editedValues = values;
     }

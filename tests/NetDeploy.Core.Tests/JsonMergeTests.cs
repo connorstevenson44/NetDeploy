@@ -171,6 +171,16 @@ public class JsonMergeTests
     }
 
     [Fact]
+    public void Settings_the_text_adds_sit_where_the_text_puts_them()
+    {
+        var plan = ConfigMerger.Plan(null, """{ "Db": "prod", "Port": 25 }""", """{ "Db": "prod", "Port": 25 }""", Json, Defaults);
+
+        plan.Edit("""{ "First": 1, "Db": "prod", "Hosts": ["a"], "Port": 25 }""");
+
+        Assert.Equal(["First", "Db", "Hosts", "Port"], plan.Rows.Select(row => row.Path));
+    }
+
+    [Fact]
     public void A_setting_left_out_of_the_text_is_removed_and_a_later_change_applies_on_top_of_the_text()
     {
         var plan = ConfigMerger.Plan(null, """{ "Db": "prod", "Port": 25 }""", """{ "Db": "prod", "Port": 25 }""", Json, Defaults);
