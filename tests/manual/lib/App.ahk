@@ -542,8 +542,18 @@ class App {
         Runner.Wait(Runner.Pace)
     }
 
-    ; Changes one value in the open file's text: the first match of pattern is replaced with replacement.
-    static ReplaceText(pattern, replacement, what) => this.EditText((text) => RegExReplace(text, pattern, replacement, , 1), what)
+    ; Changes one value in the open file's text: the first match of the regex pattern is replaced with replacement.
+    ; Files written by scripts space their values in all sorts of ways, so patterns allow for any spacing.
+    static ReplaceText(pattern, replacement, what) {
+        this.EditText((text) => this.ReplaceOnce(text, pattern, replacement, what), what)
+    }
+
+    static ReplaceOnce(text, pattern, replacement, what) {
+        changed := RegExReplace(text, pattern, replacement, &count, 1)
+        if !count
+            Runner.Fail("The file's text has nothing matching " pattern ", so I couldn't " StrLower(what))
+        return changed
+    }
 
     ; Clicks one of the buttons at the end of a change in the editor, by its name and tooltip, such as Undo and
     ; "Put back the server's text: 10".

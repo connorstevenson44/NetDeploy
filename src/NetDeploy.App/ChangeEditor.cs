@@ -2,6 +2,8 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ICSharpCode.AvalonEdit;
@@ -48,6 +50,8 @@ public sealed class ChangeEditor : TextEditor
         TextArea.TextView.BackgroundRenderers.Add(new MarkRenderer(this));
         TextArea.TextView.ElementGenerators.Add(new MarkGenerator(this));
         AutomationProperties.SetAutomationId(this, "FileText");
+        // The buttons on the changes come and go as lines are drawn, so UI Automation has to ask for them again.
+        TextArea.TextView.VisualLinesChanged += (_, _) => UIElementAutomationPeer.FromElement(this)?.ResetChildrenCache();
         TextChanged += (_, _) =>
         {
             if (!_showing)
@@ -135,6 +139,49 @@ public sealed class ChangeEditor : TextEditor
     };
 
     internal Brush Resource(string key) => (Brush)FindResource(key);
+
+    protected override AutomationPeer OnCreateAutomationPeer() => new EditorPeer(this);
+
+    /// <summary>
+    /// The editor to UI Automation and screen readers: its text, which can be read and set, and the buttons on the
+    /// changes in view, which AvalonEdit's own peer leaves out.
+    /// </summary>
+    private sealed class EditorPeer(ChangeEditor editor) : FrameworkElementAutomationPeer(editor), IValueProvider
+    {
+        public bool IsReadOnly => editor.IsReadOnly;
+
+        public string Value => editor.Text;
+
+        public void SetValue(string value)
+        {
+            if (IsReadOnly)
+                throw new ElementNotEnabledException();
+            editor.Text = value;
+        }
+
+        public override object GetPattern(PatternInterface patternInterface) =>
+            patternInterface == PatternInterface.Value ? this : base.GetPattern(patternInterface);
+
+        protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Document;
+
+        protected override string GetClassNameCore() => nameof(ChangeEditor);
+
+        protected override List<AutomationPeer> GetChildrenCore() =>
+            [.. base.GetChildrenCore() ?? [], .. Buttons(editor.TextArea.TextView).Select(CreatePeerForElement)];
+
+        private static IEnumerable<Button> Buttons(DependencyObject parent)
+        {
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is Button button)
+                    yield return button;
+                else
+                    foreach (var inner in Buttons(child))
+                        yield return inner;
+            }
+        }
+    }
 
     /// <summary>Paints the marked text: green for new text, yellow for a setting that needs a value.</summary>
     private sealed class MarkRenderer(ChangeEditor editor) : IBackgroundRenderer

@@ -1,6 +1,8 @@
 using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Windows;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -282,6 +284,11 @@ public class MainWindowTests
         Assert.Contains(open.Marks, mark => mark.Kind == MarkKind.Change && open.Text.Substring(mark.Start, mark.Length).Contains("Hosts"));
         await SaveScreenshotAsync(window, "11d-track-changes");
 
+        // Screen readers and the manual tests reach the text and each change's buttons through the editor
+        var peer = UIElementAutomationPeer.CreatePeerForElement(Descendants(window).OfType<ChangeEditor>().First(editor => editor.IsVisible));
+        Assert.Equal(open.Text, ((IValueProvider)peer.GetPattern(PatternInterface.Value)).Value);
+        Assert.Contains(peer.GetChildren(), child => child.GetName() == "Undo");
+
         // Listing another folder lays out new rows over the old ones. A folder heading once got a row built for a
         // file, and the file's typed command threw during layout.
         folder.GoIntoCommand.Execute(folder.Rows.OfType<FolderNodeViewModel>().Single(node => node.Name == "tools"));
@@ -383,6 +390,17 @@ public class MainWindowTests
 
         return ConfigUpdates.Plan(Path.Combine(root, "package"), Path.Combine(root, "server"),
             ["appsettings.json", "OrdersService.exe.config"], new MergeOptions(["Logging"]));
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            yield return child;
+            foreach (var inner in Descendants(child))
+                yield return inner;
+        }
     }
 
     private static async Task SaveScreenshotAsync(Window window, string name)
