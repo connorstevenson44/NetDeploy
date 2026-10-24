@@ -86,6 +86,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool NeedsElevation { get; private set; }
 
+    /// <summary>What was left out of the package's deploy.json or looks off in it, such as a file from another version.</summary>
+    [ObservableProperty]
+    public partial string? PackageWarning { get; private set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEmpty), nameof(IsConfigOnly), nameof(FolderNote), nameof(HeaderTitle), nameof(HeaderDetail))]
     [NotifyCanExecuteChangedFor(nameof(DryRunCommand), nameof(DeployCommand))]
@@ -149,6 +153,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Title = $"{manifest.App.Name} {manifest.App.Version}";
         PackagePath = path;
         NeedsElevation = manifest.RequiresAdmin && !Elevation.IsAdministrator;
+        PackageWarning = package.Warnings.Count == 0 ? null : string.Join(Environment.NewLine, package.Warnings);
         _appFiles = Installations.AppFiles(package);
 
         // A folder parameter that is exactly the install folder, such as {InstallDir}, is the folder tree's path.
@@ -191,7 +196,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         Log.Clear();
         SelectedTab = Folder is not null ? FilesTab : StepsTab;
-        Status = $"{manifest.Steps.Count} steps. Try a dry run first to see what will change.";
+        Status = PackageWarning is null
+            ? $"{manifest.Steps.Count} steps. Try a dry run first to see what will change."
+            : $"{manifest.Steps.Count} steps. The package opened with warnings, shown on the left; try a dry run first.";
         NotifyHeaderChanged();
     }
 
@@ -247,6 +254,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Title = "";
         PackagePath = null;
         NeedsElevation = false;
+        PackageWarning = null;
     }
 
     private void OnParameterChanged()

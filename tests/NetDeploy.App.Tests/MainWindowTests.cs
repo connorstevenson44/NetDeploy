@@ -200,10 +200,10 @@ public class MainWindowTests
         await tree.Listing;
         var root = tree.Tree.Single();
         var east = root.Children.OfType<FolderNodeViewModel>().Single(node => node.Name == "east");
-        Assert.True(root.IsTarget);
+        Assert.Equal(InstallPlan.Update, viewModel.Install!.Plan);
         Assert.Equal("instance", east.Kind);
 
-        viewModel.Install!.Name = "main";
+        viewModel.Install.Name = "main";
         Assert.Equal(InstallPlan.Convert, viewModel.Install.Plan);
         Assert.Contains(viewModel.Steps, step => step.Title == "Stop service OrdersService-main");
         viewModel.SelectedTab = MainViewModel.StepsTab;
@@ -213,14 +213,14 @@ public class MainWindowTests
         newInstall.Name = "west";
         Assert.Equal(InstallPlan.NewInstance, viewModel.Install.Plan);
         Assert.True(newInstall.IsTarget);
-        Assert.False(root.IsTarget);
+        Assert.Equal("Add", viewModel.Install.DeployLabel);
         viewModel.SelectedTab = MainViewModel.FilesTab;
         await SaveScreenshotAsync(window, "10-new-install");
 
         east.IsSelected = true;
         await tree.Listing;
         Assert.Equal(InstallPlan.Update, viewModel.Install.Plan);
-        Assert.True(east.IsTarget);
+        Assert.Equal("east", viewModel.Install.Selected!.Label);
         Assert.Equal(["OrdersService.exe"], tree.Items.OfType<FolderFileViewModel>().Select(file => file.Name));
     }
 
@@ -252,6 +252,16 @@ public class MainWindowTests
         folder.OpenFile!.Items.OfType<SettingViewModel>().Single(setting => setting.Key == "KeepDays").Value = "14";
         folder.ToggleDeleteCommand.Execute(folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "2026-10-01.log"));
         await SaveScreenshotAsync(window, "11-folder");
+
+        // Listing another folder lays out new rows over the old ones. A folder heading once got a row built for a
+        // file, and the file's typed command threw during layout.
+        folder.Tree[0].Children.OfType<FolderNodeViewModel>().Single(node => node.Name == "tools").IsSelected = true;
+        await folder.Listing;
+        await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+        folder.Tree[0].IsSelected = true;
+        await folder.Listing;
+        await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+        Assert.Contains(folder.Items, item => item is FolderViewModel);
     }
 
     /// <summary>Opens the sample's deploy.json: its folder opens as the package, with the config on its own tab.</summary>
@@ -265,6 +275,9 @@ public class MainWindowTests
         var editor = viewModel.Editor;
         editor.Selected = editor.Rows.Single(row => row.Title == ".NET 10 runtime");
         await SaveScreenshotAsync(window, "13-editor-step");
+        var check = (GroupFieldViewModel)editor.Fields.Single(field => field.Field.Name == "check");
+        ((ValueFieldViewModel)check.Fields.Single(field => field.Field.Name == "kind")).Text = "fileExists";
+        await SaveScreenshotAsync(window, "13b-editor-check-file");
 
         editor.Selected = editor.Rows.Single(row => row.Title == "Migrate database");
         ((ValueFieldViewModel)editor.Fields.Single(field => field.Field.Name == "path")).Text = "";

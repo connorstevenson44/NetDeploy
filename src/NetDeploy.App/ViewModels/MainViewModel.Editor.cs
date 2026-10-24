@@ -22,6 +22,7 @@ public sealed partial class MainViewModel
             return;
         ClosePackage();
         Editor.New();
+        HasEditor = true;
         ShowEditor("A small config to start from. Add steps on the left, then save it as deploy.json next to your app's files.");
     }
 
@@ -51,7 +52,7 @@ public sealed partial class MainViewModel
             return;
         ClosePackage();
         if (OpenInEditor(path))
-            ShowEditor("Pick a step on the left to change it. Problems are checked as you type.");
+            ShowEditor(Editor.VersionWarning ?? "Pick a step on the left to change it. Problems are checked as you type.");
     }
 
     [RelayCommand]

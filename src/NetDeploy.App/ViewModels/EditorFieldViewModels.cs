@@ -11,13 +11,17 @@ namespace NetDeploy.App.ViewModels;
 /// One setting on the editor's form, writing straight into the JSON object that owns it. changed is called after
 /// each write, so the editor can mark the file changed and check it again.
 /// </summary>
-public abstract class EditorFieldViewModel(JsonObject owner, SchemaField field, Action changed) : ObservableObject
+public abstract partial class EditorFieldViewModel(JsonObject owner, SchemaField field, Action changed) : ObservableObject
 {
     protected JsonObject Owner { get; } = owner;
     public SchemaField Field { get; } = field;
     public string Label => Field.Label + (Field.Required ? " *" : "");
     public string? Description => Field.Description;
     public FieldKind Kind => Field.Kind;
+
+    /// <summary>False for a group's field that doesn't apply to the kind picked, such as a check's framework for fileExists.</summary>
+    [ObservableProperty]
+    public partial bool IsShown { get; set; } = true;
 
     protected void Write(JsonNode? value)
     {
@@ -38,6 +42,7 @@ public abstract class EditorFieldViewModel(JsonObject owner, SchemaField field, 
             FieldKind.Group => new GroupFieldViewModel(owner, field, changed),
             FieldKind.Condition => new ConditionFieldViewModel(owner, field, changed),
             FieldKind.Inputs => (EditorFieldViewModel)new InputsFieldViewModel(owner, field, changed),
+            FieldKind.Cleanup => new CleanupFieldViewModel(owner, field, changed),
             _ => new ValueFieldViewModel(owner, field, changed),
         });
 }
@@ -61,7 +66,14 @@ public sealed partial class ValueFieldViewModel : EditorFieldViewModel
     }
 
     /// <summary>A choice that isn't required can be left unset, shown as an empty option.</summary>
-    public IReadOnlyList<string> Options => Field.Required ? Field.Options : ["", .. Field.Options];
+    public IReadOnlyList<ChoiceOption> Options => ChoiceOption.For(Field.Required ? Field.Options : ["", .. Field.Options]);
+
+    /// <summary>Empties the field, for one that no longer applies.</summary>
+    public void Clear()
+    {
+        Text = "";
+        IsChecked = false;
+    }
 
     [ObservableProperty]
     public partial string Text { get; set; }
@@ -123,17 +135,36 @@ public sealed class GroupFieldViewModel : EditorFieldViewModel
 {
     private readonly JsonObject _group;
 
+    private readonly ValueFieldViewModel? _kind;
+
     public GroupFieldViewModel(JsonObject owner, SchemaField field, Action changed) : base(owner, field, changed)
     {
         _group = owner[field.Name] as JsonObject ?? new JsonObject();
         Fields = For(_group, field.Fields, OnChildChanged).ToList();
+        _kind = Fields.OfType<ValueFieldViewModel>().FirstOrDefault(child => child.Field.Name == "kind");
+        ShowFieldsForKind(clear: false);
     }
 
     public IReadOnlyList<EditorFieldViewModel> Fields { get; }
 
+    // Only the fields for the kind picked are shown. When the kind changes, what was typed for the old one is dropped;
+    // a file opened with extra settings keeps them until then.
+    private void ShowFieldsForKind(bool clear)
+    {
+        if (_kind is null)
+            return;
+        foreach (var child in Fields)
+        {
+            child.IsShown = child.Field.AppliesTo(_kind.Text);
+            if (clear && !child.IsShown && child is ValueFieldViewModel value)
+                value.Clear();
+        }
+    }
+
     // The group joins the step once something is set in it, and leaves when it is emptied again.
     private void OnChildChanged()
     {
+        ShowFieldsForKind(clear: true);
         if (_group.Count == 0 && !Field.Required)
             Write(null);
         else if (_group.Parent is null)
@@ -141,6 +172,82 @@ public sealed class GroupFieldViewModel : EditorFieldViewModel
         else
             Changed();
     }
+}
+
+/// <summary>
+/// What removing the install does for a step: the undo NetDeploy does by itself, shown for reference, then PowerShell to
+/// run after it. A file with cleanup written as steps (the older form) keeps them, edited as JSON.
+/// </summary>
+public sealed partial class CleanupFieldViewModel : EditorFieldViewModel
+{
+    private readonly bool _loading = true;
+
+    public CleanupFieldViewModel(JsonObject owner, SchemaField field, Action changed) : base(owner, field, changed)
+    {
+        var value = owner[field.Name];
+        IsSteps = value is JsonArray;
+        Script = IsSteps ? "" : value?.ToString() ?? "";
+        StepsJson = IsSteps ? value!.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) : "";
+        _loading = false;
+    }
+
+    /// <summary>One line per thing undone by itself, or a line saying there is nothing.</summary>
+    public string Automatic => ManifestDocument.AutomaticCleanupOf(Owner) switch
+    {
+        [] => "Nothing is undone by itself for this step.",
+        var undo => "Undone by itself: " + string.Join(" ", undo),
+    };
+
+    /// <summary>True for cleanup written as steps, which replace the undo above.</summary>
+    [ObservableProperty]
+    public partial bool IsSteps { get; private set; }
+
+    [ObservableProperty]
+    public partial string Script { get; set; }
+
+    [ObservableProperty]
+    public partial string StepsJson { get; set; }
+
+    [ObservableProperty]
+    public partial string? Error { get; set; }
+
+    /// <summary>Called after any change to the step, since its settings decide what is undone by itself.</summary>
+    internal void Refresh() => OnPropertyChanged(nameof(Automatic));
+
+    partial void OnScriptChanged(string value)
+    {
+        if (!_loading)
+            Write(value.Trim().Length == 0 ? null : JsonValue.Create(value));
+    }
+
+    // Emptying the steps goes back to PowerShell.
+    partial void OnStepsJsonChanged(string value)
+    {
+        if (_loading)
+            return;
+        Error = null;
+        if (value.Trim().Length == 0)
+        {
+            IsSteps = false;
+            Write(null);
+            return;
+        }
+        try
+        {
+            Write(JsonNode.Parse(value) as JsonArray ?? throw new JsonException("Cleanup steps are a list: [ ... ]."));
+        }
+        catch (JsonException ex)
+        {
+            Error = $"Not saved: {ex.Message}";
+        }
+    }
+}
+
+/// <summary>A choice as the schema names it, and its label on the form: fileExists is "File exists".</summary>
+public sealed record ChoiceOption(string Value, string Label)
+{
+    public static IReadOnlyList<ChoiceOption> For(IEnumerable<string> values) =>
+        values.Select(value => new ChoiceOption(value, value.Length == 0 ? "" : ManifestSchema.Label(value))).ToList();
 }
 
 public enum ConditionMode { Always, Ask, ValueEquals, PowerShell, Advanced }
@@ -315,7 +422,7 @@ public sealed partial class InputRowViewModel : ObservableObject
         _loading = false;
     }
 
-    public static IReadOnlyList<string> Types { get; } = ["text", "secret", "number", "yesNo", "choice", "folder", "file"];
+    public static IReadOnlyList<ChoiceOption> Types { get; } = ChoiceOption.For(["text", "secret", "number", "yesNo", "choice", "folder", "file"]);
 
     [ObservableProperty]
     public partial string Name { get; set; }

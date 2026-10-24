@@ -18,7 +18,7 @@ public class EditingTests
         Assert.Equal(FieldKind.Lines, kinds["preserve"]);
         Assert.Equal(FieldKind.Condition, kinds["when"]);
         Assert.Equal(FieldKind.Inputs, kinds["inputs"]);
-        Assert.Equal(FieldKind.Json, kinds["cleanup"]);
+        Assert.Equal(FieldKind.Cleanup, kinds["cleanup"]);
         Assert.DoesNotContain("type", kinds.Keys);
         Assert.True(copy.Fields.Single(field => field.Name == "to").Required);
         Assert.Contains("merged", copy.Description);
@@ -26,6 +26,12 @@ public class EditingTests
         var check = ManifestSchema.For("checkPrerequisite")!.Fields.Single(field => field.Name == "check");
         Assert.Equal(FieldKind.Group, check.Kind);
         Assert.Equal(["dotnetRuntime", "installedProgram", "registryValue", "fileExists", "powershell"], check.Fields[0].Options);
+        var path = check.Fields.Single(field => field.Name == "path");
+        Assert.Equal(["fileExists"], path.Kinds);
+        Assert.Equal("A file or folder.", path.Description);
+        Assert.Equal(["dotnetRuntime", "installedProgram"], check.Fields.Single(field => field.Name == "minVersion").Kinds);
+        Assert.True(check.Fields[0].AppliesTo("fileExists"));
+        Assert.Equal("File exists", ManifestSchema.Label("fileExists"));
         Assert.Equal("Timeout minutes", ManifestSchema.Label("timeoutMinutes"));
         Assert.Equal("Run only when", ManifestSchema.For("if")!.Fields.Single(field => field.Name == "when").Label);
         Assert.DoesNotContain(ManifestSchema.For("if")!.Fields, field => field.Name is "then" or "else");

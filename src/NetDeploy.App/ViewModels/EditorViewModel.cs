@@ -5,6 +5,7 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MaterialDesignThemes.Wpf;
+using NetDeploy.Core;
 using NetDeploy.Core.Editing;
 
 namespace NetDeploy.App.ViewModels;
@@ -208,8 +209,12 @@ public sealed partial class EditorViewModel : ObservableObject
     /// <summary>Opens a deploy.json. Throws ManifestException when it isn't JSON, and IOException when it can't be read.</summary>
     public void Open(string path) => Reset(path, ManifestDocument.Parse(File.ReadAllText(path)));
 
+    /// <summary>A warning when the file was saved by another version of NetDeploy, or null.</summary>
+    public string? VersionWarning => ManifestLoader.VersionWarning(_document.SavedWith);
+
     public void Save(string path)
     {
+        _document.StampVersion();
         File.WriteAllText(path, _document.ToJson());
         FilePath = path;
         IsDirty = false;
@@ -331,6 +336,8 @@ public sealed partial class EditorViewModel : ObservableObject
         IsDirty = true;
         foreach (var row in Rows.Where(row => row.Kind == EditorRowKind.Step))
             row.Title = ManifestDocument.TitleOf(row.Step!);
+        foreach (var cleanup in Fields.OfType<CleanupFieldViewModel>())
+            cleanup.Refresh();
         Check();
     }
 

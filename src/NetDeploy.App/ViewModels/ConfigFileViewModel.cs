@@ -71,6 +71,7 @@ public sealed partial class SettingViewModel : DiffLine
     private readonly MergeRow _row;
     private readonly IConfigFormat _format;
     private readonly Action _changed;
+    private bool _editedByUser;
 
     public SettingViewModel(MergeRow row, IConfigFormat format, Action changed) : this(row, format, format.SplitPath(row.Path), changed)
     {
@@ -134,6 +135,7 @@ public sealed partial class SettingViewModel : DiffLine
             else
             {
                 _row.EditedValue = _format.ParseEdit(_row.Incoming ?? _row.Current ?? "\"\"", value);
+                _editedByUser = true;
                 Choose(MergeChoice.Edit);
             }
         }
@@ -154,7 +156,7 @@ public sealed partial class SettingViewModel : DiffLine
     public string StatusTip => Status switch
     {
         SettingStatus.Kept => $"{_row.Reason}. Keeps the value on the server; the package has {Default ?? "nothing"}.",
-        SettingStatus.Edited => "Your value.",
+        SettingStatus.Edited => _editedByUser ? "Your value." : _row.Reason + ".",
         SettingStatus.Unchanged => "No change.",
         _ => _row.Reason + ".",
     };
@@ -235,7 +237,8 @@ public sealed partial class ConfigFileViewModel : ObservableObject
     };
 
     /// <summary>Headings over the two sides: the left side is always what is there now.</summary>
-    public string NowHeading => _update.Kind == ConfigFileKind.New ? "Now: no file yet" : "Now";
+    public string NowHeading => _update.Kind != ConfigFileKind.New ? "Now"
+        : _settings.Any(setting => setting.InFileNow) ? "No file yet: the package's defaults" : "Now: no file yet";
     public string ValueHeading => _update.Kind == ConfigFileKind.Edit ? "With your changes" : "After deploy";
     public string ResetTip => _update.Kind == ConfigFileKind.Edit ? "Undo" : "Use the package value";
 
@@ -299,7 +302,8 @@ public sealed partial class ConfigFileViewModel : ObservableObject
     /// </summary>
     private void Layout()
     {
-        _root.Place(fileExistsNow: _update.Kind != ConfigFileKind.New);
+        // A new file has no left side, except the defaults of settings filled from the deploy's settings.
+        _root.Place(fileExistsNow: _update.Kind == ConfigFileKind.New ? null : true);
         int left = 0, right = 0;
         foreach (var line in _lines)
         {

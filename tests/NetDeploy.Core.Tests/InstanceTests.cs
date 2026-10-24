@@ -87,7 +87,26 @@ public sealed class InstanceTests : IDisposable
         Assert.Equal((ScheduledTaskAction.Delete, @"\Orders\Nightly-east"), (undoTask.Action, undoTask.TaskName));
         Assert.Equal(@"C:\Apps\Orders\east\Orders.exe", ((ServiceStep)service.WithValues(values)).Binary);
         Assert.Empty(new ServiceStep { Action = ServiceAction.Start, Service = "x" }.CleanupSteps());
-        Assert.Empty(new ServiceStep { Action = ServiceAction.Install, Service = "x", Cleanup = [] }.CleanupSteps());
+        Assert.Empty(new ServiceStep { Action = ServiceAction.Install, Service = "x", Cleanup = new(null, []) }.CleanupSteps());
+    }
+
+    [Fact]
+    public void Cleanup_powershell_runs_after_the_built_in_undo_and_cleanup_steps_replace_it()
+    {
+        var manifest = ManifestLoader.Parse("""
+            { "schemaVersion": 1, "app": { "name": "Orders", "version": "1.0" }, "steps": [
+              { "type": "scheduledTask", "action": "createOrUpdate", "task": "Nightly", "program": "a.exe", "schedule": { "kind": "hourly" },
+                "cleanup": "Remove-Item 'D:\\Data\\{Instance}' -Recurse" },
+              { "type": "service", "action": "install", "service": "Orders", "binary": "a.exe",
+                "cleanup": [ { "type": "deleteFolder", "path": "D:\\Cache" } ] } ] }
+            """);
+
+        var task = manifest.Steps[0];
+        Assert.Equal(["Deletes the scheduled task \"Nightly\": schtasks /Delete /TN \"Nightly\" /F."], task.AutomaticCleanup());
+        var undo = task.CleanupSteps().ToList();
+        Assert.IsType<ScheduledTaskStep>(undo[0]);
+        Assert.Equal(@"Remove-Item 'D:\Data\east' -Recurse", ((PowerShellStep)undo[1].WithValues(new Dictionary<string, string> { ["Instance"] = "east" })).Script);
+        Assert.IsType<DeleteFolderStep>(Assert.Single(manifest.Steps[1].CleanupSteps()));
     }
 
     [Theory]

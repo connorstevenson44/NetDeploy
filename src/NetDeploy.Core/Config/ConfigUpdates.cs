@@ -41,7 +41,9 @@ public static partial class ConfigUpdates
     /// <param name="source">The package folder being copied.</param>
     /// <param name="target">The folder it is copied to.</param>
     /// <param name="configFiles">Config files in the package, relative to source.</param>
-    public static IReadOnlyList<ConfigFileUpdate> Plan(string source, string target, IEnumerable<string> configFiles, MergeOptions options)
+    /// <param name="variables">The deploy's settings, which fill {{Name}} and {{Name|Default}} values in the package's files.</param>
+    public static IReadOnlyList<ConfigFileUpdate> Plan(string source, string target, IEnumerable<string> configFiles, MergeOptions options,
+        IReadOnlyDictionary<string, string>? variables = null)
     {
         var updates = new List<ConfigFileUpdate>();
         foreach (var relative in configFiles)
@@ -52,15 +54,45 @@ public static partial class ConfigUpdates
             var update = File.Exists(targetPath)
                 ? new ConfigFileUpdate(targetPath, ConfigFileKind.Update,
                     ConfigMerger.Plan(ReadBase(targetPath), File.ReadAllText(targetPath), incoming, format, options), incoming)
-                : new ConfigFileUpdate(targetPath, ConfigFileKind.New, ConfigMerger.Plan(null, incoming, incoming, format, options), incoming);
+                : new ConfigFileUpdate(targetPath, ConfigFileKind.New, ConfigMerger.PlanNew(incoming, format), incoming);
             updates.Add(update);
 
             if (Path.GetFileName(relative).Equals(BaseSettings, StringComparison.OrdinalIgnoreCase))
                 updates.AddRange(PlanOverrides(source, targetPath, relative, incoming));
         }
 
+        FillVariables(updates, variables ?? new Dictionary<string, string>());
         RequirePlaceholderValues(updates);
         return updates;
+    }
+
+    /// <summary>
+    /// Fills each setting the package brings as {{Name}} or {{Name|Default}} with the deploy setting called Name, or
+    /// else its default. In a new file the default shows as the value before, so the review shows what the setting
+    /// changed to. A token with neither is left for RequirePlaceholderValues to ask about.
+    /// </summary>
+    private static void FillVariables(List<ConfigFileUpdate> updates, IReadOnlyDictionary<string, string> variables)
+    {
+        foreach (var update in updates.Where(u => u.Kind is ConfigFileKind.Update or ConfigFileKind.New))
+        {
+            var format = update.Plan.Format;
+            foreach (var row in update.Plan.Rows)
+            {
+                if (row.Choice != MergeChoice.TakeIncoming || row.Incoming is not { } incoming
+                    || VariablePattern().Match(format.Display(incoming)) is not { Success: true } token)
+                    continue;
+
+                var name = token.Groups["name"].Value;
+                var fallback = token.Groups["default"] is { Success: true } group ? group.Value : null;
+                var value = variables.GetValueOrDefault(name) ?? fallback;
+                if (value is null)
+                    continue;
+
+                var before = update.Kind == ConfigFileKind.New && fallback is not null ? format.ParseEdit(incoming, fallback) : null;
+                row.Fill(format.ParseEdit(incoming, value), before,
+                    variables.ContainsKey(name) ? $"Filled from the deploy setting {name}" : $"The default for {name}; the deploy has no setting called that");
+            }
+        }
     }
 
     /// <summary>Opens a config file on the server for editing. Every setting starts as it is.</summary>
@@ -205,6 +237,9 @@ public static partial class ConfigUpdates
         value.Length == 0 ? isNew : PlaceholderPattern().IsMatch(value);
 
     private static string Section(string path) => path.Contains(':') ? path[..path.LastIndexOf(':')] : "";
+
+    [GeneratedRegex(@"^\{\{\s*(?<name>[A-Za-z_][A-Za-z0-9_.]*)\s*(\|(?<default>[^}]*))?\}\}$")]
+    private static partial Regex VariablePattern();
 
     [GeneratedRegex(@"^(change[ _-]?me|replace[ _-]?me|todo|tbd|fixme|<[^<>]+>|__[A-Za-z0-9_]+__|\$\{[^}]+\}|\{\{[^}]+\}\})$", RegexOptions.IgnoreCase)]
     private static partial Regex PlaceholderPattern();

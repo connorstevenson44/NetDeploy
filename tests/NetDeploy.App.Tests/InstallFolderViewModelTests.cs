@@ -109,14 +109,34 @@ public class InstallFolderViewModelTests : IDisposable
         var target = Target();
         var folder = await OpenAsync(target);
         var root = folder.Tree[0];
-        Assert.True(root.IsTarget);
+        Assert.True(root.IsSelected);
+        Assert.Equal("Single install", target.Selected!.Label);
 
         Child(root, "east").IsSelected = true;
 
         Assert.Equal("east", target.Selected!.Install!.Name);
         Assert.Equal(InstallPlan.Update, target.Plan);
-        Assert.True(Child(root, "east").IsTarget);
-        Assert.False(root.IsTarget);
+        Assert.Equal("Update", target.DeployLabel);
+    }
+
+    [Fact]
+    public async Task A_target_picked_elsewhere_moves_the_trees_pick()
+    {
+        var target = Target();
+        var folder = await OpenAsync(target);
+        var row = Assert.IsType<NewInstallRowViewModel>(folder.Tree[0].Children[^1]);
+
+        // Clone picks the new row for the user to name.
+        target.Selected = target.Targets.Single(choice => choice.IsNew);
+
+        Assert.True(row.IsSelected);
+        Assert.Equal("Add", target.DeployLabel);
+
+        target.Selected = target.Targets.Single(choice => choice.Label == "east");
+        await folder.Listing;
+
+        Assert.True(Child(folder.Tree[0], "east").IsSelected);
+        Assert.Equal("east", folder.SelectedFolder!.Name);
     }
 
     [Fact]
@@ -133,7 +153,6 @@ public class InstallFolderViewModelTests : IDisposable
         Assert.True(row.IsTarget);
         Assert.Equal(InstallPlan.NewInstance, target.Plan);
         Assert.Equal("west", target.Name);
-        Assert.DoesNotContain(folder.Tree[0].Loaded(), node => node.IsTarget);
 
         // Picking an install and coming back keeps what was typed.
         Child(folder.Tree[0], "east").IsSelected = true;

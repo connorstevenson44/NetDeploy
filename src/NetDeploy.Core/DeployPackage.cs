@@ -9,17 +9,20 @@ public sealed class DeployPackage : IDisposable
 
     private readonly bool _ownsFolder;
 
-    private DeployPackage(string sourcePath, string rootPath, DeployManifest manifest, bool ownsFolder)
+    private DeployPackage(string sourcePath, string rootPath, (DeployManifest Manifest, IReadOnlyList<string> Warnings) read, bool ownsFolder)
     {
         SourcePath = sourcePath;
         RootPath = rootPath;
-        Manifest = manifest;
+        (Manifest, Warnings) = read;
         _ownsFolder = ownsFolder;
     }
 
     public string SourcePath { get; }
     public string RootPath { get; }
     public DeployManifest Manifest { get; }
+
+    /// <summary>What was left out or looks off when the manifest was read, such as a setting from another version.</summary>
+    public IReadOnlyList<string> Warnings { get; }
 
     /// <summary>Opens a .zip package, or a folder that holds deploy.json (handy while writing a manifest).</summary>
     public static DeployPackage Open(string path)
@@ -41,12 +44,12 @@ public sealed class DeployPackage : IDisposable
         }
     }
 
-    private static DeployManifest ReadManifest(string folder)
+    private static (DeployManifest, IReadOnlyList<string>) ReadManifest(string folder)
     {
         var manifestPath = Path.Combine(folder, ManifestFileName);
         if (!File.Exists(manifestPath))
             throw new ManifestException([$"The package has no {ManifestFileName} at its root."]);
-        return ManifestLoader.Parse(File.ReadAllText(manifestPath));
+        return ManifestLoader.ParseLeniently(File.ReadAllText(manifestPath));
     }
 
     public void Dispose()

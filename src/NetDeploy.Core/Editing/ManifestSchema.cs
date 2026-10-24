@@ -4,13 +4,21 @@ using System.Text.RegularExpressions;
 namespace NetDeploy.Core.Editing;
 
 /// <summary>How a step property is edited.</summary>
-public enum FieldKind { Text, Number, YesNo, Choice, Lines, Condition, Group, Inputs, Json }
+public enum FieldKind { Text, Number, YesNo, Choice, Lines, Condition, Group, Inputs, Cleanup, Json }
 
 /// <summary>One property of a step, as deploy.schema.json describes it. A Group has its own fields, such as a check.</summary>
 public sealed record SchemaField(
     string Name, FieldKind Kind, string? Description, bool Required, IReadOnlyList<string> Options, IReadOnlyList<SchemaField> Fields)
 {
     public string Label => ManifestSchema.Label(Name);
+
+    /// <summary>
+    /// The kinds of the group this field applies to, such as fileExists for a check's path; empty when it applies to
+    /// every kind. The schema names them at the start of the description: "fileExists: a file or folder."
+    /// </summary>
+    public IReadOnlyList<string> Kinds { get; init; } = [];
+
+    public bool AppliesTo(string? kind) => Kinds.Count == 0 || Kinds.Contains(kind);
 }
 
 /// <summary>A step type: what it does and the properties it takes, name first.</summary>
@@ -59,9 +67,15 @@ public static partial class ManifestSchema
         ["checkPrerequisite"] = "Check a prerequisite",
         ["continueOnError"] = "Carry on if it fails",
         ["copyFiles"] = "Copy files",
+        ["core"] = "PowerShell 7",
+        ["createOrUpdate"] = "Create or update",
+        ["delayedAutomatic"] = "Automatic (delayed start)",
         ["deleteExtra"] = "Delete extra files",
         ["deleteFolder"] = "Delete a folder",
+        ["dotnetRuntime"] = ".NET runtime",
+        ["everyMinutes"] = "Every few minutes",
         ["if"] = "If / else",
+        ["onStart"] = "When Windows starts",
         ["powershell"] = "PowerShell",
         ["runAs"] = "Run as",
         ["runExe"] = "Run an exe",
@@ -69,7 +83,9 @@ public static partial class ManifestSchema
         ["takeNew"] = "Always take the package's value",
         ["valueName"] = "Value name",
         ["when"] = "Run only when",
+        ["windows"] = "Windows PowerShell 5.1",
         ["workingDir"] = "Working folder",
+        ["yesNo"] = "Yes / no",
     };
 
     public static IReadOnlyList<StepSchema> Steps { get; } = Load();
@@ -109,14 +125,32 @@ public static partial class ManifestSchema
     private static List<SchemaField> Fields(JsonObject definitions, JsonObject definition)
     {
         var required = definition["required"]?.AsArray().Select(name => name!.GetValue<string>()).ToHashSet() ?? [];
-        return (definition["properties"]?.AsObject() ?? [])
+        var fields = (definition["properties"]?.AsObject() ?? [])
             .Select(property => Field(definitions, property.Key, property.Value!.AsObject(), required.Contains(property.Key)))
             .ToList();
+        var kinds = fields.FirstOrDefault(field => field.Name == "kind")?.Options ?? [];
+        return kinds.Count == 0 ? fields : fields.Select(field => ForKinds(field, kinds)).ToList();
     }
+
+    // "dotnetRuntime, installedProgram: the lowest version." applies to those two kinds, and the help drops the prefix.
+    private static SchemaField ForKinds(SchemaField field, IReadOnlyList<string> kinds)
+    {
+        var match = KindsPrefix().Match(field.Description ?? "");
+        var named = match.Groups["kinds"].Value.Split(", ");
+        if (!match.Success || !named.All(kinds.Contains))
+            return field;
+        var help = match.Groups["help"].Value;
+        return field with { Description = char.ToUpperInvariant(help[0]) + help[1..], Kinds = named };
+    }
+
+    [GeneratedRegex(@"^(?<kinds>[a-zA-Z]+(, [a-zA-Z]+)*): (?<help>.+)$", RegexOptions.Singleline)]
+    private static partial Regex KindsPrefix();
 
     private static SchemaField Field(JsonObject definitions, string name, JsonObject property, bool required)
     {
         var description = property["description"]?.GetValue<string>();
+        if (name == "cleanup")
+            return new(name, FieldKind.Cleanup, description, required, [], []);
         if (property["$ref"]?.GetValue<string>() is { } reference)
         {
             var target = Resolve(definitions, reference);

@@ -12,7 +12,7 @@ public sealed class MergeRow(string path, string? baseValue, string? current, st
     /// <summary>The value in the package deployed last time, or null if it had none.</summary>
     public string? Base { get; } = baseValue;
 
-    public string? Current { get; } = current;
+    public string? Current { get; private set; } = current;
     public string? Incoming { get; } = incoming;
     public string Reason { get; private set; } = reason;
     public bool IsConflict { get; private set; } = choice is null;
@@ -35,6 +35,18 @@ public sealed class MergeRow(string path, string? baseValue, string? current, st
         MergeChoice.Remove => null,
         _ => throw new InvalidOperationException($"'{Path}' needs a choice: {Reason}"),
     };
+
+    /// <summary>
+    /// Gives a {{Name}} setting its value. In a new file, the token's default stands in for the value before, so the
+    /// review shows what it changed to.
+    /// </summary>
+    internal void Fill(string value, string? before, string reason)
+    {
+        Current = before ?? Current;
+        EditedValue = value;
+        Choice = MergeChoice.Edit;
+        Reason = reason;
+    }
 
     /// <summary>Makes the user decide this row, for example because its value is still a placeholder.</summary>
     internal void RequireChoice(string reason)
@@ -101,6 +113,15 @@ public static class ConfigMerger
             })
             .ToList();
 
+        return new MergePlan(format, incomingText, rows);
+    }
+
+    /// <summary>A file the server doesn't have yet: every setting is new, taken from the package.</summary>
+    public static MergePlan PlanNew(string incomingText, IConfigFormat format)
+    {
+        var rows = format.Read(incomingText)
+            .Select(pair => new MergeRow(pair.Key, null, null, pair.Value, MergeChoice.TakeIncoming, "New file"))
+            .ToList();
         return new MergePlan(format, incomingText, rows);
     }
 

@@ -34,6 +34,41 @@ public class ManifestLoaderTests
     }
 
     [Fact]
+    public void A_package_with_settings_this_version_does_not_know_opens_without_them()
+    {
+        var json = """
+            {
+              "schemaVersion": 1,
+              "netdeployVersion": "0.9.0",
+              "notes": "from a later editor",
+              "app": { "name": "Orders", "version": "1.0.0" },
+              "steps": [
+                { "type": "checkPrerequisite", "check": { "kind": "fileExists", "path": "C:\\x", "retries": 2 } },
+                { "type": "copyFiles", "from": "app", "to": "C:\\Apps", "verify": true }
+              ]
+            }
+            """;
+        Assert.Throws<ManifestException>(() => ManifestLoader.Parse(json));
+
+        var (manifest, warnings) = ManifestLoader.ParseLeniently(json);
+
+        Assert.Equal(2, manifest.Steps.Count);
+        Assert.StartsWith("This deploy.json was saved by NetDeploy 0.9.0; this is " + ManifestLoader.NetDeployVersion, warnings[0]);
+        Assert.Equal(
+            ["Left out notes", "Left out steps[0].check.retries", "Left out steps[1].verify"],
+            warnings.Skip(1).Select(warning => warning[..warning.IndexOf(':')]).Order());
+        Assert.Throws<ManifestException>(() => ManifestLoader.ParseLeniently(Manifest("""{ "type": "copyFiles", "from": "app" }""")));
+    }
+
+    [Fact]
+    public void A_file_from_a_newer_netdeploy_says_so()
+    {
+        Assert.Null(ManifestLoader.VersionWarning(null));
+        Assert.Null(ManifestLoader.VersionWarning(ManifestLoader.NetDeployVersion));
+        Assert.Contains("newer than this one", ManifestLoader.VersionWarning("99.0.0"));
+    }
+
+    [Fact]
     public void Type_does_not_have_to_come_first()
     {
         var manifest = ManifestLoader.Parse(Manifest("""{ "from": "app", "to": "C:\\Apps", "type": "copyFiles" }"""));

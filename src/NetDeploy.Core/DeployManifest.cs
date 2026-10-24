@@ -10,6 +10,10 @@ public sealed class DeployManifest
     public string? Schema { get; init; }
 
     public int SchemaVersion { get; init; }
+
+    /// <summary>The NetDeploy whose editor last saved the file, so a file from another version can be spotted.</summary>
+    [JsonPropertyName("netdeployVersion")]
+    public string? NetDeployVersion { get; init; }
     public required AppInfo App { get; init; }
     public bool RequiresAdmin { get; init; }
 
