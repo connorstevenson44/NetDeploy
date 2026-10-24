@@ -9,7 +9,7 @@ public partial class CleanupWindow : Window
     public CleanupWindow(string title, string explanation, int number, int total)
     {
         InitializeComponent();
-        Counter.Text = $"REMOVING THE INSTALL: STEP {number} OF {total}";
+        Counter.Text = $"Removing the install · step {number} of {total}";
         StepTitle.Text = title;
         Explanation.Text = explanation;
     }

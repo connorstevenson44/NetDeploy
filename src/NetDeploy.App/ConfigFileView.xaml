@@ -219,10 +219,10 @@
             <TextBlock Foreground="{StaticResource Success}" Margin="0,0,14,0" ToolTip="Settings added"><Run Text="+" /><Run Text="{Binding AddedCount, Mode=OneWay}" /></TextBlock>
             <TextBlock Foreground="{StaticResource Danger}" Margin="0,0,14,0" ToolTip="Settings removed"><Run Text="−" /><Run Text="{Binding RemovedCount, Mode=OneWay}" /></TextBlock>
             <TextBlock Foreground="{StaticResource Brand}" Margin="0,0,14,0" ToolTip="Settings changed"><Run Text="~" /><Run Text="{Binding ModifiedCount, Mode=OneWay}" /></TextBlock>
-            <StackPanel Orientation="Horizontal" ToolTip="Settings that need a value from you"
+            <StackPanel Orientation="Horizontal"
                         Visibility="{Binding HasConflicts, Converter={StaticResource BoolToVisibility}}">
                 <materialDesign:PackIcon Kind="AlertCircle" Foreground="{StaticResource Warning}" Width="14" Height="14" VerticalAlignment="Center" />
-                <TextBlock Foreground="{StaticResource Warning}" Margin="4,0,0,0" VerticalAlignment="Center"><Run Text="{Binding ConflictCount, Mode=OneWay}" /><Run Text=" need a value" /></TextBlock>
+                <TextBlock Text="{Binding ConflictText}" Foreground="{StaticResource Warning}" Margin="4,0,0,0" VerticalAlignment="Center" />
             </StackPanel>
         </StackPanel>
 

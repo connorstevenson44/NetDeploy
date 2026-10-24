@@ -65,7 +65,7 @@ public sealed partial class MainViewModel
 
         Install.Selected = Install.Targets.First(choice => choice.IsNew);
         Install.CopyFrom = Install.CopySources.FirstOrDefault(choice => choice.Install?.Directory == source.Directory);
-        Status = "Name the new install in the folder view, then deploy.";
+        Status = "Type a name for the new install on the left, then deploy.";
     }
 
     /// <summary>Runs an exe, script or batch file from the folder, after asking for its arguments.</summary>

@@ -325,7 +325,10 @@ public class MainWindowTests
         using (var context = visual.RenderOpen())
         {
             context.DrawRectangle(window.Background, null, new Rect(size));
-            context.DrawRectangle(new VisualBrush(content), null, new Rect(size));
+            // The brush shows the content's layout box. By default it would show only the drawn part, which crops a
+            // dialog's top margin away.
+            var brush = new VisualBrush(content) { Viewbox = new Rect(size), ViewboxUnits = BrushMappingMode.Absolute };
+            context.DrawRectangle(brush, null, new Rect(size));
         }
         var bitmap = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(visual);

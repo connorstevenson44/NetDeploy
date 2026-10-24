@@ -7,18 +7,18 @@
         ShowInTaskbar="False">
     <!-- A step's questions, asked as it runs. Laid out like the workspace's panes: a header, the form, and a footer bar. -->
     <StackPanel>
-        <DockPanel Margin="22,20,22,4">
+        <DockPanel Margin="24,22,24,0">
             <Border Width="40" Height="40" CornerRadius="20" Background="{StaticResource BrandTint}" VerticalAlignment="Top" Margin="0,0,14,0">
                 <materialDesign:PackIcon Kind="ClipboardEditOutline" Foreground="{StaticResource Brand}" Width="20" Height="20"
                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="THIS STEP NEEDS A FEW ANSWERS" Foreground="{StaticResource Brand}" FontSize="11" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource PanelTitle}" TextWrapping="Wrap" />
+                <TextBlock Text="Fill these in to continue." Style="{StaticResource Caption}" Margin="0,2,0,0" />
             </StackPanel>
         </DockPanel>
-        <ItemsControl ItemsSource="{Binding Fields}" Focusable="False" Margin="22,18,22,6" />
-        <Border Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="22,12">
+        <ItemsControl ItemsSource="{Binding Fields}" Focusable="False" Margin="24,20,24,6" />
+        <Border Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="24,12">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Style="{StaticResource QuietButton}" Content="Cancel deploy" IsCancel="True" Margin="0,0,8,0" />
                 <Button Style="{StaticResource PrimaryButton}" Content="Continue" IsDefault="True" Click="OnContinue"

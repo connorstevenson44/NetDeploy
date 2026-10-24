@@ -72,8 +72,8 @@ public sealed class FolderNodeViewModel
     public string Detail => Target?.Install switch
     {
         { Version: { } version } => "v" + version,
-        not null => "unknown version",
-        _ => IsMissing ? "new folder" : "",
+        not null => "",
+        _ => IsMissing ? "not created yet" : "",
     };
 
     public string Kind => IsInstall ? "install" : "";
@@ -189,10 +189,13 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     /// <summary>The view stops at the install folder.</summary>
     public bool CanGoUp => CurrentFolder is { } current && !IsRoot(current.FullPath);
 
-    /// <summary>Where the view is, from the install folder down, such as "C:\Apps\Orders › logs › 2026".</summary>
+    /// <summary>Where the view is, from the install folder down, such as "Orders › logs › 2026". The full path is above it.</summary>
     public string Location => CurrentFolder is not { } current ? ""
         : IsRoot(current.FullPath) ? current.Name
-        : string.Join(" › ", [Root.TrimEnd(Path.DirectorySeparatorChar), .. Path.GetRelativePath(Root, current.FullPath).Split(Path.DirectorySeparatorChar)]);
+        : string.Join(" › ", [RootName, .. Path.GetRelativePath(Root, current.FullPath).Split(Path.DirectorySeparatorChar)]);
+
+    /// <summary>The install folder's own name, or the whole path for the top of a drive.</summary>
+    private string RootName => Path.GetFileName(Root.TrimEnd(Path.DirectorySeparatorChar)) is { Length: > 0 } name ? name : Root;
 
     /// <summary>Folder headings and files, in path order.</summary>
     [ObservableProperty]
@@ -223,6 +226,13 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     public int DeleteCount => _deletes.Count;
     public bool HasPending => EditCount > 0 || DeleteCount > 0;
     public bool HasConflicts => _opened.Values.Any(file => file.HasConflicts);
+
+    /// <summary>What Finalize will do, in a few words, for the bar beside it.</summary>
+    public string PendingText => string.Join(", ", new[]
+    {
+        EditCount > 0 ? Words.Count(EditCount, "setting changed", "settings changed") : null,
+        DeleteCount > 0 ? Words.Count(DeleteCount, "file to delete", "files to delete") : null,
+    }.OfType<string>());
 
     /// <summary>A plain list of what Finalize will do, for the confirmation.</summary>
     public string PendingSummary
@@ -314,7 +324,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
     private void GoUp() => Navigate(Node(Path.GetDirectoryName(CurrentFolder!.FullPath)!));
 
     internal FolderNodeViewModel Node(string path) =>
-        new(path, IsRoot(path) ? Root.TrimEnd(Path.DirectorySeparatorChar) : Path.GetFileName(path),
+        new(path, IsRoot(path) ? RootName : Path.GetFileName(path),
             _installsByFolder.GetValueOrDefault(Path.GetFullPath(path)));
 
     /// <summary>
@@ -446,6 +456,7 @@ public sealed partial class InstallFolderViewModel : ObservableObject, IDisposab
         OnPropertyChanged(nameof(DeleteCount));
         OnPropertyChanged(nameof(HasPending));
         OnPropertyChanged(nameof(HasConflicts));
+        OnPropertyChanged(nameof(PendingText));
     }
 
     private string Relative(string path) => Path.GetRelativePath(Root, path).Replace('\\', '/');

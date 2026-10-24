@@ -13,7 +13,7 @@ public sealed record InstallTarget(Installation? Install)
     public string Label => Install?.Name ?? "New";
 
     /// <summary>The label in the "start from a copy of" list, where no install means a fresh one.</summary>
-    public string CopyLabel => Install is null ? "Nothing: a fresh install" : Label;
+    public string CopyLabel => Install is null ? "Nothing, a clean install" : $"A copy of {Label}";
 
     public string Detail => Install?.Version is { } version ? "v" + version : "";
 
@@ -94,6 +94,34 @@ public sealed partial class InstallViewModel(string version, IReadOnlyCollection
         }
     }
 
+    /// <summary>The plan in a few words, above its detail in the install folder.</summary>
+    public string Headline => Plan switch
+    {
+        InstallPlan.New => $"New install: {Name}",
+        InstallPlan.Update => $"Update {Name}",
+        _ => $"Rename {Selected!.Install!.Name} to {Name}",
+    };
+
+    /// <summary>The rest of the plan, under its headline: where it goes, or which versions.</summary>
+    public string Detail
+    {
+        get
+        {
+            var target = Installations.Variables(_folder, Name)["InstanceDir"];
+            var old = Selected?.Install;
+            return Plan switch
+            {
+                InstallPlan.New when CopyFrom?.Install is { } source => $"Starts from a copy of {source.Name} in {target}",
+                InstallPlan.New => target,
+                InstallPlan.Update => $"{old!.Version ?? "Unknown version"} → {version}",
+                _ => $"Deploys {version} to {target}, then offers to remove {old!.Name}",
+            };
+        }
+    }
+
+    /// <summary>A new install with no name yet: a prompt to type one rather than an error.</summary>
+    public bool NeedsName => Selected?.IsNew == true && Name.Length == 0;
+
     /// <summary>Why the deploy can't go ahead with these choices, or null.</summary>
     public string? Problem
     {
@@ -104,7 +132,7 @@ public sealed partial class InstallViewModel(string version, IReadOnlyCollection
             if (Selected is null)
                 return "Pick an install to update, or New.";
             if (Name.Length == 0)
-                return Selected.IsNew ? "Name the new install." : "An install needs a name.";
+                return Selected.IsNew ? "Type a name for the new install." : "An install needs a name.";
             if (Installations.CheckName(Name) is { } nameProblem)
                 return nameProblem;
             if (Installs.Any(other => other != Selected.Install && other.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)))
@@ -182,6 +210,9 @@ public sealed partial class InstallViewModel(string version, IReadOnlyCollection
         OnPropertyChanged(nameof(PlanIcon));
         OnPropertyChanged(nameof(DeployLabel));
         OnPropertyChanged(nameof(Summary));
+        OnPropertyChanged(nameof(Headline));
+        OnPropertyChanged(nameof(Detail));
+        OnPropertyChanged(nameof(NeedsName));
         OnPropertyChanged(nameof(Problem));
         OnPropertyChanged(nameof(CanCopy));
         OnPropertyChanged(nameof(CanRename));

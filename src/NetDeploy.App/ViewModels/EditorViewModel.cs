@@ -93,7 +93,7 @@ public sealed record EditorProblemViewModel(string Message, string Where, JsonOb
 public sealed partial class EditorViewModel : ObservableObject
 {
     private static readonly SchemaField ParametersField =
-        new("parameters", FieldKind.Inputs, "Asked once, before the first step. Steps use them as {Name}.", false, [], []);
+        new("parameters", FieldKind.Inputs, "Asked for once, before the first step. Steps use each one as {Name}.", false, [], []);
 
     private ManifestDocument _document = ManifestDocument.New();
     private string? _name;
@@ -140,7 +140,7 @@ public sealed partial class EditorViewModel : ObservableObject
 
     public string ProblemSummary => Problems.Count switch
     {
-        0 => "No problems: NetDeploy can read this config.",
+        0 => "No problems found",
         1 => "1 problem",
         var count => $"{count} problems",
     };

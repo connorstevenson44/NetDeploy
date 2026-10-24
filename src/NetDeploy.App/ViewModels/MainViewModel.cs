@@ -32,7 +32,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _user = user;
         Title = "";
-        Status = "Open a package, an install folder or a deploy config, or drop one onto this window.";
+        Status = "Open a package, an install folder or a deploy.json, or drop one onto this window.";
         Editor.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(EditorViewModel.Title) or nameof(EditorViewModel.FilePath))
@@ -66,8 +66,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Why there is no folder tree with a package open, or null.</summary>
     public string? FolderNote => !HasPackage || Folder is not null ? null
-        : Install is null ? "This package doesn't install into one folder, so there is no folder to show."
-        : "Type or browse to the install folder to see what is in it.";
+        : Install is null ? "This package doesn't install into a folder."
+        : "Choose the install folder to see what is in it.";
 
     [ObservableProperty]
     public partial int SelectedTab { get; set; }
@@ -197,8 +197,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Log.Clear();
         SelectedTab = Folder is not null ? FilesTab : StepsTab;
         Status = PackageWarning is null
-            ? $"{manifest.Steps.Count} steps. Try a dry run first to see what will change."
-            : $"{manifest.Steps.Count} steps. The package opened with warnings, shown on the left; try a dry run first.";
+            ? $"Opened {Words.Count(manifest.Steps.Count, "step", "steps")}. Start with a dry run to see what will change."
+            : $"Opened {Words.Count(manifest.Steps.Count, "step", "steps")}, with warnings shown on the left. Start with a dry run to see what will change.";
         NotifyHeaderChanged();
     }
 
@@ -227,7 +227,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SetFolder(path);
         Log.Clear();
         SelectedTab = FilesTab;
-        Status = "Pick a folder on the left to see its files. Edits and deletes are only made when you finalize.";
+        Status = "Go into a folder on the left to see its files. Nothing is changed until you finalize.";
     }
 
     [RelayCommand]

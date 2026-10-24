@@ -131,21 +131,20 @@
         </Style.Triggers>
     </Style>
 
-    <!-- A copy step: where it copies to, and the totals -->
+    <!-- A copy step: where it copies to, and what happens to its files. Counts that are zero are left out. -->
     <DataTemplate DataType="{x:Type vm:FilePlanViewModel}">
         <Border Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1" Padding="10,0" Margin="0,6,0,0">
             <DockPanel Height="34">
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" TextElement.FontFamily="{StaticResource Code}" TextElement.FontSize="12">
-                    <TextBlock Foreground="{StaticResource Success}" Margin="0,0,12,0" ToolTip="Files added"><Run Text="+" /><Run Text="{Binding NewCount, Mode=OneWay}" /></TextBlock>
-                    <TextBlock Foreground="{StaticResource Brand}" Margin="0,0,12,0" ToolTip="Files replaced or merged"><Run Text="~" /><Run Text="{Binding ReplaceCount, Mode=OneWay}" /></TextBlock>
-                    <TextBlock Foreground="{StaticResource Danger}" Margin="0,0,12,0" ToolTip="Files deleted"><Run Text="−" /><Run Text="{Binding DeleteCount, Mode=OneWay}" /></TextBlock>
-                    <StackPanel Orientation="Horizontal" ToolTip="Files left as they are">
-                        <materialDesign:PackIcon Kind="Lock" Foreground="{StaticResource InkMuted}" Width="12" Height="12" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding KeepCount}" Foreground="{StaticResource InkMuted}" Margin="3,0,0,0" />
-                    </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" TextElement.FontSize="12" TextElement.FontWeight="SemiBold">
+                    <TextBlock Foreground="{StaticResource Success}" Margin="12,0,0,0" Visibility="{Binding NewCount, Converter={StaticResource NonZeroToVisible}}"><Run Text="{Binding NewCount, Mode=OneWay}" /><Run Text=" new" /></TextBlock>
+                    <TextBlock Foreground="{StaticResource Brand}" Margin="12,0,0,0" Visibility="{Binding ReplaceCount, Converter={StaticResource NonZeroToVisible}}"
+                               ToolTip="Replaced or merged"><Run Text="{Binding ReplaceCount, Mode=OneWay}" /><Run Text=" updated" /></TextBlock>
+                    <TextBlock Foreground="{StaticResource Danger}" Margin="12,0,0,0" Visibility="{Binding DeleteCount, Converter={StaticResource NonZeroToVisible}}"><Run Text="{Binding DeleteCount, Mode=OneWay}" /><Run Text=" deleted" /></TextBlock>
+                    <TextBlock Foreground="{StaticResource InkMuted}" Margin="12,0,0,0" Visibility="{Binding KeepCount, Converter={StaticResource NonZeroToVisible}}"
+                               ToolTip="Left as they are"><Run Text="{Binding KeepCount, Mode=OneWay}" /><Run Text=" kept" /></TextBlock>
                 </StackPanel>
                 <materialDesign:PackIcon Kind="ContentCopy" Width="16" Height="16" Foreground="{StaticResource Brand}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Target}"><Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding Target, Mode=OneWay}" FontFamily="{StaticResource Code}" FontSize="12" Foreground="{StaticResource InkMuted}" /></TextBlock>
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Target}" />
             </DockPanel>
         </Border>
     </DataTemplate>
@@ -175,6 +174,7 @@
                     <ColumnDefinition Width="30" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <materialDesign:PackIcon x:Name="State" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -184,7 +184,9 @@
                 <TextBlock x:Name="Name" Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding Path}" Margin="{Binding Indent}"
                            FontFamily="{StaticResource Code}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
 
-                <ItemsControl Grid.Column="2" ItemsSource="{Binding Options}" Margin="8,0,4,0" Focusable="False">
+                <TextBlock x:Name="ActionLabel" Grid.Column="2" Text="{Binding ActionLabel}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource InkMuted}"
+                           VerticalAlignment="Center" TextAlignment="Right" MinWidth="50" Margin="8,0,4,0" />
+                <ItemsControl Grid.Column="3" ItemsSource="{Binding Options}" Margin="0,0,4,0" Focusable="False">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" />
@@ -235,6 +237,7 @@
             <DataTrigger Binding="{Binding Action}" Value="{x:Static steps:FileAction.Delete}">
                 <Setter TargetName="Row" Property="Background" Value="{StaticResource DiffRemoved}" />
                 <Setter TargetName="Name" Property="TextDecorations" Value="Strikethrough" />
+                <Setter TargetName="ActionLabel" Property="Foreground" Value="{StaticResource Danger}" />
             </DataTrigger>
         </DataTemplate.Triggers>
     </DataTemplate>

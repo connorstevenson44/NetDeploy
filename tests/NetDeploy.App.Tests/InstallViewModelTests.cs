@@ -66,7 +66,7 @@ public class InstallViewModelTests : IDisposable
 
         Assert.Equal((InstallPlan.New, "Add"), (picker.Plan, picker.DeployLabel));
         Assert.False(picker.CanRename);
-        Assert.Equal("Name the new install.", picker.Problem);
+        Assert.Equal("Type a name for the new install.", picker.Problem);
         picker.Name = "east";
         Assert.Equal("There is already an install called east.", picker.Problem);
 
