@@ -84,13 +84,19 @@ public static partial class ConfigUpdates
                 continue;
             }
 
-            var basePath = BaseCopyPath(update.TargetPath);
             Directory.CreateDirectory(Path.GetDirectoryName(update.TargetPath)!);
-            Directory.CreateDirectory(Path.GetDirectoryName(basePath)!);
             // Untouched package files keep their own formatting.
             File.WriteAllText(update.TargetPath, update.Plan.ChangesStartFile ? update.Plan.BuildResult() : update.PackageText);
-            File.WriteAllText(basePath, update.PackageText);
+            SaveBase(update.TargetPath, update.PackageText!);
         }
+    }
+
+    /// <summary>Remembers the package's copy of a config file as the base for the next three-way merge.</summary>
+    internal static void SaveBase(string target, string packageText)
+    {
+        var basePath = BaseCopyPath(target);
+        Directory.CreateDirectory(Path.GetDirectoryName(basePath)!);
+        File.WriteAllText(basePath, packageText);
     }
 
     internal static string BaseCopyPath(string target) =>

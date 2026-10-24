@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using NetDeploy.App.ViewModels;
 using NetDeploy.Core;
 using NetDeploy.Core.Config;
+using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.Tests;
 
@@ -52,7 +53,10 @@ public class MainWindowTests
                     viewModel.Parameters.Single(p => p.Name == "DbConnection").Value = "asd";
                     await viewModel.DryRunCommand.ExecuteAsync(null);
                     await SaveScreenshotAsync(window, "2-dry-run");
+                    Assert.Contains(viewModel.Log, entry => entry.Message.Contains("Dry run finished"));
+                    Assert.DoesNotContain(viewModel.Steps, step => step.State == StepState.Failed);
                     await SaveDialogScreenshotsAsync();
+                    await SaveFilesScreenshotAsync(window, viewModel);
                 }
                 catch (Exception ex)
                 {
@@ -71,8 +75,6 @@ public class MainWindowTests
                 ExceptionDispatchInfo.Capture(failure).Throw();
 
             window.Close();
-            Assert.Contains(viewModel.Log, entry => entry.Message.Contains("Dry run finished"));
-            Assert.DoesNotContain(viewModel.Steps, step => step.State == StepState.Failed);
         }, onTimeout: () => $"Status: {viewModel?.Status}");
     }
 
@@ -98,6 +100,55 @@ public class MainWindowTests
         review.SelectedFile = review.Files.Single(file => file.FileName == "appsettings.Production.json");
         await SaveScreenshotAsync(merge, "5-config-override");
         merge.Close();
+    }
+
+    /// <summary>Opens a package next to a server that has an older copy, and shows the Files tab.</summary>
+    private static async Task SaveFilesScreenshotAsync(Window window, MainViewModel viewModel)
+    {
+        var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "files", Path.GetRandomFileName())).FullName;
+        void Write(string path, string text)
+        {
+            var full = Path.Combine(root, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            File.WriteAllText(full, text);
+        }
+
+        Write("package/deploy.json", """
+            {
+              "schemaVersion": 1,
+              "app": { "name": "OrdersService", "version": "2.5.0" },
+              "parameters": { "InstallDir": { "label": "Install folder", "type": "folder" } },
+              "steps": [
+                { "type": "copyFiles", "from": "app", "to": "{InstallDir}", "preserve": ["data/**"], "deleteExtra": true },
+                { "type": "copyFiles", "name": "Copy tools", "from": "tools", "to": "{ToolsDir}", "inputs": { "ToolsDir": {} } }
+              ]
+            }
+            """);
+        foreach (var name in new[] { "OrdersService.exe", "OrdersService.dll", "Orders.Core.dll", "Newtonsoft.Json.dll", "plugins/Payments.dll", "plugins/Reports.dll" })
+            Write($"package/app/{name}", name + " 2.5");
+        Write("package/app/appsettings.json", "{}");
+        Write("package/app/OrdersService.exe.config", "<configuration />");
+        Write("package/app/data/seed.db", "seed");
+        Write("package/app/wwwroot/index.html", "<html />");
+        Write("package/tools/cleanup.exe", "tool");
+
+        Write("server/OrdersService.exe", "OrdersService.exe 2.4");
+        Write("server/OrdersService.dll", "OrdersService.dll 2.4");
+        Write("server/Newtonsoft.Json.dll", "Newtonsoft.Json.dll 2.5");
+        Write("server/Orders.Legacy.dll", "legacy");
+        Write("server/plugins/Payments.dll", "plugins/Payments.dll 2.5");
+        Write("server/plugins/Fax.dll", "fax");
+        Write("server/appsettings.json", "{}");
+        Write("server/OrdersService.exe.config", "<configuration><appSettings /></configuration>");
+        Write("server/data/seed.db", "live");
+
+        viewModel.Load(Path.Combine(root, "package"));
+        viewModel.Parameters.Single(p => p.Name == "InstallDir").Value = Path.Combine(root, "server");
+        viewModel.SelectedTab = MainViewModel.FilesTab;
+        var plan = viewModel.FilePlans.OfType<FilePlanViewModel>().Single();
+        plan.Items.OfType<FileRowViewModel>().Single(row => row.Path == "plugins/Fax.dll").Action = FileAction.Keep;
+        Assert.IsType<FilePlanError>(viewModel.FilePlans[1]);
+        await SaveScreenshotAsync(window, "6-files");
     }
 
     /// <summary>A server running version 2.3 with its own override, and a package for 2.4 that renames a setting and adds one.</summary>

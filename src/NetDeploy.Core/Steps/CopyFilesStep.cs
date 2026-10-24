@@ -30,57 +30,104 @@ public sealed class CopyFilesStep : DeployStep
 
     public override async Task RunAsync(StepContext context, CancellationToken cancellationToken)
     {
-        var source = context.PackagePath(From);
-        var target = Path.GetFullPath(context.Resolve(To));
-        var preserve = Matcher(Preserve);
-        var configs = Matcher(Configs);
-
-        var files = Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories)
-            .Select(file => FileSystem.RelativeUnixPath(source, file))
-            .ToList();
-        var configFiles = files.Where(file => configs.Match(file).HasMatches).ToList();
+        var plan = PlanFiles(context.PackageDirectory, context.Variables);
+        if (context.Options.FileActions.TryGetValue(this, out var chosen))
+            foreach (var entry in plan.Entries)
+                if (chosen.TryGetValue(entry.Path, out var action) && entry.Choices.Contains(action))
+                    entry.Action = action;
 
         int copied = 0, kept = 0, deleted = 0;
-        foreach (var relative in files.Except(configFiles))
+        var merges = new List<string>();
+        foreach (var entry in plan.Entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var destination = Path.Combine(target, relative);
-            if (File.Exists(destination) && preserve.Match(relative).HasMatches)
+            var destination = Path.Combine(plan.Target, entry.Path);
+            switch (entry.Action)
             {
-                kept++;
-                continue;
-            }
-
-            if (!context.DryRun)
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                File.Copy(Path.Combine(source, relative), destination, overwrite: true);
-            }
-            copied++;
-        }
-
-        if (DeleteExtra && Directory.Exists(target))
-        {
-            foreach (var file in Directory.EnumerateFiles(target, "*", SearchOption.AllDirectories))
-            {
-                var relative = FileSystem.RelativeUnixPath(target, file);
-                if (relative.StartsWith(ConfigUpdates.StateFolder + "/", StringComparison.OrdinalIgnoreCase)
-                    || preserve.Match(relative).HasMatches
-                    || configs.Match(relative).HasMatches
-                    || File.Exists(Path.Combine(source, relative)))
-                    continue;
-
-                if (!context.DryRun)
-                    File.Delete(file);
-                deleted++;
+                case FileAction.Merge:
+                    merges.Add(entry.Path);
+                    break;
+                case FileAction.Keep:
+                    kept++;
+                    break;
+                case FileAction.Delete:
+                    if (!context.DryRun)
+                        File.Delete(destination);
+                    deleted++;
+                    break;
+                case FileAction.Replace:
+                    if (!context.DryRun)
+                        Replace(Path.Combine(plan.Source, entry.Path), destination, entry.IsConfig);
+                    copied++;
+                    break;
             }
         }
 
         var verb = context.DryRun ? "Would copy" : "Copied";
-        context.Log.Info($"{verb} {copied} files, kept {kept} existing, {(context.DryRun ? "would delete" : "deleted")} {deleted}.");
+        context.Log.Info($"{verb} {copied} files, kept {kept} as they are, {(context.DryRun ? "would delete" : "deleted")} {deleted}.");
 
-        if (configFiles.Count > 0)
-            await MergeConfigsAsync(context, source, target, configFiles, cancellationToken);
+        if (merges.Count > 0)
+            await MergeConfigsAsync(context, plan.Source, plan.Target, merges, cancellationToken);
+    }
+
+    /// <summary>
+    /// Compares the package's folder with the server's and picks what to do with each file: copy what is new or
+    /// changed, keep preserved and identical files, merge config files, and delete extras when DeleteExtra is set.
+    /// </summary>
+    public FilePlan PlanFiles(string packageDirectory, IReadOnlyDictionary<string, string> variables)
+    {
+        var source = StepContext.InsidePackage(packageDirectory, Placeholders.Resolve(From, variables));
+        var target = Placeholders.Resolve(To, variables);
+        if (Placeholders.Unresolved(target) is [_, ..] missing)
+            throw new InvalidOperationException($"The target folder uses {{{string.Join("}, {", missing)}}}, which is asked when the step runs.");
+        if (!Path.IsPathFullyQualified(target))
+            throw new InvalidOperationException(target.Length == 0 ? "Set the target folder first." : $"The target folder \"{target}\" isn't a full path.");
+        target = Path.GetFullPath(target);
+        var preserve = Matcher(Preserve);
+        var configs = Matcher(Configs);
+        var entries = new List<FilePlanEntry>();
+
+        var packageFiles = Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories)
+            .Select(file => FileSystem.RelativeUnixPath(source, file))
+            .ToList();
+        foreach (var relative in packageFiles)
+        {
+            var isConfig = configs.Match(relative).HasMatches;
+            var serverFile = Path.Combine(target, relative);
+            var state = !File.Exists(serverFile) ? FileState.New
+                : FileSystem.SameContents(Path.Combine(source, relative), serverFile) ? FileState.Same
+                : FileState.Changed;
+            var action = isConfig ? FileAction.Merge
+                : state == FileState.New ? FileAction.Replace
+                : state == FileState.Same || preserve.Match(relative).HasMatches ? FileAction.Keep
+                : FileAction.Replace;
+            entries.Add(new FilePlanEntry(relative, state, isConfig, action));
+        }
+
+        if (Directory.Exists(target))
+        {
+            var inPackage = packageFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var file in Directory.EnumerateFiles(target, "*", SearchOption.AllDirectories))
+            {
+                var relative = FileSystem.RelativeUnixPath(target, file);
+                if (inPackage.Contains(relative) || relative.StartsWith(ConfigUpdates.StateFolder + "/", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var isConfig = configs.Match(relative).HasMatches;
+                var delete = DeleteExtra && !isConfig && !preserve.Match(relative).HasMatches;
+                entries.Add(new FilePlanEntry(relative, FileState.OnlyOnServer, isConfig, delete ? FileAction.Delete : FileAction.Keep));
+            }
+        }
+
+        return new FilePlan(source, target, entries);
+    }
+
+    /// <summary>Copies a file over the server's. A config copied whole becomes the base for the next merge.</summary>
+    private static void Replace(string source, string destination, bool isConfig)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        File.Copy(source, destination, overwrite: true);
+        if (isConfig)
+            ConfigUpdates.SaveBase(destination, File.ReadAllText(source));
     }
 
     private async Task MergeConfigsAsync(StepContext context, string source, string target, List<string> configFiles, CancellationToken cancellationToken)
