@@ -40,7 +40,8 @@ OrdersService-2.4.0.zip
   prereqs/         installers, such as the .NET runtime
 ```
 
-[samples/OrdersService](samples/OrdersService/deploy.json) uses every step type. Add
+[samples/OrdersService](samples/OrdersService/deploy.json) uses every step type, and
+[testpackages](testpackages/README.md) builds two real apps in two versions each to deploy and upgrade. Add
 `"$schema": "<path>/deploy.schema.json"` to a manifest to get autocomplete and validation in Visual Studio and VS Code
 from [schema/deploy.schema.json](schema/deploy.schema.json).
 
@@ -160,4 +161,5 @@ tests/NetDeploy.Core.Tests/  xUnit tests
 tests/NetDeploy.App.Tests/   dry runs the sample in the real window and saves screenshots of each window
 schema/                      deploy.json schema
 samples/                     sample package
+testpackages/                two test apps in two versions, their build, and an end-to-end run on Windows
 ```

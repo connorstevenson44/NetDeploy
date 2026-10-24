@@ -29,7 +29,12 @@ public sealed class InstallRemover(IUserInteraction user, IDeployLog log)
             .Select(step => step.WithValues(withInstance))
             .ToList();
 
-        var keep = install.IsInstance ? [] : all.Where(other => other.IsInstance).Select(other => other.Name).ToList();
+        var keep = install.IsInstance
+            ? []
+            : all.Where(other => other.IsInstance)
+                .SelectMany(other => new[] { other.Name, Path.GetFileName(BackupStep.BackupsOf(other.Directory)) })
+                .Where(name => Directory.Exists(Path.Combine(install.Directory, name)))
+                .ToList();
         var known = steps.OfType<ServiceStep>().Where(step => step.Action == ServiceAction.Uninstall).Select(step => step.Service).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var services = WindowsServices.ServicesIn(install.Directory, keep.Select(name => Path.Combine(install.Directory, name)));
         steps.InsertRange(0, services.Where(service => !known.Contains(service))

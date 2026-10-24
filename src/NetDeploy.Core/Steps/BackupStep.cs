@@ -15,7 +15,7 @@ public sealed class BackupStep : DeployStep
 
     /// <summary>Removing the install also removes its backups.</summary>
     protected internal override IEnumerable<DeployStep> DefaultCleanup() =>
-        [new DeleteFolderStep { Path = Folder.TrimEnd('\\', '/') + ".backups" }];
+        [new DeleteFolderStep { Path = BackupsOf(Folder.TrimEnd('\\', '/')) }];
 
     public override Task RunAsync(StepContext context, CancellationToken cancellationToken)
     {
@@ -26,7 +26,7 @@ public sealed class BackupStep : DeployStep
             return Task.CompletedTask;
         }
 
-        var backupRoot = folder + ".backups";
+        var backupRoot = BackupsOf(folder);
         var backup = Path.Combine(backupRoot, DateTime.Now.ToString("yyyyMMdd-HHmmss"));
         if (context.DryRun)
         {
@@ -34,8 +34,10 @@ public sealed class BackupStep : DeployStep
             return Task.CompletedTask;
         }
 
-        FileSystem.CopyDirectory(folder, backup);
-        context.Rollback.Backups.Add(new BackupRecord(folder, backup));
+        // Instances inside a single install have their own backups, and may be running while this one is restored.
+        var nested = Installations.NestedInstalls(folder, Installations.TopAppFiles(folder));
+        FileSystem.CopyDirectory(folder, backup, skip: nested);
+        context.Rollback.Backups.Add(new BackupRecord(folder, backup, nested));
         context.Log.Info($"Backed up to {backup}");
 
         // Timestamps sort by name, so the oldest backups come last.
@@ -44,6 +46,9 @@ public sealed class BackupStep : DeployStep
 
         return Task.CompletedTask;
     }
+
+    /// <summary>Where a folder's backups go: beside it, in &lt;folder&gt;.backups.</summary>
+    internal static string BackupsOf(string folder) => folder + ".backups";
 
     protected override IEnumerable<string> ValidateOptions()
     {

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- One report format. Build with -p:AssemblyName=Fabrikam.Reports.Csv -p:Format=csv (or pdf, xlsx). -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <DebugType>none</DebugType>
+    <Product>Fabrikam Reports $(Format) plugin</Product>
+    <DefineConstants>$(DefineConstants);FORMAT_$(Format.ToUpperInvariant())</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

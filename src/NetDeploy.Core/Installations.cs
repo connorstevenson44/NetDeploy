@@ -65,14 +65,28 @@ public static partial class Installations
             if (Placeholders.Unresolved(copy.From).Count > 0)
                 continue;
             var source = StepContext.InsidePackage(package.RootPath, copy.From);
-            if (!System.IO.Directory.Exists(source))
-                continue;
-            var top = System.IO.Directory.EnumerateFiles(source).Select(Path.GetFileName).OfType<string>().ToList();
-            var exes = top.Where(name => name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)).ToList();
-            files.AddRange(exes.Count > 0 ? exes : top.Where(name => name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)));
+            if (System.IO.Directory.Exists(source))
+                files.AddRange(TopAppFiles(source));
         }
         return files.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
+
+    /// <summary>The exes at the top of a folder, or its dlls when it has no exe.</summary>
+    internal static IReadOnlyList<string> TopAppFiles(string folder)
+    {
+        var top = System.IO.Directory.EnumerateFiles(folder).Select(Path.GetFileName).OfType<string>().ToList();
+        var exes = top.Where(name => name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)).ToList();
+        return exes.Count > 0 ? exes : top.Where(name => name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    /// <summary>
+    /// Subfolders of an install that hold one of its app files: other installs, such as the instances inside a single
+    /// install, with their backups beside them. Copies and backups of the install leave them alone.
+    /// </summary>
+    internal static IReadOnlyList<string> NestedInstalls(string folder, IReadOnlyCollection<string> appFiles) =>
+        appFiles.Count == 0 || !System.IO.Directory.Exists(folder)
+            ? []
+            : InstanceFolders(folder, appFiles).SelectMany(nested => new[] { nested, BackupStep.BackupsOf(nested) }).Where(System.IO.Directory.Exists).ToList();
 
     /// <summary>
     /// The files that belong to an install, relative to its folder: everything except instances nested in it and the
