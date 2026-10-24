@@ -1,0 +1,49 @@
+name: Manual tests
+
+# Runs the AutoHotkey manual test unattended on a Windows runner: the same clicks a person watches, without the pauses
+# and checkpoints, so a change that breaks the manual test shows up here first. The run's log, screenshots and
+# UI Automation dumps are in the ManualTestResults artifact.
+on:
+  push:
+    branches: [main]
+    paths: [src/**, testpackages/**, tests/manual/**, .github/workflows/manual-tests.yml]
+  pull_request:
+    paths: [src/**, testpackages/**, tests/manual/**, .github/workflows/manual-tests.yml]
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish the portable exe
+        run: dotnet publish src/NetDeploy.App -p:PublishProfile=Portable
+
+      - name: Build test packages
+        run: dotnet run testpackages/build.cs
+
+      - name: Install AutoHotkey
+        run: |
+          Invoke-WebRequest https://www.autohotkey.com/download/ahk-v2.zip -OutFile "$env:RUNNER_TEMP\ahk.zip"
+          Expand-Archive "$env:RUNNER_TEMP\ahk.zip" -DestinationPath "$env:RUNNER_TEMP\ahk"
+
+      - name: Run the manual tests unattended
+        run: |
+          $out = "$env:RUNNER_TEMP\ahk-out.txt"; $err = "$env:RUNNER_TEMP\ahk-err.txt"
+          $ahk = Start-Process "$env:RUNNER_TEMP\ahk\AutoHotkey64.exe" -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err `
+            -ArgumentList '/ErrorStdOut', 'tests\manual\NetDeployManualTests.ahk', '--unattended', '--results', 'tests\manual\results'
+          Get-Content $out, $err -ErrorAction SilentlyContinue
+          Get-Content tests\manual\results\*\summary.txt -ErrorAction SilentlyContinue
+          exit $ahk.ExitCode
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ManualTestResults
+          path: tests/manual/results/

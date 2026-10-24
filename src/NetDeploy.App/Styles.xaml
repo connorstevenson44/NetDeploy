@@ -231,30 +231,30 @@
     <!-- Input editors, one per InputType. The form below picks one with the field's Type. -->
     <DataTemplate x:Key="TextInput">
         <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
-            <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Hint}"
+            <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Hint}" AutomationProperties.Name="{Binding Label}"
                      Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
         </HeaderedContentControl>
     </DataTemplate>
     <DataTemplate x:Key="SecretInput">
         <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
-            <PasswordBox Style="{StaticResource InputPassword}" materialDesign:HintAssist.Hint="{Binding Hint}"
+            <PasswordBox Style="{StaticResource InputPassword}" materialDesign:HintAssist.Hint="{Binding Hint}" AutomationProperties.Name="{Binding Label}"
                          materialDesign:PasswordBoxAssist.Password="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
         </HeaderedContentControl>
     </DataTemplate>
     <DataTemplate x:Key="YesNoInput">
-        <CheckBox IsChecked="{Binding IsChecked}" Margin="0,2,0,0">
+        <CheckBox IsChecked="{Binding IsChecked}" Margin="0,2,0,0" AutomationProperties.Name="{Binding Label}">
             <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
         </CheckBox>
     </DataTemplate>
     <DataTemplate x:Key="ChoiceInput">
         <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
-            <ComboBox Style="{StaticResource InputChoice}" ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" />
+            <ComboBox Style="{StaticResource InputChoice}" ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" AutomationProperties.Name="{Binding Label}" />
         </HeaderedContentControl>
     </DataTemplate>
     <DataTemplate x:Key="PathInput">
         <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
             <Grid>
-                <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Hint}"
+                <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Hint}" AutomationProperties.Name="{Binding Label}"
                          Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Padding="10,7,38,7" />
                 <Button Style="{StaticResource MaterialDesignIconButton}" Command="{Binding BrowseCommand}" ToolTip="Browse"
                         HorizontalAlignment="Right" VerticalAlignment="Center" Width="28" Height="28" Padding="0" Margin="0,0,3,0">

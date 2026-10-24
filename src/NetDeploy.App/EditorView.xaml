@@ -67,11 +67,11 @@
         <DataTemplate DataType="{x:Type vm:ValueFieldViewModel}">
             <StackPanel Margin="0,0,0,16">
                 <TextBlock x:Name="Label" Text="{Binding Label}" Style="{StaticResource FieldLabel}" />
-                <TextBox x:Name="Box" Style="{StaticResource InputBox}" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" />
-                <CheckBox x:Name="Check" IsChecked="{Binding IsChecked}" Visibility="Collapsed">
+                <TextBox x:Name="Box" Style="{StaticResource InputBox}" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Label}" />
+                <CheckBox x:Name="Check" IsChecked="{Binding IsChecked}" Visibility="Collapsed" AutomationProperties.Name="{Binding Label}">
                     <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
                 </CheckBox>
-                <ComboBox x:Name="Choice" Style="{StaticResource InputChoice}"
+                <ComboBox x:Name="Choice" Style="{StaticResource InputChoice}" AutomationProperties.Name="{Binding Label}"
                           ItemsSource="{Binding Options}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Text}"
                           Visibility="Collapsed" />
                 <TextBlock Text="{Binding Description}" Style="{StaticResource Help}" />
@@ -439,10 +439,10 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <HeaderedContentControl Style="{StaticResource Field}" Header="App name *">
-                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="App name" />
                                 </HeaderedContentControl>
                                 <HeaderedContentControl Grid.Column="2" Style="{StaticResource Field}" Header="Version *">
-                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding AppVersion, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding AppVersion, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Version" />
                                 </HeaderedContentControl>
                             </Grid>
                             <HeaderedContentControl Style="{StaticResource Field}" Header="Install folder">

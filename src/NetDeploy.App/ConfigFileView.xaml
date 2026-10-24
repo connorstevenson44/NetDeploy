@@ -122,7 +122,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="{Binding Before}" Style="{StaticResource LineText}" TextTrimming="None" />
-                    <TextBox x:Name="Value" Grid.Column="1" Text="{Binding Value}" ToolTip="{Binding Value}" FontFamily="{StaticResource Code}" FontSize="12"
+                    <TextBox x:Name="Value" Grid.Column="1" Text="{Binding Value}" ToolTip="{Binding Value}" AutomationProperties.Name="{Binding Path}" FontFamily="{StaticResource Code}" FontSize="12"
                              MinWidth="48" MaxWidth="420" VerticalAlignment="Center" Padding="2,0" BorderThickness="0,0,0,1"
                              materialDesign:TextFieldAssist.UnderlineBrush="{StaticResource Brand}"
                              IsReadOnly="{Binding IsReadOnly, RelativeSource={RelativeSource AncestorType=UserControl}}" />

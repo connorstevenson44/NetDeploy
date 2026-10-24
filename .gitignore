@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 
 # Test packages built by testpackages/build.cs
 testpackages/dist/
+
+# Results of the AutoHotkey manual test runs
+tests/manual/results/
