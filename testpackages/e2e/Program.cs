@@ -60,7 +60,7 @@ Expect(export["BatchSize"] == "750", "the export keeps the server's batch size")
 Expect(export["Format"] == "json" && export["Compress"] == "true", "the export takes the new settings");
 Expect(!export.ContainsKey("IncludeCancelled") && export.ContainsKey("connection Archive"), "the export follows removed and added entries");
 Expect(Run(Path.Combine(OrdersDir, @"export\Contoso.Orders.Export.exe"), "--check").Output.Contains("BatchSize = 750"), "the export tool reads the merged .exe.config");
-Expect(Directory.GetDirectories(OrdersDir + ".backups").Length == 2, "each deploy of the single install made a backup");
+Expect(Directory.GetDirectories(OrdersDir + ".backups").Length == 1, "the upgrade backed up the single install");
 
 using (var package = DeployPackage.Open(Path.Combine(dist, "Contoso.Orders-1.1.0.zip")))
 {
