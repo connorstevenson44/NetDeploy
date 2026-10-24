@@ -39,10 +39,10 @@ public sealed class CliTests : IDisposable
         }
         """);
 
-    private Task<int> RunAsync(string arguments, bool isAdministrator = true) =>
+    private Task<int> RunAsync(string arguments, bool isAdministrator = true, CancellationToken? cancellationToken = null) =>
         new CliRunner(_output, _history, isAdministrator).RunAsync(
             ["deploy", _package.Path, "--param", $"InstallDir={_installs.Path}", .. arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries)],
-            TestContext.Current.CancellationToken);
+            cancellationToken ?? TestContext.Current.CancellationToken);
 
     private string Output => _output.ToString();
 
@@ -126,6 +126,16 @@ public sealed class CliTests : IDisposable
         Assert.Equal(CliRunner.Mistake, await RunAsync("--install east", isAdministrator: false));
         Assert.Contains("administrator", Output);
         Assert.Equal(CliRunner.Finished, await RunAsync("--install east --dry-run", isAdministrator: false));
+    }
+
+    [Fact]
+    public async Task A_cancelled_deploy_is_stopped_and_recorded()
+    {
+        var exitCode = await RunAsync("--install east", cancellationToken: new CancellationToken(canceled: true));
+
+        Assert.Equal(CliRunner.Failed, exitCode);
+        Assert.False(_installs.Exists("east/Orders.exe"));
+        Assert.Equal(DeployResult.Cancelled, Assert.Single(_history.For(_installs.Combine("east"))).Result);
     }
 
     [Fact]

@@ -36,15 +36,22 @@ public partial class App : Application
 
     /// <summary>
     /// Runs a command such as "deploy" without the window, writing to the console it was started from, and exits
-    /// with its exit code. A bug is reported there too, rather than in a dialog nobody may be there to close.
+    /// with its exit code. A bug is reported there too, rather than in a dialog nobody may be there to close. Ctrl+C
+    /// cancels the deploy, which then rolls back, rather than killing it halfway.
     /// </summary>
     private async Task RunCommandAsync(string[] args)
     {
         ParentConsole.Attach();
+        using var cancel = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cancel.Cancel();
+        };
         int exitCode;
         try
         {
-            exitCode = await Task.Run(() => new CliRunner(Console.Out, DeployHistory.Machine, Elevation.IsAdministrator).RunAsync(args));
+            exitCode = await Task.Run(() => new CliRunner(Console.Out, DeployHistory.Machine, Elevation.IsAdministrator).RunAsync(args, cancel.Token));
         }
         catch (Exception ex)
         {
