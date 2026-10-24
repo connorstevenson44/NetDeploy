@@ -104,12 +104,16 @@
             </ItemsControl>
         </Border>
 
-        <!-- Why the text can't be read as settings yet -->
-        <Border DockPanel.Dock="Bottom" Background="{StaticResource DangerTint}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="12,6"
+        <!-- Why the text can't be read as settings yet, on one line so the text stays in view, with a way to go to it -->
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource DangerTint}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="12,2"
                 Visibility="{Binding HasTextError, Converter={StaticResource BoolToVisibility}}">
             <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Height="26" Padding="8,0" Margin="8,0,0,0" FontSize="12" Content="Show"
+                        Click="OnShowTextError" ToolTip="Put the cursor where the text goes wrong" AutomationProperties.Name="Show the problem"
+                        Visibility="{Binding TextProblem.Offset, Converter={StaticResource NullToCollapsed}}" />
                 <materialDesign:PackIcon Kind="AlertCircleOutline" Foreground="{StaticResource Danger}" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,8,0" />
-                <TextBlock x:Name="TextError" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource Danger}" VerticalAlignment="Center"><Run Text="Fix the text before it can be written: " /><Run Text="{Binding TextError, Mode=OneWay}" /></TextBlock>
+                <TextBlock x:Name="TextError" TextTrimming="CharacterEllipsis" FontSize="12" Foreground="{StaticResource Danger}" VerticalAlignment="Center"
+                           ToolTip="{Binding TextError}" Margin="0,4"><Run Text="Fix the text before it can be written: " /><Run Text="{Binding TextError, Mode=OneWay}" /></TextBlock>
             </DockPanel>
         </Border>
 

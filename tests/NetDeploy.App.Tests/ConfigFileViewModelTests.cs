@@ -141,6 +141,25 @@ public class ConfigFileViewModelTests
     }
 
     [Fact]
+    public void A_bad_word_in_the_text_is_one_short_line_that_says_where_it_is()
+    {
+        var file = Review();
+        var text = file.Text.Replace("\"prod\"", "nul");
+
+        file.Text = text;
+
+        Assert.StartsWith("Line 2, column ", file.TextError);
+        Assert.DoesNotContain("\n", file.TextError);
+        Assert.Contains("'nul' is an invalid JSON literal", file.TextError);
+        Assert.Equal(text.IndexOf("nul", StringComparison.Ordinal) + 3, file.TextProblem!.Offset);
+
+        file.UndoAllCommand.Execute(null);
+
+        Assert.Null(file.TextProblem);
+        Assert.Null(file.TextError);
+    }
+
+    [Fact]
     public void Any_text_file_on_the_server_is_edited_the_same_way_and_written_as_typed()
     {
         var path = Path.Combine(Path.GetTempPath(), $"netdeploy-{Guid.NewGuid():N}.txt");
