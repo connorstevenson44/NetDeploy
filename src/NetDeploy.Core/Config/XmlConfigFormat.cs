@@ -81,6 +81,22 @@ internal sealed class XmlConfigFormat : IConfigFormat
     // The canonical value is the whole <add /> element.
     public string Line(string key, string value) => value;
 
+    public (string Before, string After) Around(string key, string value)
+    {
+        // Put a marker where the value goes, then split the element's text around it.
+        const string Marker = "NETDEPLOY-VALUE-7F3A";
+        var element = XElement.Parse(value);
+        if (ValueAttribute(element) is { } attribute)
+            attribute.Value = Marker;
+        else
+            element.SetAttributeValue("value", Marker);
+        var text = element.ToString(SaveOptions.DisableFormatting);
+        var at = text.IndexOf(Marker, StringComparison.Ordinal);
+        return (text[..at], text[(at + Marker.Length)..]);
+    }
+
+    public string Separator => "";
+
     private static XAttribute? ValueAttribute(XElement element) =>
         element.Attribute("connectionString") ?? element.Attribute("value");
 }

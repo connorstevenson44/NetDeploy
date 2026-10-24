@@ -58,6 +58,12 @@ internal sealed class JsonConfigFormat : IConfigFormat
 
     public string Line(string key, string value) => $"{Quote(key)}: {value}";
 
+    // A string shows inside its quotes; numbers, bools and arrays show as they are written.
+    public (string Before, string After) Around(string key, string value) =>
+        value.StartsWith('"') ? ($"{Quote(key)}: \"", "\"") : ($"{Quote(key)}: ", "");
+
+    public string Separator => ",";
+
     private static string Quote(string key) => JsonSerializer.Serialize(key, Compact);
 
     private static JsonObject ParseObject(string text) =>

@@ -170,24 +170,5 @@ public sealed partial class InstallFolderViewModel : ObservableObject
         OnPropertyChanged(nameof(HasConflicts));
     }
 
-    private List<object> BuildItems()
-    {
-        var items = new List<object>();
-        var open = new List<string>();
-        foreach (var file in _files)
-        {
-            var folders = file.Folder.Length == 0 ? [] : file.Folder.Split('/');
-            var common = 0;
-            while (common < open.Count && common < folders.Length && open[common].Equals(folders[common], StringComparison.OrdinalIgnoreCase))
-                common++;
-            open.RemoveRange(common, open.Count - common);
-            for (var depth = common; depth < folders.Length; depth++)
-            {
-                items.Add(new FolderViewModel(folders[depth], depth));
-                open.Add(folders[depth]);
-            }
-            items.Add(file);
-        }
-        return items;
-    }
+    private List<object> BuildItems() => FolderHeadings.Interleave(_files, file => file.Folder);
 }

@@ -16,15 +16,22 @@ public partial class MainWindow : Window
 
         // Keep the newest log line in view. The scroll waits until the ListBox has handled the change:
         // scrolling inside CollectionChanged can reach the ListBox before it knows about the new item,
-        // and it then throws "ItemsControl is inconsistent with its items source".
+        // and it then throws "ItemsControl is inconsistent with its items source". Lines arrive in
+        // batches, so one scroll is queued per batch rather than one per line.
+        var scrollQueued = false;
         viewModel.Log.CollectionChanged += (_, e) =>
         {
-            if (e.NewItems is { Count: > 0 } added)
-                Dispatcher.InvokeAsync(() =>
-                {
-                    LogList.ScrollIntoView(added[0]!);
-                    FolderLogList.ScrollIntoView(added[0]!);
-                }, DispatcherPriority.Background);
+            if (e.NewItems is not { Count: > 0 } || scrollQueued)
+                return;
+            scrollQueued = true;
+            Dispatcher.InvokeAsync(() =>
+            {
+                scrollQueued = false;
+                if (viewModel.Log.Count == 0)
+                    return;
+                LogList.ScrollIntoView(viewModel.Log[^1]);
+                FolderLogList.ScrollIntoView(viewModel.Log[^1]);
+            }, DispatcherPriority.Background);
         };
         Closed += (_, _) => viewModel.Dispose();
     }

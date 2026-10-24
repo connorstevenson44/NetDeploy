@@ -147,6 +147,14 @@ public class JsonMergeTests
     public void Display_shows_strings_without_quotes() =>
         Assert.Equal("Server=x;Database='y'", Json.Display("\"Server=x;Database='y'\""));
 
+    [Fact]
+    public void A_setting_line_splits_around_its_value_so_it_can_be_edited_in_place()
+    {
+        Assert.Equal(("\"Host\": \"", "\""), Json.Around("Host", "\"mail\""));
+        Assert.Equal(("\"Port\": ", ""), Json.Around("Port", "25"));
+        Assert.Equal(",", Json.Separator);
+    }
+
     private static string Compact(string json) =>
         System.Text.Json.Nodes.JsonNode.Parse(json)!.ToJsonString();
 }
