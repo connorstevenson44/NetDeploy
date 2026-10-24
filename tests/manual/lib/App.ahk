@@ -454,16 +454,19 @@ class App {
             spot := {l: box.l + 40, t: (box.t + box.b) // 2 - 20, r: box.l + 80, b: (box.t + box.b) // 2 + 20}
             Runner.KeepClear(spot)
             MouseMove(spot.l + 20, spot.t + 20, Runner.MouseSpeed)
+            ; A list is at its end once a few turns of the wheel build no new rows.
             for wheel in ["WheelUp", "WheelDown"] {
-                last := ""
-                Loop 100 {
+                last := "", still := 0
+                Loop 400 {
                     if found := this.TryFind(condition, list)
                         return found
-                    if (shown := this.RowNames(list)) = last
+                    shown := this.RowNames(list)
+                    still := shown = last ? still + 1 : 0
+                    if still = 5
                         break
                     last := shown
-                    Send("{" wheel " 3}")
-                    Sleep(150)
+                    Send("{" wheel "}")
+                    Sleep(120)
                 }
             }
         }
