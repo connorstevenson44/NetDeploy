@@ -3,630 +3,777 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:core="clr-namespace:NetDeploy.Core;assembly=NetDeploy.Core"
+        xmlns:config="clr-namespace:NetDeploy.Core.Config;assembly=NetDeploy.Core"
         xmlns:app="clr-namespace:NetDeploy.App"
         xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
         Style="{StaticResource AppWindow}"
-        Title="NetDeploy" Height="800" Width="1240" MinWidth="960" MinHeight="600"
+        Title="NetDeploy" Height="820" Width="1320" MinWidth="1000" MinHeight="620"
         WindowStartupLocation="CenterScreen" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
         Closing="OnClosing">
+    <!-- One workspace. Left: the package's settings and the install folder's tree. Right: tabs for the files of the
+         folder picked in the tree, the steps, the deploy config and the log; while a deploy waits for the user, its
+         review takes the tabs' place. -->
     <Window.Resources>
-        <!-- The log, used by the deploy and folder screens -->
-        <Style x:Key="LogList" TargetType="ListBox" BasedOn="{StaticResource MaterialDesignListBox}">
-            <Setter Property="ItemsSource" Value="{Binding Log}" />
-            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Padding" Value="12,0,12,8" />
-            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
-            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
-            <Setter Property="ItemContainerStyle">
-                <Setter.Value>
-                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
-                        <Setter Property="Padding" Value="8,1" />
-                        <Setter Property="materialDesign:ListBoxItemAssist.ShowSelection" Value="False" />
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="FileTemplates.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <app:BoolToStarConverter x:Key="OpenFileWidth" Star="1.4" />
+
+            <!-- A toolbar button on the brand bar -->
+            <Style x:Key="BarButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+                <Setter Property="Height" Value="34" />
+                <Setter Property="Padding" Value="12,0" />
+                <Setter Property="Margin" Value="4,0,0,0" />
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="ContentTemplate" Value="{StaticResource IconLabel}" />
+                <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6" />
+                <Setter Property="materialDesign:RippleAssist.Feedback" Value="White" />
+            </Style>
+
+            <!-- A small icon button in a pane's header -->
+            <Style x:Key="PaneButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
+                <Setter Property="Width" Value="30" />
+                <Setter Property="Height" Value="30" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+            </Style>
+            <Style x:Key="PaneToggle" TargetType="ToggleButton" BasedOn="{StaticResource MaterialDesignFlatToggleButton}">
+                <Setter Property="Width" Value="30" />
+                <Setter Property="Height" Value="30" />
+            </Style>
+
+            <!-- A label above a group on the left, like a VS tool window's -->
+            <Style x:Key="SectionLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+
+            <!-- A thin strip across the top of a pane, for its title and tools -->
+            <Style x:Key="PaneHeader" TargetType="Border">
+                <Setter Property="DockPanel.Dock" Value="Top" />
+                <Setter Property="BorderBrush" Value="{StaticResource Hairline}" />
+                <Setter Property="BorderThickness" Value="0,0,0,1" />
+                <Setter Property="Padding" Value="14,0,8,0" />
+                <Setter Property="MinHeight" Value="40" />
+            </Style>
+
+            <!-- A pill, for "Deploy here" and "Dry run" -->
+            <Style x:Key="Badge" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource Brand}" />
+                <Setter Property="CornerRadius" Value="9" />
+                <Setter Property="Padding" Value="8,1" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextElement.Foreground" Value="White" />
+                <Setter Property="TextElement.FontSize" Value="11" />
+                <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+            </Style>
+
+            <!-- A tab's header: an icon and a name -->
+            <DataTemplate x:Key="TabHeader">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="{Binding Tag, RelativeSource={RelativeSource AncestorType=TabItem}}"
+                                             Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding}" VerticalAlignment="Center" />
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- The log -->
+            <Style x:Key="LogList" TargetType="ListBox" BasedOn="{StaticResource MaterialDesignListBox}">
+                <Setter Property="ItemsSource" Value="{Binding Log}" />
+                <Setter Property="FontFamily" Value="{StaticResource Code}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Padding" Value="6,4" />
+                <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+                <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+                <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
+                <Setter Property="ItemContainerStyle">
+                    <Setter.Value>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
+                            <Setter Property="Padding" Value="8,1" />
+                            <Setter Property="materialDesign:ListBoxItemAssist.ShowSelection" Value="False" />
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="ItemTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <TextBlock>
+                                <Run Text="{Binding Time, Mode=OneWay, StringFormat=HH:mm:ss}" Foreground="{StaticResource InkFaint}" />
+                                <Run Text="  " />
+                                <Run Text="{Binding Message, Mode=OneWay}" />
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource Ink}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Warning}">
+                                                <Setter Property="Foreground" Value="{StaticResource Warning}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Error}">
+                                                <Setter Property="Foreground" Value="{StaticResource Danger}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ===== The folder tree ===== -->
+
+            <Style x:Key="TreeItem" TargetType="TreeViewItem" BasedOn="{StaticResource MaterialDesignTreeViewItem}">
+                <Setter Property="Padding" Value="4,1" />
+                <Setter Property="materialDesign:TreeViewAssist.ExpanderSize" Value="14" />
+            </Style>
+            <app:TreeItemStyleSelector x:Key="TreeItems">
+                <app:TreeItemStyleSelector.Folder>
+                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource TreeItem}">
+                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
                     </Style>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="ItemTemplate">
-                <Setter.Value>
-                    <DataTemplate>
-                        <TextBlock>
-                            <Run Text="{Binding Time, Mode=OneWay, StringFormat=HH:mm:ss}" Foreground="{StaticResource InkFaint}" />
-                            <Run Text="  " />
-                            <Run Text="{Binding Message, Mode=OneWay}" />
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="{StaticResource Ink}" />
+                </app:TreeItemStyleSelector.Folder>
+                <app:TreeItemStyleSelector.NewInstall>
+                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource TreeItem}">
+                        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                    </Style>
+                </app:TreeItemStyleSelector.NewInstall>
+                <app:TreeItemStyleSelector.Placeholder>
+                    <Style TargetType="TreeViewItem" BasedOn="{StaticResource TreeItem}">
+                        <Setter Property="Focusable" Value="False" />
+                    </Style>
+                </app:TreeItemStyleSelector.Placeholder>
+            </app:TreeItemStyleSelector>
+
+            <!-- A folder: installs show their version and kind, and the one the deploy updates says so -->
+            <HierarchicalDataTemplate DataType="{x:Type vm:FolderNodeViewModel}" ItemsSource="{Binding Children}">
+                <Grid x:Name="Row" Height="26" Background="Transparent" ToolTip="{Binding FullPath}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <materialDesign:PackIcon x:Name="Icon" Kind="{Binding Icon}" Width="16" Height="16" Foreground="{StaticResource InkMuted}"
+                                             VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"><Run x:Name="Name" Text="{Binding Name, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding Detail, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="11" FontFamily="{StaticResource Code}" /></TextBlock>
+                    <Border x:Name="Here" Grid.Column="2" Style="{StaticResource Badge}" Margin="8,0,0,0" Visibility="Collapsed">
+                        <TextBlock Text="Deploy here" />
+                    </Border>
+                    <StackPanel x:Name="Actions" Grid.Column="3" Orientation="Horizontal" Margin="4,0,0,0" Visibility="Collapsed">
+                        <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Brand}"
+                                ToolTip="Clone: deploy as a new instance that starts from a copy of this one"
+                                Command="{Binding DataContext.CloneInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding Target}">
+                            <materialDesign:PackIcon Kind="ContentCopy" Width="14" Height="14" />
+                        </Button>
+                        <Button Style="{StaticResource FileButton}" Foreground="{StaticResource Danger}" ToolTip="Remove this install, confirming each step"
+                                Command="{Binding DataContext.RemoveInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding Target}">
+                            <materialDesign:PackIcon Kind="TrashCanOutline" Width="14" Height="14" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+                <HierarchicalDataTemplate.Triggers>
+                    <DataTrigger Binding="{Binding IsInstall}" Value="True">
+                        <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Brand}" />
+                        <Setter TargetName="Name" Property="FontWeight" Value="SemiBold" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding IsMissing}" Value="True">
+                        <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource InkFaint}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding IsTarget}" Value="True">
+                        <Setter TargetName="Here" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                    <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                            <Condition Binding="{Binding IsMouseOver, ElementName=Row}" Value="True" />
+                            <Condition Binding="{Binding IsInstall}" Value="True" />
+                        </MultiDataTrigger.Conditions>
+                        <Setter TargetName="Actions" Property="Visibility" Value="Visible" />
+                    </MultiDataTrigger>
+                </HierarchicalDataTemplate.Triggers>
+            </HierarchicalDataTemplate>
+
+            <!-- The last row: a new install, named in place so the installs already there stay in view -->
+            <DataTemplate DataType="{x:Type vm:NewInstallRowViewModel}">
+                <Grid Height="30">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <materialDesign:PackIcon Kind="PlusCircleOutline" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                             VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock x:Name="Label" Grid.Column="1" Text="{Binding Label}" Foreground="{StaticResource Brand}" FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBox x:Name="NameBox" Grid.Column="1" MinWidth="170" Padding="0,2" VerticalAlignment="Center" Visibility="Collapsed"
+                             FontFamily="{StaticResource Code}" FontSize="12"
+                             materialDesign:HintAssist.Hint="{Binding Hint}" materialDesign:TextFieldAssist.DecorationVisibility="Visible"
+                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                    <Border x:Name="Here" Grid.Column="2" Style="{StaticResource Badge}" Margin="8,0,0,0" Visibility="Collapsed">
+                        <TextBlock Text="Deploy here" />
+                    </Border>
+                </Grid>
+                <DataTemplate.Triggers>
+                    <DataTrigger Binding="{Binding CanName}" Value="True">
+                        <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
+                        <Setter TargetName="NameBox" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding IsTarget}" Value="True">
+                        <Setter TargetName="Here" Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                </DataTemplate.Triggers>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:LoadingNode}">
+                <TextBlock Text="Reading..." Style="{StaticResource Caption}" />
+            </DataTemplate>
+
+            <!-- ===== The steps ===== -->
+
+            <DataTemplate DataType="{x:Type vm:StepViewModel}">
+                <Border BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="12,0">
+                    <Grid Margin="{Binding Indent}" Height="30">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <materialDesign:PackIcon Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
+                            <materialDesign:PackIcon.Style>
+                                <Style TargetType="materialDesign:PackIcon">
+                                    <Setter Property="Kind" Value="CircleOutline" />
+                                    <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Warning}">
-                                            <Setter Property="Foreground" Value="{StaticResource Warning}" />
+                                        <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Running}">
+                                            <Setter Property="Kind" Value="PlayCircle" />
+                                            <Setter Property="Foreground" Value="{StaticResource Brand}" />
                                         </DataTrigger>
-                                        <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Error}">
+                                        <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Succeeded}">
+                                            <Setter Property="Kind" Value="CheckCircle" />
+                                            <Setter Property="Foreground" Value="{StaticResource Success}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Skipped}">
+                                            <Setter Property="Kind" Value="MinusCircleOutline" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Failed}">
+                                            <Setter Property="Kind" Value="CloseCircle" />
                                             <Setter Property="Foreground" Value="{StaticResource Danger}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </DataTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
-    <DockPanel>
-        <!-- Header bar -->
-        <Border DockPanel.Dock="Top" Background="{StaticResource Brand}" Padding="24,16">
-            <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource HeaderButton}" VerticalAlignment="Center"
-                        Command="{Binding OpenPackageCommand}" Content="Open package" Tag="{x:Static materialDesign:PackIconKind.FolderOpen}"
-                        ContentTemplate="{StaticResource IconLabel}" />
-                <Button DockPanel.Dock="Right" Style="{StaticResource HeaderButton}" VerticalAlignment="Center" Margin="0,0,10,0"
-                        Command="{Binding HomeCommand}" Content="Home" Tag="{x:Static materialDesign:PackIconKind.HomeOutline}"
-                        ContentTemplate="{StaticResource IconLabel}" Visibility="{Binding IsHome, Converter={StaticResource InverseBoolToVisibility}}" />
-                <materialDesign:PackIcon DockPanel.Dock="Left" Kind="RocketLaunch" Width="34" Height="34" Foreground="White"
-                                         VerticalAlignment="Center" Margin="0,0,16,0" />
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="NETDEPLOY" Foreground="White" Opacity="0.75" FontSize="11" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding HeaderTitle}" Foreground="White" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding HeaderDetail}" Foreground="White" Opacity="0.75" FontSize="12" TextTrimming="CharacterEllipsis" />
+                            </materialDesign:PackIcon.Style>
+                        </materialDesign:PackIcon>
+                        <materialDesign:PackIcon Grid.Column="1" Kind="{Binding Icon}" Width="16" Height="16" Margin="0,0,10,0"
+                                                 Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" />
+                        <!-- Runs on one line: whitespace between them would show as a leading space. -->
+                        <TextBlock Grid.Column="2" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"><Run Text="{Binding Branch, Mode=OneWay}" Foreground="{StaticResource Brand}" FontWeight="SemiBold" /><Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Ink}" /></TextBlock>
+                        <materialDesign:PackIcon Grid.Column="3" Kind="HelpCircleOutline" Width="16" Height="16" Margin="8,0,0,0"
+                                                 Foreground="{StaticResource Brand}" VerticalAlignment="Center" Background="Transparent"
+                                                 ToolTip="{Binding Detail}" Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- ===== The deploy's reviews, in place of the tabs ===== -->
+
+            <!-- Step 1: the files -->
+            <DataTemplate DataType="{x:Type vm:FilesStageViewModel}">
+                <DockPanel>
+                    <Border Style="{StaticResource PaneHeader}">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource PaneToggle}" IsChecked="{Binding ShowUnchanged}"
+                                          ToolTip="Show files that are the same on the server">
+                                <materialDesign:PackIcon Kind="EyeOutline" Width="18" Height="18" />
+                            </ToggleButton>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel.Resources>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+                                        <Setter Property="Margin" Value="4,0,14,0" />
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                    </Style>
+                                </StackPanel.Resources>
+                                <materialDesign:PackIcon Kind="FilePlusOutline" Foreground="{StaticResource Success}" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="new" />
+                                <materialDesign:PackIcon Kind="FileSyncOutline" Foreground="{StaticResource Brand}" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="changed" />
+                                <materialDesign:PackIcon Kind="FileCheckOutline" Foreground="{StaticResource InkFaint}" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="same" />
+                                <materialDesign:PackIcon Kind="FileQuestionOutline" Foreground="{StaticResource Warning}" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="only on the server" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                    <ItemsControl ItemsSource="{Binding Items}" Style="{StaticResource VirtualList}" Padding="0,0,0,8" />
+                </DockPanel>
+            </DataTemplate>
+
+            <!-- Step 2: the config files, each as a side-by-side diff -->
+            <DataTemplate DataType="{x:Type vm:ConfigStageViewModel}">
+                <Grid x:Name="Review" DataContext="{Binding Review}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="240" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0">
+                        <ListBox ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" Padding="4"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
+                                    <Setter Property="Padding" Value="10,7" />
+                                    <Setter Property="ToolTip" Value="{Binding Folder}" />
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:ConfigFileViewModel}">
+                                    <DockPanel>
+                                        <materialDesign:PackIcon x:Name="KindIcon" DockPanel.Dock="Left" Kind="FileSyncOutline" Width="18" Height="18"
+                                                                 Foreground="{StaticResource Brand}" Margin="0,0,10,0" VerticalAlignment="Center"
+                                                                 Background="Transparent" ToolTip="{Binding KindTip}" />
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                                                    TextElement.FontFamily="{StaticResource Code}" TextElement.FontSize="11">
+                                            <StackPanel Orientation="Horizontal" Margin="8,0,0,0" ToolTip="Need a value from you"
+                                                        Visibility="{Binding HasConflicts, Converter={StaticResource BoolToVisibility}}">
+                                                <materialDesign:PackIcon Kind="AlertCircle" Foreground="{StaticResource Warning}" Width="13" Height="13" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding ConflictCount}" Foreground="{StaticResource Warning}" Margin="3,0,0,0" />
+                                            </StackPanel>
+                                            <TextBlock Foreground="{StaticResource Brand}" Margin="8,0,0,0" ToolTip="Settings that change"
+                                                       Visibility="{Binding HasChanges, Converter={StaticResource BoolToVisibility}}"><Run Text="~" /><Run Text="{Binding ChangeCount, Mode=OneWay}" /></TextBlock>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontFamily="{StaticResource Code}" FontSize="12" />
+                                    </DockPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Kind}" Value="{x:Static config:ConfigFileKind.New}">
+                                            <Setter TargetName="KindIcon" Property="Kind" Value="FilePlusOutline" />
+                                            <Setter TargetName="KindIcon" Property="Foreground" Value="{StaticResource Success}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Kind}" Value="{x:Static config:ConfigFileKind.Override}">
+                                            <Setter TargetName="KindIcon" Property="Kind" Value="LayersOutline" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+
+                    <DockPanel Grid.Column="1">
+                        <Border Style="{StaticResource PaneHeader}">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsEditable, Converter={StaticResource BoolToVisibility}}">
+                                        <Button Style="{StaticResource PaneButton}" Command="{Binding SelectedFile.KeepAllNowCommand}"
+                                                ToolTip="Keep every value that is there now">
+                                            <materialDesign:PackIcon Kind="ChevronDoubleRight" Width="18" Height="18" />
+                                        </Button>
+                                        <Button Style="{StaticResource PaneButton}" Command="{Binding SelectedFile.ResetAllCommand}"
+                                                ToolTip="Use every package value">
+                                            <materialDesign:PackIcon Kind="Undo" Width="18" Height="18" />
+                                        </Button>
+                                    </StackPanel>
+                                    <ToggleButton Style="{StaticResource PaneToggle}" IsChecked="{Binding ShowUnchanged}" ToolTip="Show unchanged lines">
+                                        <materialDesign:PackIcon Kind="EyeOutline" Width="18" Height="18" />
+                                    </ToggleButton>
+                                </StackPanel>
+                                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis"><Run Text="{Binding SelectedFile.FileName, Mode=OneWay}" FontWeight="SemiBold" FontFamily="{StaticResource Code}" /><Run Text="   " /><Run Text="{Binding SelectedFile.Folder, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" /></TextBlock>
+                            </DockPanel>
+                        </Border>
+                        <app:ConfigFileView DataContext="{Binding SelectedFile}" IsReadOnly="{Binding DataContext.IsReadOnly, ElementName=Review}" />
+                    </DockPanel>
+                </Grid>
+            </DataTemplate>
+
+            <!-- A stage of the deploy in the stepper above a review -->
+            <Style x:Key="StageDot" TargetType="Border">
+                <Setter Property="Width" Value="22" />
+                <Setter Property="Height" Value="22" />
+                <Setter Property="CornerRadius" Value="11" />
+                <Setter Property="BorderThickness" Value="1.5" />
+                <Setter Property="BorderBrush" Value="{StaticResource InkFaint}" />
+                <Setter Property="TextElement.Foreground" Value="{StaticResource InkMuted}" />
+                <Setter Property="TextElement.FontSize" Value="11" />
+                <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+                <Setter Property="Margin" Value="0,0,8,0" />
+            </Style>
+            <!-- Where the deploy is: 1 Files, 2 Config, 3 Deploy. The review's Number is the current stage. -->
+            <DataTemplate x:Key="Stepper">
+                <StackPanel Orientation="Horizontal">
+                    <Border x:Name="FilesDot" Style="{StaticResource StageDot}">
+                        <Grid>
+                            <TextBlock x:Name="FilesNumber" Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <materialDesign:PackIcon x:Name="FilesDone" Kind="Check" Width="13" Height="13" Visibility="Collapsed"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    <TextBlock x:Name="FilesLabel" Text="Files" VerticalAlignment="Center" Foreground="{StaticResource InkMuted}" />
+                    <Rectangle Width="36" Height="1" Fill="{StaticResource Hairline}" Margin="12,0" VerticalAlignment="Center" />
+                    <Border x:Name="ConfigDot" Style="{StaticResource StageDot}">
+                        <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock x:Name="ConfigLabel" Text="Config" VerticalAlignment="Center" Foreground="{StaticResource InkMuted}" />
+                    <Rectangle Width="36" Height="1" Fill="{StaticResource Hairline}" Margin="12,0" VerticalAlignment="Center" />
+                    <Border Style="{StaticResource StageDot}">
+                        <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="Deploy" VerticalAlignment="Center" Foreground="{StaticResource InkMuted}" />
                 </StackPanel>
+                <DataTemplate.Triggers>
+                    <DataTrigger Binding="{Binding Number}" Value="1">
+                        <Setter TargetName="FilesDot" Property="Background" Value="{StaticResource Brand}" />
+                        <Setter TargetName="FilesDot" Property="BorderBrush" Value="{StaticResource Brand}" />
+                        <Setter TargetName="FilesDot" Property="TextElement.Foreground" Value="White" />
+                        <Setter TargetName="FilesLabel" Property="Foreground" Value="{StaticResource Ink}" />
+                        <Setter TargetName="FilesLabel" Property="FontWeight" Value="SemiBold" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Number}" Value="2">
+                        <Setter TargetName="FilesDot" Property="BorderBrush" Value="{StaticResource Success}" />
+                        <Setter TargetName="FilesDot" Property="TextElement.Foreground" Value="{StaticResource Success}" />
+                        <Setter TargetName="FilesNumber" Property="Visibility" Value="Collapsed" />
+                        <Setter TargetName="FilesDone" Property="Visibility" Value="Visible" />
+                        <Setter TargetName="ConfigDot" Property="Background" Value="{StaticResource Brand}" />
+                        <Setter TargetName="ConfigDot" Property="BorderBrush" Value="{StaticResource Brand}" />
+                        <Setter TargetName="ConfigDot" Property="TextElement.Foreground" Value="White" />
+                        <Setter TargetName="ConfigLabel" Property="Foreground" Value="{StaticResource Ink}" />
+                        <Setter TargetName="ConfigLabel" Property="FontWeight" Value="SemiBold" />
+                    </DataTrigger>
+                </DataTemplate.Triggers>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- The brand bar: what is open, and the ways to open something -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource Brand}" Padding="18,0,12,0" Height="56">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource BarButton}" Command="{Binding OpenPackageCommand}" Content="Open package"
+                            Tag="{x:Static materialDesign:PackIconKind.PackageVariant}" ToolTip="Open a deploy package (.zip)" />
+                    <Button Style="{StaticResource BarButton}" Command="{Binding OpenFolderCommand}" Content="Open folder"
+                            Tag="{x:Static materialDesign:PackIconKind.FolderOpenOutline}" ToolTip="Manage an install folder without a package" />
+                    <Button Style="{StaticResource BarButton}" Command="{Binding OpenConfigCommand}" Content="Open config"
+                            Tag="{x:Static materialDesign:PackIconKind.CodeJson}" ToolTip="Open a deploy.json to edit" />
+                    <Button Style="{StaticResource BarButton}" Command="{Binding NewConfigCommand}" Content="New config"
+                            Tag="{x:Static materialDesign:PackIconKind.FilePlusOutline}" ToolTip="Write a new deploy.json" />
+                </StackPanel>
+                <materialDesign:PackIcon Kind="RocketLaunch" Width="24" Height="24" Foreground="White" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="White"><Run Text="{Binding HeaderTitle, Mode=OneWay}" FontSize="16" FontWeight="SemiBold" /><Run Text="    " /><Run Text="{Binding HeaderDetail, Mode=OneWay}" FontSize="12" Foreground="#BFFFFFFF" /></TextBlock>
             </DockPanel>
         </Border>
 
-        <ProgressBar DockPanel.Dock="Top" Height="3" IsIndeterminate="{Binding IsRunning}" Background="Transparent" BorderThickness="0"
+        <ProgressBar DockPanel.Dock="Top" Height="3" Value="{Binding Progress, Mode=OneWay}" Background="Transparent" BorderThickness="0"
                      Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}" />
 
         <!-- Status bar -->
-        <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="24,8">
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="18,6">
             <DockPanel>
-                <materialDesign:PackIcon Kind="InformationOutline" Foreground="{StaticResource Brand}" Width="16" Height="16"
+                <materialDesign:PackIcon Kind="InformationOutline" Foreground="{StaticResource Brand}" Width="15" Height="15"
                                          VerticalAlignment="Center" Margin="0,0,8,0" />
-                <TextBlock Text="{Binding Status}" Foreground="{StaticResource InkMuted}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Status}" Foreground="{StaticResource InkMuted}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
             </DockPanel>
         </Border>
 
         <Grid>
-            <!-- Home: deploy a package, manage an app that is already installed, or edit a deploy config -->
-            <Grid Visibility="{Binding IsHome, Converter={StaticResource BoolToVisibility}}" Margin="24">
+            <!-- Nothing open: the ways to start -->
+            <Grid Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" Margin="16">
+                <Rectangle RadiusX="10" RadiusY="10" Stroke="{StaticResource Hairline}" StrokeThickness="2" StrokeDashArray="6 4" />
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
+                    <Border Width="80" Height="80" CornerRadius="40" Background="{StaticResource BrandTint}" HorizontalAlignment="Center">
+                        <materialDesign:PackIcon Kind="RocketLaunch" Width="40" Height="40" Foreground="{StaticResource Brand}"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="Drop a package, an install folder or a deploy.json here" FontSize="20" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" Margin="0,20,0,6" />
+                    <TextBlock Text="A package opens with its install folder beside it, so you can see what is there before you deploy. A folder opens on its own to manage, and a deploy.json opens in the config editor."
+                               Style="{StaticResource Caption}" FontSize="13" TextAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,22,0,0">
+                        <Button Style="{StaticResource PrimaryButton}" Command="{Binding OpenPackageCommand}" Margin="0,0,8,0"
+                                Content="Open package" Tag="{x:Static materialDesign:PackIconKind.PackageVariant}" ContentTemplate="{StaticResource IconLabel}" />
+                        <Button Style="{StaticResource SecondaryButton}" Command="{Binding OpenFolderCommand}" Margin="0,0,8,0"
+                                Content="Open folder" Tag="{x:Static materialDesign:PackIconKind.FolderOpenOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                        <Button Style="{StaticResource QuietButton}" Command="{Binding NewConfigCommand}"
+                                Content="New config" Tag="{x:Static materialDesign:PackIconKind.FilePlusOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+
+            <Grid Visibility="{Binding IsEmpty, Converter={StaticResource InverseBoolToVisibility}}" Margin="12">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="20" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="370" MinWidth="300" MaxWidth="600" />
+                    <ColumnDefinition Width="12" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Grid>
-                    <Rectangle RadiusX="12" RadiusY="12" Fill="{StaticResource Surface}" Stroke="{StaticResource Brand}"
-                               StrokeThickness="2" StrokeDashArray="6 4" />
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="380" Margin="24">
-                        <Border Width="88" Height="88" CornerRadius="44" Background="{StaticResource BrandTint}" HorizontalAlignment="Center">
-                            <materialDesign:PackIcon Kind="PackageVariant" Width="44" Height="44" Foreground="{StaticResource Brand}"
-                                                     HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <TextBlock Text="Deploy a package" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,20,0,6" />
-                        <TextBlock Text="Drop a .zip, or a folder with deploy.json, anywhere on this window." Style="{StaticResource Caption}"
-                                   FontSize="13" TextAlignment="Center" TextWrapping="Wrap" />
-                        <Button Style="{StaticResource PrimaryButton}" Command="{Binding OpenPackageCommand}" HorizontalAlignment="Center" Margin="0,20,0,0"
-                                Content="Open package" Tag="{x:Static materialDesign:PackIconKind.FolderOpen}" ContentTemplate="{StaticResource IconLabel}" />
-                    </StackPanel>
-                </Grid>
-
-                <materialDesign:Card Grid.Column="2" Style="{StaticResource Panel}">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="380" Margin="24">
-                        <Border Width="88" Height="88" CornerRadius="44" Background="{StaticResource BrandTint}" HorizontalAlignment="Center">
-                            <materialDesign:PackIcon Kind="FolderCogOutline" Width="44" Height="44" Foreground="{StaticResource Brand}"
-                                                     HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <TextBlock Text="Manage an installed app" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,20,0,6" />
-                        <TextBlock Text="Edit settings, run tools, remove files, clone or remove an install." Style="{StaticResource Caption}"
-                                   FontSize="13" TextAlignment="Center" TextWrapping="Wrap" />
-                        <DockPanel Margin="0,20,0,0">
-                            <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Command="{Binding OpenFolderCommand}" Margin="8,0,0,0"
-                                    Content="Open" Tag="{x:Static materialDesign:PackIconKind.ArrowRight}" ContentTemplate="{StaticResource IconLabel}" />
-                            <TextBox x:Name="FolderPathBox" Style="{StaticResource MaterialDesignOutlinedTextBox}" Padding="10,8"
-                                     materialDesign:HintAssist.Hint="Install folder, such as C:\Apps\Orders"
-                                     Text="{Binding FolderPath, UpdateSourceTrigger=PropertyChanged}">
-                                <TextBox.InputBindings>
-                                    <KeyBinding Key="Enter" Command="{Binding OpenFolderCommand}" />
-                                </TextBox.InputBindings>
-                            </TextBox>
-                        </DockPanel>
-                        <Button Style="{StaticResource QuietButton}" Command="{Binding BrowseFolderCommand}" HorizontalAlignment="Center" Margin="0,8,0,0"
-                                Content="Browse" Tag="{x:Static materialDesign:PackIconKind.FolderSearchOutline}" ContentTemplate="{StaticResource IconLabel}" />
-                    </StackPanel>
-                </materialDesign:Card>
-
-                <materialDesign:Card Grid.Column="4" Style="{StaticResource Panel}">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="380" Margin="24">
-                        <Border Width="88" Height="88" CornerRadius="44" Background="{StaticResource BrandTint}" HorizontalAlignment="Center">
-                            <materialDesign:PackIcon Kind="FileDocumentEditOutline" Width="44" Height="44" Foreground="{StaticResource Brand}"
-                                                     HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <TextBlock Text="Edit a deploy config" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,20,0,6" />
-                        <TextBlock Text="Build a deploy.json step by step, or change one you have. Drop a .json here to open it." Style="{StaticResource Caption}"
-                                   FontSize="13" TextAlignment="Center" TextWrapping="Wrap" />
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
-                            <Button Style="{StaticResource PrimaryButton}" Command="{Binding NewConfigCommand}" Margin="0,0,8,0"
-                                    Content="New" Tag="{x:Static materialDesign:PackIconKind.FilePlusOutline}" ContentTemplate="{StaticResource IconLabel}" />
-                            <Button Style="{StaticResource SecondaryButton}" Command="{Binding OpenConfigCommand}"
-                                    Content="Open" Tag="{x:Static materialDesign:PackIconKind.FolderOpenOutline}" ContentTemplate="{StaticResource IconLabel}" />
-                        </StackPanel>
-                        <Button Style="{StaticResource QuietButton}" Command="{Binding ResumeEditingCommand}" HorizontalAlignment="Center" Margin="0,8,0,0"
-                                Content="Back to the config" Tag="{x:Static materialDesign:PackIconKind.ArrowRight}" ContentTemplate="{StaticResource IconLabel}"
-                                Visibility="{Binding HasEditor, Converter={StaticResource BoolToVisibility}}" />
-                    </StackPanel>
-                </materialDesign:Card>
-            </Grid>
-
-            <!-- Edit: a visual editor for deploy.json -->
-            <DockPanel Visibility="{Binding IsEdit, Converter={StaticResource BoolToVisibility}}" Margin="24,20,24,20">
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
-                    <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Command="{Binding TryConfigCommand}"
-                            Content="Save and try it" Tag="{x:Static materialDesign:PackIconKind.PlayCircleOutline}" ContentTemplate="{StaticResource IconLabel}"
-                            ToolTip="Saves the config, then opens its folder as a package so you can do a dry run." />
-                    <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource SecondaryButton}" Command="{Binding NewConfigCommand}" Margin="0,0,8,0"
-                                Content="New" Tag="{x:Static materialDesign:PackIconKind.FilePlusOutline}" ContentTemplate="{StaticResource IconLabel}" />
-                        <Button Style="{StaticResource SecondaryButton}" Command="{Binding OpenConfigCommand}" Margin="0,0,8,0"
-                                Content="Open" Tag="{x:Static materialDesign:PackIconKind.FolderOpenOutline}" ContentTemplate="{StaticResource IconLabel}" />
-                        <Button Style="{StaticResource SecondaryButton}" Command="{Binding SaveConfigCommand}" Margin="0,0,8,0"
-                                Content="Save" Tag="{x:Static materialDesign:PackIconKind.ContentSaveOutline}" ContentTemplate="{StaticResource IconLabel}" />
-                        <Button Style="{StaticResource QuietButton}" Command="{Binding SaveConfigAsCommand}"
-                                Content="Save as" Tag="{x:Static materialDesign:PackIconKind.ContentSaveEditOutline}" ContentTemplate="{StaticResource IconLabel}" />
-                    </StackPanel>
-                </DockPanel>
-                <app:EditorView x:Name="Editor" DataContext="{Binding Editor}" />
-            </DockPanel>
-
-            <DockPanel Visibility="{Binding IsDeploy, Converter={StaticResource BoolToVisibility}}" Margin="24,20,24,20">
-                <!-- Needs administrator rights -->
-                <Border DockPanel.Dock="Top" Background="{StaticResource WarningTint}" CornerRadius="8" Padding="16,10" Margin="0,0,0,16"
-                        Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}}">
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Command="{Binding RestartElevatedCommand}"
-                                Content="Restart as administrator" Tag="{x:Static materialDesign:PackIconKind.ShieldAccount}" ContentTemplate="{StaticResource IconLabel}" />
-                        <materialDesign:PackIcon Kind="ShieldAlertOutline" Foreground="{StaticResource Warning}" Width="22" Height="22"
-                                                 VerticalAlignment="Center" Margin="0,0,12,0" />
-                        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{StaticResource Ink}"
-                                   Text="Deploying needs administrator rights. A dry run doesn't." />
-                    </DockPanel>
-                </Border>
-
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="360" />
-                        <ColumnDefinition Width="20" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Parameters and actions -->
-                    <materialDesign:Card Style="{StaticResource Panel}">
+                <!-- ===== Left: the package, then the install folder ===== -->
+                <DockPanel>
+                    <!-- Needs administrator rights -->
+                    <Border DockPanel.Dock="Top" Background="{StaticResource WarningTint}" CornerRadius="8" Padding="12,8" Margin="0,0,0,12"
+                            Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}}">
                         <DockPanel>
-                            <TextBlock DockPanel.Dock="Top" Text="Settings" Style="{StaticResource PanelTitle}" Margin="0,0,0,16" />
+                            <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Height="30" Command="{Binding RestartElevatedCommand}"
+                                    Content="Restart as admin" Tag="{x:Static materialDesign:PackIconKind.ShieldAccount}" ContentTemplate="{StaticResource IconLabel}" />
+                            <materialDesign:PackIcon Kind="ShieldAlertOutline" Foreground="{StaticResource Warning}" Width="18" Height="18"
+                                                     VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12" Text="Deploying needs administrator rights. A dry run doesn't." />
+                        </DockPanel>
+                    </Border>
 
-                            <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+                    <!-- The package: its settings and the deploy -->
+                    <materialDesign:Card DockPanel.Dock="Top" Style="{StaticResource Panel}" Padding="0" Margin="0,0,0,12"
+                                         Visibility="{Binding HasPackage, Converter={StaticResource BoolToVisibility}}">
+                        <DockPanel>
+                            <Border Style="{StaticResource PaneHeader}">
+                                <DockPanel>
+                                    <materialDesign:PackIcon Kind="PackageVariant" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                                             VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <TextBlock Text="PACKAGE" Style="{StaticResource SectionLabel}" />
+                                </DockPanel>
+                            </Border>
+
+                            <StackPanel DockPanel.Dock="Bottom" Margin="14,4,14,14">
+                                <!-- While a deploy runs: the step it is on -->
+                                <DockPanel Margin="0,0,0,10" Visibility="{Binding RunningStep, Converter={StaticResource NullToCollapsed}}">
+                                    <TextBlock DockPanel.Dock="Right" FontSize="12" Foreground="{StaticResource InkMuted}" Margin="8,0,0,0"
+                                               Text="{Binding Progress, StringFormat={}{0:0}%}" />
+                                    <TextBlock FontSize="12" TextTrimming="CharacterEllipsis"><Run Text="Running: " Foreground="{StaticResource InkMuted}" /><Run Text="{Binding RunningStep, Mode=OneWay}" /></TextBlock>
+                                </DockPanel>
                                 <UniformGrid Columns="2">
                                     <Button Style="{StaticResource SecondaryButton}" Command="{Binding DryRunCommand}" Margin="0,0,6,0"
                                             Content="Dry run" Tag="{x:Static materialDesign:PackIconKind.PlayOutline}" ContentTemplate="{StaticResource IconLabel}"
                                             ToolTip="Walk through every step without changing anything" />
                                     <Button Style="{StaticResource PrimaryButton}" Command="{Binding DeployCommand}" Margin="6,0,0,0"
-                                            Content="Deploy" Tag="{x:Static materialDesign:PackIconKind.CloudUpload}" ContentTemplate="{StaticResource IconLabel}" />
+                                            Content="Deploy" Tag="{x:Static materialDesign:PackIconKind.CloudUpload}" ContentTemplate="{StaticResource IconLabel}"
+                                            ToolTip="Check the files first, then deploy" />
                                 </UniformGrid>
-                                <UniformGrid Columns="2" Margin="0,8,0,0">
-                                    <Button Style="{StaticResource QuietButton}" Command="{Binding CancelCommand}" Margin="0,0,6,0"
+                                <UniformGrid Columns="2" Margin="0,6,0,0">
+                                    <Button Style="{StaticResource QuietButton}" Height="32" Command="{Binding CancelCommand}" Margin="0,0,6,0"
                                             Content="Cancel" Tag="{x:Static materialDesign:PackIconKind.Cancel}" ContentTemplate="{StaticResource IconLabel}" />
-                                    <Button Style="{StaticResource QuietButton}" Command="{Binding RollBackCommand}" Margin="6,0,0,0"
+                                    <Button Style="{StaticResource QuietButton}" Height="32" Command="{Binding RollBackCommand}" Margin="6,0,0,0"
                                             Content="Roll back" Tag="{x:Static materialDesign:PackIconKind.Restore}" ContentTemplate="{StaticResource IconLabel}" />
                                 </UniformGrid>
                             </StackPanel>
 
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,6,4,0">
-                                <StackPanel IsEnabled="{Binding IsIdle}">
-                                    <ItemsControl ItemsSource="{Binding Parameters}" Focusable="False" />
-
-                                    <!-- Where the deploy goes: an install found in the folder, or a new one -->
-                                    <StackPanel DataContext="{Binding Install}" Visibility="{Binding Converter={StaticResource NullToCollapsed}}" Margin="0,4,0,0">
-                                        <TextBlock Text="INSTALL" Style="{StaticResource Caption}" FontWeight="SemiBold" Margin="0,0,0,4" />
-                                        <ListBox ItemsSource="{Binding Targets}" SelectedItem="{Binding Selected}" HorizontalContentAlignment="Stretch"
-                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                            <ListBox.ItemContainerStyle>
-                                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
-                                                    <Setter Property="Padding" Value="8,0" />
-                                                </Style>
-                                            </ListBox.ItemContainerStyle>
-                                            <ListBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid x:Name="Row" Height="32" Background="Transparent">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="28" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <materialDesign:PackIcon Kind="{Binding Icon}" Width="18" Height="18" Foreground="{StaticResource Brand}"
-                                                                                 VerticalAlignment="Center" Margin="0,0,10,0" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="13" VerticalAlignment="Center"
-                                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Install.Directory}" />
-                                                        <TextBlock Grid.Column="2" Text="{Binding Detail}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="8,0,0,0" />
-                                                        <Button x:Name="Remove" Grid.Column="3" Style="{StaticResource MaterialDesignIconButton}" Width="26" Height="26" Padding="0"
-                                                                Foreground="{StaticResource Danger}" ToolTip="Remove this install" Visibility="Hidden"
-                                                                Command="{Binding DataContext.RemoveInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding}">
-                                                            <materialDesign:PackIcon Kind="TrashCanOutline" Width="16" Height="16" />
-                                                        </Button>
-                                                    </Grid>
-                                                    <DataTemplate.Triggers>
-                                                        <MultiDataTrigger>
-                                                            <MultiDataTrigger.Conditions>
-                                                                <Condition Binding="{Binding IsMouseOver, ElementName=Row}" Value="True" />
-                                                                <Condition Binding="{Binding IsNew}" Value="False" />
-                                                            </MultiDataTrigger.Conditions>
-                                                            <Setter TargetName="Remove" Property="Visibility" Value="Visible" />
-                                                        </MultiDataTrigger>
-                                                    </DataTemplate.Triggers>
-                                                </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-
-                                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,10,0,0" Padding="10,8"
-                                                 materialDesign:HintAssist.Hint="Instance name (empty for a single install)"
-                                                 Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                                                 Visibility="{Binding AllowsInstances, Converter={StaticResource BoolToVisibility}}" />
-                                        <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}" Margin="0,10,0,0" Padding="10,8"
-                                                  materialDesign:HintAssist.Hint="Start from a copy of"
-                                                  ItemsSource="{Binding CopySources}" SelectedItem="{Binding CopyFrom}" DisplayMemberPath="CopyLabel"
-                                                  Visibility="{Binding CanCopy, Converter={StaticResource BoolToVisibility}}" />
-
-                                        <!-- Exactly what the deploy will do to the installs, or why it can't -->
-                                        <DockPanel Margin="2,10,0,0" Visibility="{Binding Problem, Converter={StaticResource NullToVisible}}">
-                                            <materialDesign:PackIcon Kind="{Binding PlanIcon}" Foreground="{StaticResource Brand}" Width="16" Height="16" Margin="0,1,8,0" />
-                                            <TextBlock Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource InkMuted}" />
-                                        </DockPanel>
-                                        <DockPanel Margin="2,10,0,0" Visibility="{Binding Problem, Converter={StaticResource NullToCollapsed}}">
-                                            <materialDesign:PackIcon Kind="AlertCircleOutline" Foreground="{StaticResource Danger}" Width="16" Height="16" Margin="0,1,8,0" />
-                                            <TextBlock Text="{Binding Problem}" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Danger}" />
-                                        </DockPanel>
-                                    </StackPanel>
-                                </StackPanel>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="260" Padding="14,14,14,0">
+                                <ItemsControl ItemsSource="{Binding Parameters}" Focusable="False" IsEnabled="{Binding IsIdle}" />
                             </ScrollViewer>
                         </DockPanel>
                     </materialDesign:Card>
 
-                    <Grid Grid.Column="2">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="5*" MinHeight="160" />
-                            <RowDefinition Height="20" />
-                            <RowDefinition Height="4*" MinHeight="140" />
-                        </Grid.RowDefinitions>
+                    <!-- A config open on its own: nothing to deploy yet -->
+                    <materialDesign:Card DockPanel.Dock="Top" Style="{StaticResource Panel}" Padding="16"
+                                         Visibility="{Binding IsConfigOnly, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <TextBlock Text="No package open" Style="{StaticResource PanelTitle}" />
+                            <TextBlock Text="Save the config as deploy.json next to your app's files and its folder opens here as the package, ready for a dry run."
+                                       Style="{StaticResource Caption}" Margin="0,6,0,12" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource SecondaryButton}" Height="32" Command="{Binding OpenPackageCommand}" Margin="0,0,8,0"
+                                        Content="Open package" Tag="{x:Static materialDesign:PackIconKind.PackageVariant}" ContentTemplate="{StaticResource IconLabel}" />
+                                <Button Style="{StaticResource QuietButton}" Height="32" Command="{Binding OpenFolderCommand}"
+                                        Content="Open folder" Tag="{x:Static materialDesign:PackIconKind.FolderOpenOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </materialDesign:Card>
 
-                        <!-- The plan: the steps, and the files the copy steps will change -->
-                        <materialDesign:Card Style="{StaticResource Panel}" Padding="0">
-                            <TabControl SelectedIndex="{Binding SelectedTab}" HorizontalContentAlignment="Left" Margin="8,4,8,0"
-                                        materialDesign:ColorZoneAssist.Mode="Standard">
-                                <TabItem>
-                                    <TabItem.Header>
-                                        <StackPanel Orientation="Horizontal">
-                                            <materialDesign:PackIcon Kind="FormatListChecks" Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                            <TextBlock Text="Steps" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                    </TabItem.Header>
-                                    <ListBox ItemsSource="{Binding Steps}" HorizontalContentAlignment="Stretch" Padding="8,0,8,8"
-                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                                        <ListBox.ItemContainerStyle>
-                                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
-                                                <Setter Property="Padding" Value="10,2" />
-                                                <Setter Property="Focusable" Value="False" />
-                                                <Setter Property="materialDesign:ListBoxItemAssist.ShowSelection" Value="False" />
-                                            </Style>
-                                        </ListBox.ItemContainerStyle>
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <!-- State icon, step-type icon, title; the condition shows on hover -->
-                                                <Grid Margin="{Binding Indent}" Height="26">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <materialDesign:PackIcon Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
-                                                        <materialDesign:PackIcon.Style>
-                                                            <Style TargetType="materialDesign:PackIcon">
-                                                                <Setter Property="Kind" Value="CircleOutline" />
-                                                                <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Running}">
-                                                                        <Setter Property="Kind" Value="PlayCircle" />
-                                                                        <Setter Property="Foreground" Value="{StaticResource Brand}" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Succeeded}">
-                                                                        <Setter Property="Kind" Value="CheckCircle" />
-                                                                        <Setter Property="Foreground" Value="{StaticResource Success}" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Skipped}">
-                                                                        <Setter Property="Kind" Value="MinusCircleOutline" />
-                                                                        <Setter Property="Foreground" Value="{StaticResource InkFaint}" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding State}" Value="{x:Static core:StepState.Failed}">
-                                                                        <Setter Property="Kind" Value="CloseCircle" />
-                                                                        <Setter Property="Foreground" Value="{StaticResource Danger}" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </materialDesign:PackIcon.Style>
-                                                    </materialDesign:PackIcon>
-                                                    <materialDesign:PackIcon Grid.Column="1" Kind="{Binding Icon}" Width="16" Height="16" Margin="0,0,10,0"
-                                                                             Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" />
-                                                    <!-- Runs on one line: whitespace between them would show as a leading space. -->
-                                                    <TextBlock Grid.Column="2" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"><Run Text="{Binding Branch, Mode=OneWay}" Foreground="{StaticResource Brand}" FontWeight="SemiBold" /><Run Text="{Binding Title, Mode=OneWay}" Foreground="{StaticResource Ink}" /></TextBlock>
-                                                    <materialDesign:PackIcon Grid.Column="3" Kind="HelpCircleOutline" Width="16" Height="16" Margin="8,0,0,0"
-                                                                             Foreground="{StaticResource Brand}" VerticalAlignment="Center" Background="Transparent"
-                                                                             ToolTip="{Binding Detail}" Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibility}}" />
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </TabItem>
+                    <!-- The install folder: where the deploy goes, and what is there now -->
+                    <materialDesign:Card Style="{StaticResource Panel}" Padding="0" IsEnabled="{Binding IsIdle}"
+                                         Visibility="{Binding IsConfigOnly, Converter={StaticResource InverseBoolToVisibility}}">
+                        <DockPanel>
+                            <Border Style="{StaticResource PaneHeader}">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource PaneButton}" Command="{Binding Folder.ReloadCommand}"
+                                            ToolTip="Read the folder again" Visibility="{Binding HasFolder, Converter={StaticResource BoolToVisibility}}">
+                                        <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" />
+                                    </Button>
+                                    <materialDesign:PackIcon Kind="FolderCogOutline" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                                             VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <TextBlock Text="INSTALL FOLDER" Style="{StaticResource SectionLabel}" />
+                                </DockPanel>
+                            </Border>
 
-                                <TabItem>
-                                    <TabItem.Header>
-                                        <StackPanel Orientation="Horizontal">
-                                            <materialDesign:PackIcon Kind="FileTreeOutline" Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                            <TextBlock Text="Files" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                    </TabItem.Header>
-                                    <DockPanel Margin="8,6,8,8">
-                                        <!-- Legend, refresh and show-unchanged -->
-                                        <DockPanel DockPanel.Dock="Top" Margin="4,0,0,4">
-                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                <Button Style="{StaticResource MaterialDesignIconButton}" Width="32" Height="32" Command="{Binding RefreshFilesCommand}"
-                                                        ToolTip="Compare again" Foreground="{StaticResource InkMuted}">
-                                                    <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18" />
-                                                </Button>
-                                                <ToggleButton Style="{StaticResource MaterialDesignFlatToggleButton}" IsChecked="{Binding ShowUnchangedFiles}"
-                                                              Width="32" Height="32" ToolTip="Show identical files">
-                                                    <materialDesign:PackIcon Kind="EyeOutline" Width="18" Height="18" />
-                                                </ToggleButton>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <StackPanel.Resources>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
-                                                        <Setter Property="Margin" Value="4,0,14,0" />
-                                                        <Setter Property="VerticalAlignment" Value="Center" />
-                                                    </Style>
-                                                </StackPanel.Resources>
-                                                <materialDesign:PackIcon Kind="FilePlusOutline" Foreground="{StaticResource Success}" Width="14" Height="14" VerticalAlignment="Center" />
-                                                <TextBlock Text="new" />
-                                                <materialDesign:PackIcon Kind="FileSyncOutline" Foreground="{StaticResource Brand}" Width="14" Height="14" VerticalAlignment="Center" />
-                                                <TextBlock Text="changed" />
-                                                <materialDesign:PackIcon Kind="FileCheckOutline" Foreground="{StaticResource InkFaint}" Width="14" Height="14" VerticalAlignment="Center" />
-                                                <TextBlock Text="same" />
-                                                <materialDesign:PackIcon Kind="FileQuestionOutline" Foreground="{StaticResource Warning}" Width="14" Height="14" VerticalAlignment="Center" />
-                                                <TextBlock Text="only on server" />
-                                            </StackPanel>
-                                        </DockPanel>
+                            <!-- The folder: typed for a package, fixed for a folder opened on its own -->
+                            <StackPanel DockPanel.Dock="Top" Margin="14,14,14,6">
+                                <ContentControl Content="{Binding FolderField}" ContentTemplate="{StaticResource PathInput}" Focusable="False"
+                                                Visibility="{Binding FolderField, Converter={StaticResource NullToCollapsed}}" />
+                                <TextBlock Text="{Binding Folder.Root}" FontFamily="{StaticResource Code}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding Folder.Root}" Visibility="{Binding FolderField, Converter={StaticResource NullToVisible}}" />
+                                <TextBlock Text="{Binding FolderNote}" Style="{StaticResource Caption}" Margin="0,8,0,0"
+                                           Visibility="{Binding FolderNote, Converter={StaticResource NullToCollapsed}}" />
+                            </StackPanel>
 
-                                        <!-- The settings changed since the files were compared -->
-                                        <Border DockPanel.Dock="Top" Background="{StaticResource WarningTint}" CornerRadius="6" Padding="10,4" Margin="0,0,0,6"
-                                                Visibility="{Binding FilesAreStale, Converter={StaticResource BoolToVisibility}}">
+                            <!-- Exactly what the deploy will do to the installs, or why it can't -->
+                            <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="14,10,14,12"
+                                    DataContext="{Binding Install}" Visibility="{Binding Converter={StaticResource NullToCollapsed}}">
+                                <StackPanel>
+                                    <DockPanel Visibility="{Binding Problem, Converter={StaticResource NullToVisible}}">
+                                        <materialDesign:PackIcon Kind="{Binding PlanIcon}" Foreground="{StaticResource Brand}" Width="16" Height="16" Margin="0,1,8,0" />
+                                        <TextBlock Text="{Binding Summary}" FontSize="12" TextWrapping="Wrap" />
+                                    </DockPanel>
+                                    <DockPanel Visibility="{Binding Problem, Converter={StaticResource NullToCollapsed}}">
+                                        <materialDesign:PackIcon Kind="AlertCircleOutline" Foreground="{StaticResource Danger}" Width="16" Height="16" Margin="0,1,8,0" />
+                                        <TextBlock Text="{Binding Problem}" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Danger}" />
+                                    </DockPanel>
+                                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,10,0,0" Padding="10,8"
+                                             materialDesign:HintAssist.Hint="Instance name" materialDesign:HintAssist.HelperText="Change it to move this install to a new instance"
+                                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                             Visibility="{Binding CanRename, Converter={StaticResource BoolToVisibility}}" />
+                                    <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}" Margin="0,10,0,0" Padding="10,8"
+                                              materialDesign:HintAssist.Hint="Start from a copy of"
+                                              ItemsSource="{Binding CopySources}" SelectedItem="{Binding CopyFrom}" DisplayMemberPath="CopyLabel"
+                                              Visibility="{Binding CanCopy, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- The folders. Picking one lists its files on the right; picking an install makes it the deploy's target. -->
+                            <TreeView x:Name="FolderTree" ItemsSource="{Binding Folder.Tree}" ItemContainerStyleSelector="{StaticResource TreeItems}"
+                                      Padding="6,0,6,6" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                      Visibility="{Binding HasFolder, Converter={StaticResource BoolToVisibility}}" />
+                        </DockPanel>
+                    </materialDesign:Card>
+                </DockPanel>
+
+                <GridSplitter Grid.Column="1" Width="12" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent"
+                              ResizeBehavior="PreviousAndNext" Focusable="False" ToolTip="Drag to resize" />
+
+                <!-- ===== Right: the tabs, or the review a deploy is waiting on ===== -->
+                <materialDesign:Card Grid.Column="2" Style="{StaticResource Panel}" Padding="0">
+                    <Grid>
+                        <TabControl x:Name="Tabs" SelectedIndex="{Binding SelectedTab}" HorizontalContentAlignment="Left" Padding="0"
+                                    materialDesign:ColorZoneAssist.Mode="Standard"
+                                    Visibility="{Binding IsReviewing, Converter={StaticResource InverseBoolToVisibility}}">
+                            <!-- Files: the folder picked in the tree, with the settings editor beside it -->
+                            <TabItem Header="Files" Tag="{x:Static materialDesign:PackIconKind.FileTreeOutline}" HeaderTemplate="{StaticResource TabHeader}"
+                                     Visibility="{Binding HasFolder, Converter={StaticResource BoolToVisibility}}">
+                                <Grid DataContext="{Binding Folder}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="260" />
+                                        <ColumnDefinition Width="{Binding HasOpenFile, Converter={StaticResource OpenFileWidth}}" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <DockPanel>
+                                        <Border Style="{StaticResource PaneHeader}">
                                             <DockPanel>
-                                                <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Command="{Binding RefreshFilesCommand}"
-                                                        Content="Compare again" Tag="{x:Static materialDesign:PackIconKind.Refresh}" ContentTemplate="{StaticResource IconLabel}" />
-                                                <materialDesign:PackIcon Kind="AlertOutline" Foreground="{StaticResource Warning}" Width="16" Height="16" VerticalAlignment="Center" />
-                                                <TextBlock Text="Settings changed since this list was made." FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                                <ProgressBar DockPanel.Dock="Right" Style="{StaticResource MaterialDesignCircularProgressBar}" IsIndeterminate="True"
+                                                             Width="16" Height="16" Margin="8,0" Visibility="{Binding IsListing, Converter={StaticResource BoolToVisibility}}" />
+                                                <materialDesign:PackIcon Kind="{Binding SelectedFolder.Icon}" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                                                         VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectedFolder.FullPath}"><Run Text="{Binding SelectedFolder.Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding SelectedFolder.Kind, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" /></TextBlock>
                                             </DockPanel>
                                         </Border>
 
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                            <ItemsControl ItemsSource="{Binding FilePlans}" IsEnabled="{Binding IsIdle}" Focusable="False">
-                                                <ItemsControl.Resources>
-                                                    <DataTemplate DataType="{x:Type vm:FilePlanViewModel}">
-                                                        <app:FilePlanView Margin="0,0,0,12" />
-                                                    </DataTemplate>
-                                                    <DataTemplate DataType="{x:Type vm:FilePlanError}">
-                                                        <DockPanel Margin="4,8,4,12">
-                                                            <materialDesign:PackIcon Kind="FolderAlertOutline" Foreground="{StaticResource Warning}" Width="16" Height="16"
-                                                                                     VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="{Binding Title}" Background="Transparent" />
-                                                            <TextBlock Text="{Binding Message}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                                        </DockPanel>
-                                                    </DataTemplate>
-                                                </ItemsControl.Resources>
-                                            </ItemsControl>
-                                        </ScrollViewer>
-                                    </DockPanel>
-                                </TabItem>
-                            </TabControl>
-                        </materialDesign:Card>
+                                        <!-- Staged changes, written together -->
+                                        <Border DockPanel.Dock="Bottom" Background="{StaticResource BrandTint}" Padding="12,8"
+                                                Visibility="{Binding HasPending, Converter={StaticResource BoolToVisibility}}">
+                                            <DockPanel>
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                    <Button Style="{StaticResource QuietButton}" Height="32" Command="{Binding DiscardCommand}" Margin="0,0,6,0"
+                                                            Content="Discard" Tag="{x:Static materialDesign:PackIconKind.Undo}" ContentTemplate="{StaticResource IconLabel}" />
+                                                    <Button Style="{StaticResource PrimaryButton}" Height="32"
+                                                            Command="{Binding DataContext.FinalizeFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            Content="Finalize" Tag="{x:Static materialDesign:PackIconKind.ContentSaveCheckOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" TextElement.FontFamily="{StaticResource Code}" TextElement.FontSize="12">
+                                                    <TextBlock Foreground="{StaticResource Brand}" Margin="0,0,14,0" ToolTip="Settings changed"><Run Text="~" /><Run Text="{Binding EditCount, Mode=OneWay}" /></TextBlock>
+                                                    <TextBlock Foreground="{StaticResource Danger}" ToolTip="Files to delete"><Run Text="−" /><Run Text="{Binding DeleteCount, Mode=OneWay}" /></TextBlock>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
 
-                        <!-- The log -->
-                        <materialDesign:Card Grid.Row="2" Style="{StaticResource Panel}" Padding="0">
-                            <DockPanel>
-                                <TextBlock DockPanel.Dock="Top" Text="Log" Style="{StaticResource PanelTitle}" Margin="20,18,20,8" />
-                                <ListBox x:Name="LogList" Style="{StaticResource LogList}" />
-                            </DockPanel>
-                        </materialDesign:Card>
-                    </Grid>
-                </Grid>
-            </DockPanel>
-            <!-- An install folder opened without a package -->
-            <Grid Visibility="{Binding IsFolder, Converter={StaticResource BoolToVisibility}}" Margin="24,20,24,20">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="440" />
-                    <ColumnDefinition Width="20" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+                                        <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource Caption}" Margin="14,6"
+                                                   Visibility="{Binding IsCapped, Converter={StaticResource BoolToVisibility}}"
+                                                   Text="Only the first 5,000 files are listed. Pick a subfolder in the tree to see the rest." />
 
-                <materialDesign:Card Style="{StaticResource Panel}" Padding="0" DataContext="{Binding Folder}">
-                    <DockPanel>
-                        <!-- Installs found in the folder -->
-                        <StackPanel DockPanel.Dock="Top" Margin="20,18,20,8">
-                            <TextBlock Text="Installs" Style="{StaticResource PanelTitle}" />
-                            <TextBlock Text="No installs found here: no exe at the top of this folder or its subfolders." Style="{StaticResource Caption}"
-                                       TextWrapping="Wrap" Margin="0,6,0,0"
-                                       Visibility="{Binding Installs.Count, Converter={StaticResource ZeroToVisible}}" />
-                            <ItemsControl ItemsSource="{Binding Installs}" Margin="0,6,0,0" Focusable="False">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Height="32">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <materialDesign:PackIcon Kind="{Binding Icon}" Width="18" Height="18" Foreground="{StaticResource Brand}"
-                                                                     VerticalAlignment="Center" Margin="0,0,10,0" />
-                                            <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Install.Directory}"><Run Text="{Binding Label, Mode=OneWay}" FontSize="13" /><Run Text="  " /><Run Text="{Binding Detail, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" /></TextBlock>
-                                            <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}" Width="28" Height="28" Padding="0"
-                                                    Foreground="{StaticResource Brand}" ToolTip="Clone: deploy a package as a new instance that starts from a copy of this one"
-                                                    Command="{Binding DataContext.CloneInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
-                                                <materialDesign:PackIcon Kind="ContentCopy" Width="16" Height="16" />
-                                            </Button>
-                                            <Button Grid.Column="3" Style="{StaticResource MaterialDesignIconButton}" Width="28" Height="28" Padding="0"
-                                                    Foreground="{StaticResource Danger}" ToolTip="Remove this install, confirming each step"
-                                                    Command="{Binding DataContext.RemoveFolderInstallCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
-                                                <materialDesign:PackIcon Kind="TrashCanOutline" Width="16" Height="16" />
-                                            </Button>
+                                        <Grid>
+                                            <ItemsControl ItemsSource="{Binding Items}" Style="{StaticResource VirtualList}" Padding="0,0,0,8" />
+                                            <TextBlock Text="No files in this folder." Style="{StaticResource Caption}" Margin="44,16"
+                                                       Visibility="{Binding HasFiles, Converter={StaticResource InverseBoolToVisibility}}" />
                                         </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
+                                    </DockPanel>
 
-                        <!-- Staged changes, written together -->
-                        <Border DockPanel.Dock="Bottom" Background="{StaticResource BrandTint}" Padding="16,10"
-                                Visibility="{Binding HasPending, Converter={StaticResource BoolToVisibility}}">
-                            <DockPanel>
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                    <Button Style="{StaticResource QuietButton}" Command="{Binding DiscardCommand}" Margin="0,0,6,0"
-                                            Content="Discard" Tag="{x:Static materialDesign:PackIconKind.Undo}" ContentTemplate="{StaticResource IconLabel}" />
-                                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding DataContext.FinalizeFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            Content="Finalize" Tag="{x:Static materialDesign:PackIconKind.ContentSaveCheckOutline}" ContentTemplate="{StaticResource IconLabel}" />
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <materialDesign:PackIcon Kind="PencilOutline" Foreground="{StaticResource Brand}" Width="16" Height="16" VerticalAlignment="Center"
-                                                             ToolTip="Settings changed" Background="Transparent" />
-                                    <TextBlock Text="{Binding EditCount}" Margin="4,0,14,0" VerticalAlignment="Center" />
-                                    <materialDesign:PackIcon Kind="TrashCanOutline" Foreground="{StaticResource Danger}" Width="16" Height="16" VerticalAlignment="Center"
-                                                             ToolTip="Files to delete" Background="Transparent" />
-                                    <TextBlock Text="{Binding DeleteCount}" Margin="4,0,0,0" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
+                                    <!-- The settings file being edited, as a side-by-side diff -->
+                                    <DockPanel Grid.Column="1" Visibility="{Binding HasOpenFile, Converter={StaticResource BoolToVisibility}}">
+                                        <Border DockPanel.Dock="Left" Width="1" Background="{StaticResource Hairline}" />
+                                        <Border Style="{StaticResource PaneHeader}">
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource PaneButton}" Command="{Binding CloseFileCommand}" ToolTip="Close">
+                                                    <materialDesign:PackIcon Kind="Close" Width="16" Height="16" />
+                                                </Button>
+                                                <materialDesign:PackIcon Kind="FileCogOutline" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                                                         VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding OpenFile.Folder}"><Run Text="{Binding OpenFile.FileName, Mode=OneWay}" FontWeight="SemiBold" FontFamily="{StaticResource Code}" /><Run Text="   " /><Run Text="{Binding OpenFile.Folder, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" /></TextBlock>
+                                            </DockPanel>
+                                        </Border>
+                                        <app:ConfigFileView DataContext="{Binding OpenFile}" />
+                                    </DockPanel>
+                                </Grid>
+                            </TabItem>
 
-                        <!-- Every file in the folder -->
-                        <DockPanel>
-                            <DockPanel DockPanel.Dock="Top" Margin="20,8,12,4">
-                                <Button DockPanel.Dock="Right" Style="{StaticResource MaterialDesignIconButton}" Width="32" Height="32" Command="{Binding ReloadCommand}"
-                                        ToolTip="Read the folder again" Foreground="{StaticResource InkMuted}">
-                                    <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18" />
-                                </Button>
-                                <TextBlock Text="Files" Style="{StaticResource PanelTitle}" VerticalAlignment="Center" />
-                            </DockPanel>
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="12,0,12,8">
-                                <ItemsControl ItemsSource="{Binding Items}" Focusable="False">
-                                    <ItemsControl.Resources>
-                                        <DataTemplate DataType="{x:Type vm:FolderViewModel}">
-                                            <StackPanel Orientation="Horizontal" Height="24" Margin="28,0,0,0">
-                                                <materialDesign:PackIcon Kind="FolderOutline" Width="14" Height="14" Foreground="{StaticResource InkFaint}"
-                                                                         VerticalAlignment="Center" Margin="{Binding Indent}" />
-                                                <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource InkMuted}"
-                                                           VerticalAlignment="Center" Margin="6,0,0,0" />
+                            <TabItem Header="Steps" Tag="{x:Static materialDesign:PackIconKind.FormatListChecks}" HeaderTemplate="{StaticResource TabHeader}"
+                                     Visibility="{Binding HasPackage, Converter={StaticResource BoolToVisibility}}">
+                                <ItemsControl ItemsSource="{Binding Steps}" Style="{StaticResource VirtualList}" Padding="0,0,0,8" />
+                            </TabItem>
+
+                            <!-- deploy.json: the visual editor -->
+                            <TabItem Header="deploy.json" Tag="{x:Static materialDesign:PackIconKind.CodeJson}" HeaderTemplate="{StaticResource TabHeader}"
+                                     Visibility="{Binding HasEditor, Converter={StaticResource BoolToVisibility}}">
+                                <DockPanel>
+                                    <Border Style="{StaticResource PaneHeader}">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Style="{StaticResource QuietButton}" Height="30" Command="{Binding SaveConfigCommand}"
+                                                        Content="Save" Tag="{x:Static materialDesign:PackIconKind.ContentSaveOutline}" ContentTemplate="{StaticResource IconLabel}" />
+                                                <Button Style="{StaticResource QuietButton}" Height="30" Command="{Binding SaveConfigAsCommand}"
+                                                        Content="Save as" Tag="{x:Static materialDesign:PackIconKind.ContentSaveEditOutline}" ContentTemplate="{StaticResource IconLabel}" />
                                             </StackPanel>
-                                        </DataTemplate>
-                                        <DataTemplate DataType="{x:Type vm:FolderFileViewModel}">
-                                            <Border x:Name="Row" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Background="Transparent">
-                                                <Grid Height="30">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="28" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <materialDesign:PackIcon x:Name="Icon" Kind="{Binding Icon}" Width="16" Height="16" Foreground="{StaticResource InkMuted}"
-                                                                             HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    <TextBlock x:Name="Name" Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding RelativePath}" Margin="{Binding Indent}"
-                                                               FontFamily="Cascadia Mono, Consolas" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                                    <StackPanel x:Name="Actions" Grid.Column="2" Orientation="Horizontal" Visibility="Hidden">
-                                                        <Button Style="{StaticResource MaterialDesignIconButton}" Width="26" Height="26" Padding="0" Foreground="{StaticResource Brand}"
-                                                                ToolTip="Edit settings" Command="{Binding DataContext.Folder.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding}" Visibility="{Binding IsConfig, Converter={StaticResource BoolToVisibility}}">
-                                                            <materialDesign:PackIcon Kind="PencilOutline" Width="16" Height="16" />
-                                                        </Button>
-                                                        <Button Style="{StaticResource MaterialDesignIconButton}" Width="26" Height="26" Padding="0" Foreground="{StaticResource Success}"
-                                                                ToolTip="Run, with arguments" Command="{Binding DataContext.RunFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding}" Visibility="{Binding CanRun, Converter={StaticResource BoolToVisibility}}">
-                                                            <materialDesign:PackIcon Kind="Play" Width="16" Height="16" />
-                                                        </Button>
-                                                        <Button x:Name="Delete" Style="{StaticResource MaterialDesignIconButton}" Width="26" Height="26" Padding="0" Foreground="{StaticResource Danger}"
-                                                                ToolTip="Delete when finalized" Command="{Binding DataContext.Folder.ToggleDeleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding}">
-                                                            <materialDesign:PackIcon x:Name="DeleteIcon" Kind="TrashCanOutline" Width="16" Height="16" />
-                                                        </Button>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Border>
-                                            <DataTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding IsMouseOver, ElementName=Row}" Value="True">
-                                                    <Setter TargetName="Actions" Property="Visibility" Value="Visible" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding IsConfig}" Value="True">
-                                                    <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Brand}" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding HasEdits}" Value="True">
-                                                    <Setter TargetName="Row" Property="Background" Value="{StaticResource BrandTint}" />
-                                                    <Setter TargetName="Icon" Property="Kind" Value="FileEditOutline" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding IsStagedForDelete}" Value="True">
-                                                    <Setter TargetName="Row" Property="Background" Value="#FFEBE9" />
-                                                    <Setter TargetName="Name" Property="TextDecorations" Value="Strikethrough" />
-                                                    <Setter TargetName="Actions" Property="Visibility" Value="Visible" />
-                                                    <Setter TargetName="DeleteIcon" Property="Kind" Value="Undo" />
-                                                    <Setter TargetName="Delete" Property="ToolTip" Value="Keep this file" />
-                                                </DataTrigger>
-                                            </DataTemplate.Triggers>
-                                        </DataTemplate>
-                                    </ItemsControl.Resources>
-                                </ItemsControl>
-                            </ScrollViewer>
-                        </DockPanel>
-                    </DockPanel>
-                </materialDesign:Card>
-
-                <Grid Grid.Column="2">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="5*" MinHeight="160" />
-                        <RowDefinition Height="20" />
-                        <RowDefinition Height="3*" MinHeight="120" />
-                    </Grid.RowDefinitions>
-
-                    <!-- The settings file being edited, side by side -->
-                    <materialDesign:Card Style="{StaticResource Panel}" Padding="0" DataContext="{Binding Folder}">
-                        <Grid>
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        Visibility="{Binding HasOpenFile, Converter={StaticResource InverseBoolToVisibility}}">
-                                <materialDesign:PackIcon Kind="FileCogOutline" Width="40" Height="40" Foreground="{StaticResource InkFaint}" HorizontalAlignment="Center" />
-                                <TextBlock Text="Pick a settings file and press the pencil to edit it." Style="{StaticResource Caption}" Margin="0,8,0,0" />
-                            </StackPanel>
-                            <DockPanel Visibility="{Binding HasOpenFile, Converter={StaticResource BoolToVisibility}}">
-                                <DockPanel DockPanel.Dock="Top" Margin="20,16,20,8">
-                                    <materialDesign:PackIcon Kind="FileCogOutline" Width="20" Height="20" Foreground="{StaticResource Brand}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                    <TextBlock Text="{Binding OpenFile.FileName}" Style="{StaticResource PanelTitle}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding OpenFile.Folder}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="10,0,0,0"
-                                               TextTrimming="CharacterEllipsis" />
+                                            <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Editor.FilePath}"><Run Text="{Binding Editor.Title, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding Editor.FilePath, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" FontFamily="{StaticResource Code}" /></TextBlock>
+                                        </DockPanel>
+                                    </Border>
+                                    <app:EditorView x:Name="Editor" DataContext="{Binding Editor}" Margin="14,12,14,12" />
                                 </DockPanel>
-                                <app:ConfigFileView DataContext="{Binding OpenFile}" Margin="12,0,12,8" />
-                            </DockPanel>
-                        </Grid>
-                    </materialDesign:Card>
+                            </TabItem>
 
-                    <!-- Output of the tools run from here -->
-                    <materialDesign:Card Grid.Row="2" Style="{StaticResource Panel}" Padding="0">
-                        <DockPanel>
-                            <TextBlock DockPanel.Dock="Top" Text="Log" Style="{StaticResource PanelTitle}" Margin="20,18,20,8" />
-                            <ListBox x:Name="FolderLogList" Style="{StaticResource LogList}" />
+                            <TabItem Header="Log" Tag="{x:Static materialDesign:PackIconKind.ConsoleLine}" HeaderTemplate="{StaticResource TabHeader}">
+                                <Grid>
+                                    <ListBox x:Name="LogList" Style="{StaticResource LogList}" />
+                                    <TextBlock Text="The log of a dry run, a deploy, or a tool run from the folder shows here." Style="{StaticResource Caption}"
+                                               Margin="20,16" Visibility="{Binding Log.Count, Converter={StaticResource ZeroToVisible}}" />
+                                </Grid>
+                            </TabItem>
+                        </TabControl>
+
+                        <!-- A review the deploy is waiting on: a stepper, the review, and Continue -->
+                        <DockPanel DataContext="{Binding Stage}" Visibility="{Binding Converter={StaticResource NullToCollapsed}}">
+                            <Border DockPanel.Dock="Top" Background="{StaticResource Canvas}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="16,12">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource Badge}" Background="{StaticResource Warning}"
+                                                Visibility="{Binding IsDryRun, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="Dry run: nothing is changed" />
+                                        </Border>
+                                        <ContentControl Content="{Binding}" ContentTemplate="{StaticResource Stepper}" Focusable="False" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding Title}" Style="{StaticResource PanelTitle}" Margin="0,12,0,2" />
+                                    <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="16,10">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Style="{StaticResource QuietButton}" Command="{Binding CancelCommand}" Margin="0,0,8,0"
+                                            Content="Cancel" Tag="{x:Static materialDesign:PackIconKind.Cancel}" ContentTemplate="{StaticResource IconLabel}" />
+                                    <Button x:Name="ContinueButton" Style="{StaticResource PrimaryButton}" Command="{Binding ContinueCommand}"
+                                            Content="{Binding ContinueText}" Tag="{x:Static materialDesign:PackIconKind.ArrowRight}" ContentTemplate="{StaticResource IconLabel}" />
+                                </StackPanel>
+                            </Border>
+
+                            <ContentControl Content="{Binding}" Focusable="False" />
                         </DockPanel>
-                    </materialDesign:Card>
-                </Grid>
+                    </Grid>
+                </materialDesign:Card>
             </Grid>
         </Grid>
     </DockPanel>

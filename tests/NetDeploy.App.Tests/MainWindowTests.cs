@@ -49,15 +49,24 @@ public class MainWindowTests
                 {
                     await SaveScreenshotAsync(window, "1-empty");
                     viewModel.Load(SamplePath);
-                    viewModel.Parameters.Single(p => p.Name == "InstallDir").Value = Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "missing");
+                    viewModel.FolderField!.Value = Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "missing");
                     viewModel.Parameters.Single(p => p.Name == "DbConnection").Value = "asd";
-                    await viewModel.DryRunCommand.ExecuteAsync(null);
-                    await SaveScreenshotAsync(window, "2-dry-run");
+
+                    // The files come first, in the right-hand pane; Continue runs the rest.
+                    var run = viewModel.DryRunCommand.ExecuteAsync(null);
+                    var files = Assert.IsType<FilesStageViewModel>(viewModel.Stage);
+                    await SaveScreenshotAsync(window, "2-files-stage");
+                    files.ContinueCommand.Execute(null);
+                    await run;
+                    await SaveScreenshotAsync(window, "3-dry-run");
+                    Assert.Null(viewModel.Stage);
                     Assert.Contains(viewModel.Log, entry => entry.Message.Contains("Dry run finished"));
                     Assert.DoesNotContain(viewModel.Steps, step => step.State == StepState.Failed);
+
+                    await SaveConfigStageScreenshotsAsync(window, viewModel);
                     await SaveDialogScreenshotsAsync();
                     await SaveFilesScreenshotAsync(window, viewModel);
-                    await SaveInstallScreenshotAsync(window, viewModel);
+                    await SaveInstallScreenshotsAsync(window, viewModel);
                     await SaveFolderScreenshotAsync(window, viewModel);
                     await SaveEditorScreenshotsAsync(window, viewModel);
                 }
@@ -81,6 +90,21 @@ public class MainWindowTests
         }, onTimeout: () => $"Status: {viewModel?.Status}");
     }
 
+    /// <summary>Shows the config check in the pane, as a deploy's copy step does, then cancels it.</summary>
+    private static async Task SaveConfigStageScreenshotsAsync(Window window, MainViewModel viewModel)
+    {
+        var review = viewModel.ReviewConfigsInPaneAsync(SampleConfigReview(), readOnly: false);
+        await Dispatcher.Yield(DispatcherPriority.Background);
+        var stage = Assert.IsType<ConfigStageViewModel>(viewModel.Stage);
+        await SaveScreenshotAsync(window, "4-config-stage");
+        stage.Review.SelectedFile = stage.Review.Files.Single(file => file.FileName == "appsettings.Production.json");
+        await SaveScreenshotAsync(window, "5-config-override");
+
+        stage.CancelCommand.Execute(null);
+        Assert.False(await review);
+        Assert.Null(viewModel.Stage);
+    }
+
     /// <summary>Saves what the dialogs look like, so a design change can be reviewed from CI.</summary>
     private static async Task SaveDialogScreenshotsAsync()
     {
@@ -93,25 +117,17 @@ public class MainWindowTests
             ["Archive"] = new() { Label = "Archive old orders", Type = InputType.YesNo },
         });
         inputs.Show();
-        await SaveScreenshotAsync(inputs, "3-inputs");
+        await SaveScreenshotAsync(inputs, "6-inputs");
         inputs.Close();
-
-        var review = new MergeViewModel(SampleConfigReview(), isReadOnly: false);
-        var merge = new MergeWindow(review);
-        merge.Show();
-        await SaveScreenshotAsync(merge, "4-config-review");
-        review.SelectedFile = review.Files.Single(file => file.FileName == "appsettings.Production.json");
-        await SaveScreenshotAsync(merge, "5-config-override");
-        merge.Close();
 
         var cleanup = new CleanupWindow("Uninstall service OrdersService-east",
             "Stops the Windows service \"OrdersService-east\" and deletes it: sc.exe stop OrdersService-east, then sc.exe delete OrdersService-east.", 1, 4);
         cleanup.Show();
-        await SaveScreenshotAsync(cleanup, "8-cleanup");
+        await SaveScreenshotAsync(cleanup, "7-cleanup");
         cleanup.Close();
     }
 
-    /// <summary>Opens a package next to a server that has an older copy, and shows the Files tab.</summary>
+    /// <summary>Starts a dry run of a package next to a server that has an older copy, and shows its files stage.</summary>
     private static async Task SaveFilesScreenshotAsync(Window window, MainViewModel viewModel)
     {
         var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "files", Path.GetRandomFileName())).FullName;
@@ -153,31 +169,62 @@ public class MainWindowTests
 
         viewModel.Load(Path.Combine(root, "package"));
         viewModel.Parameters.Single(p => p.Name == "InstallDir").Value = Path.Combine(root, "server");
-        viewModel.SelectedTab = MainViewModel.FilesTab;
-        var plan = viewModel.FilePlans.OfType<FilePlanViewModel>().Single();
+        var run = viewModel.DryRunCommand.ExecuteAsync(null);
+        var stage = Assert.IsType<FilesStageViewModel>(viewModel.Stage);
+        var plan = stage.Plans.OfType<FilePlanViewModel>().Single();
         plan.Items.OfType<FileRowViewModel>().Single(row => row.Path == "plugins/Fax.dll").Action = FileAction.Keep;
-        Assert.IsType<FilePlanError>(viewModel.FilePlans[1]);
-        await SaveScreenshotAsync(window, "6-files");
+        Assert.IsType<FilePlanError>(stage.Plans[1]);
+        await SaveScreenshotAsync(window, "8-files-stage");
+
+        stage.CancelCommand.Execute(null);
+        await run;
+        Assert.StartsWith("Cancelled before anything ran", viewModel.Status);
+        Assert.All(viewModel.Steps, step => Assert.Equal(StepState.Pending, step.State));
     }
 
-    /// <summary>Opens the sample next to a folder with a hand-made single install and an instance, and names the single one.</summary>
-    private static async Task SaveInstallScreenshotAsync(Window window, MainViewModel viewModel)
+    /// <summary>
+    /// Opens the sample next to a folder with a hand-made single install and an instance: renames the single one,
+    /// names a new instance on the tree's last row, then picks the instance to update.
+    /// </summary>
+    private static async Task SaveInstallScreenshotsAsync(Window window, MainViewModel viewModel)
     {
         var folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "installs", Path.GetRandomFileName())).FullName;
         File.WriteAllText(Path.Combine(folder, "OrdersService.exe"), "");
+        File.WriteAllText(Path.Combine(folder, "appsettings.json"), """{ "Region": "Main" }""");
         Directory.CreateDirectory(Path.Combine(folder, "east"));
         File.WriteAllText(Path.Combine(folder, "east", "OrdersService.exe"), "");
 
         viewModel.Load(SamplePath);
-        viewModel.Parameters.Single(p => p.Name == "InstallDir").Value = folder;
-        viewModel.SelectedTab = MainViewModel.StepsTab;
+        viewModel.FolderField!.Value = folder;
+        var tree = viewModel.Folder!;
+        await tree.Listing;
+        var root = tree.Tree.Single();
+        var east = root.Children.OfType<FolderNodeViewModel>().Single(node => node.Name == "east");
+        Assert.True(root.IsTarget);
+        Assert.Equal("instance", east.Kind);
+
         viewModel.Install!.Name = "main";
         Assert.Equal(InstallPlan.Convert, viewModel.Install.Plan);
         Assert.Contains(viewModel.Steps, step => step.Title == "Stop service OrdersService-main");
-        await SaveScreenshotAsync(window, "7-install");
+        viewModel.SelectedTab = MainViewModel.StepsTab;
+        await SaveScreenshotAsync(window, "9-install-rename");
+
+        var newInstall = root.Children.OfType<NewInstallRowViewModel>().Single();
+        newInstall.Name = "west";
+        Assert.Equal(InstallPlan.NewInstance, viewModel.Install.Plan);
+        Assert.True(newInstall.IsTarget);
+        Assert.False(root.IsTarget);
+        viewModel.SelectedTab = MainViewModel.FilesTab;
+        await SaveScreenshotAsync(window, "10-new-install");
+
+        east.IsSelected = true;
+        await tree.Listing;
+        Assert.Equal(InstallPlan.Update, viewModel.Install.Plan);
+        Assert.True(east.IsTarget);
+        Assert.Equal(["OrdersService.exe"], tree.Items.OfType<FolderFileViewModel>().Select(file => file.Name));
     }
 
-    /// <summary>Opens an install folder from the home screen, edits a setting and stages a delete.</summary>
+    /// <summary>Opens an install folder on its own, edits a setting and stages a delete.</summary>
     private static async Task SaveFolderScreenshotAsync(Window window, MainViewModel viewModel)
     {
         var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "folder", Path.GetRandomFileName())).FullName;
@@ -196,34 +243,33 @@ public class MainWindowTests
         Write("logs/2026-10-01.log", "x");
         Write("east/OrdersService.exe", "");
 
-        viewModel.HomeCommand.Execute(null);
-        await SaveScreenshotAsync(window, "9-home");
-        viewModel.FolderPath = root;
-        viewModel.OpenFolderCommand.Execute(null);
+        viewModel.ShowFolder(root);
+        Assert.False(viewModel.HasPackage);
         var folder = viewModel.Folder!;
+        await folder.Listing;
         var settings = folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "appsettings.json");
         folder.OpenCommand.Execute(settings);
         folder.OpenFile!.Items.OfType<SettingViewModel>().Single(setting => setting.Key == "KeepDays").Value = "14";
         folder.ToggleDeleteCommand.Execute(folder.Items.OfType<FolderFileViewModel>().Single(file => file.Name == "2026-10-01.log"));
-        await SaveScreenshotAsync(window, "10-folder");
+        await SaveScreenshotAsync(window, "11-folder");
     }
 
-    /// <summary>Opens the sample's deploy.json in the editor: its settings, a step with grouped settings, and a step with a problem.</summary>
+    /// <summary>Opens the sample's deploy.json: its folder opens as the package, with the config on its own tab.</summary>
     private static async Task SaveEditorScreenshotsAsync(Window window, MainViewModel viewModel)
     {
-        viewModel.HomeCommand.Execute(null);
         viewModel.EditConfig(Path.Combine(SamplePath, "deploy.json"));
-        Assert.True(viewModel.IsEdit);
-        await SaveScreenshotAsync(window, "11-editor-settings");
+        Assert.True(viewModel.HasPackage);
+        Assert.Equal(MainViewModel.ConfigTab, viewModel.SelectedTab);
+        await SaveScreenshotAsync(window, "12-editor-settings");
 
         var editor = viewModel.Editor;
         editor.Selected = editor.Rows.Single(row => row.Title == ".NET 10 runtime");
-        await SaveScreenshotAsync(window, "12-editor-step");
+        await SaveScreenshotAsync(window, "13-editor-step");
 
         editor.Selected = editor.Rows.Single(row => row.Title == "Migrate database");
         ((ValueFieldViewModel)editor.Fields.Single(field => field.Field.Name == "path")).Text = "";
         Assert.True(editor.HasProblems);
-        await SaveScreenshotAsync(window, "13-editor-problem");
+        await SaveScreenshotAsync(window, "14-editor-problem");
 
         // Leave nothing unsaved, so closing the window doesn't ask.
         editor.New();

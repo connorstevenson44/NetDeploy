@@ -95,6 +95,7 @@ public sealed partial class EditorViewModel : ObservableObject
         new("parameters", FieldKind.Inputs, "Asked once, before the first step. Steps use them as {Name}.", false, [], []);
 
     private ManifestDocument _document = ManifestDocument.New();
+    private string? _name;
 
     public EditorViewModel() => Reset(null);
 
@@ -112,7 +113,8 @@ public sealed partial class EditorViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Title))]
     public partial bool IsDirty { get; private set; }
 
-    public string Title => (FilePath is null ? "New deploy config" : Path.GetFileName(Path.GetDirectoryName(FilePath)) + @"\" + Path.GetFileName(FilePath)) + (IsDirty ? " •" : "");
+    public string Title => (FilePath is not null ? Path.GetFileName(Path.GetDirectoryName(FilePath)) + @"\" + Path.GetFileName(FilePath)
+        : _name ?? "New deploy config") + (IsDirty ? " •" : "");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSettingsSelected), nameof(SelectedSchema), nameof(SelectedTitle), nameof(SelectedIcon))]
@@ -195,6 +197,14 @@ public sealed partial class EditorViewModel : ObservableObject
 
     public void New() => Reset(null, ManifestDocument.New());
 
+    /// <summary>Shows a config that has no file of its own, such as the deploy.json in a zip; Save asks where to save it.</summary>
+    public void Load(string json, string name)
+    {
+        Reset(null, ManifestDocument.Parse(json));
+        _name = name;
+        OnPropertyChanged(nameof(Title));
+    }
+
     /// <summary>Opens a deploy.json. Throws ManifestException when it isn't JSON, and IOException when it can't be read.</summary>
     public void Open(string path) => Reset(path, ManifestDocument.Parse(File.ReadAllText(path)));
 
@@ -211,6 +221,7 @@ public sealed partial class EditorViewModel : ObservableObject
     private void Reset(string? path, ManifestDocument? document = null)
     {
         _document = document ?? ManifestDocument.New();
+        _name = null;
         FilePath = path;
         Parameters = new InputsFieldViewModel(_document.Root, ParametersField, OnChanged);
         RebuildRows(select: null);
