@@ -80,6 +80,18 @@ public class InstallViewModelTests : IDisposable
     }
 
     [Fact]
+    public void A_different_folder_starts_from_its_first_install()
+    {
+        var picker = new InstallViewModel(new InstallInfo { Folder = "{InstallDir}", Instances = true }, "2.5.0", ["Orders.exe"]);
+        picker.Refresh(Path.Combine(_folder, "missing"));
+        Assert.True(picker.Selected!.IsNew);
+
+        picker.Refresh(_folder);
+
+        Assert.Equal(InstallPlan.Update, picker.Plan);
+    }
+
+    [Fact]
     public void Looking_again_keeps_what_the_user_picked_and_typed()
     {
         var picker = Picker();

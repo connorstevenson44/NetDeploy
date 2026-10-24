@@ -125,12 +125,16 @@ public sealed partial class InstallViewModel(InstallInfo install, string version
         SeedFrom = Replaced?.Directory ?? (Plan == InstallPlan.NewInstance ? CopyFrom?.Install?.Directory : null),
     };
 
-    /// <summary>Looks for installs in the folder again, keeping the selection, the name and the copy source.</summary>
+    /// <summary>
+    /// Looks for installs in the folder. Looking again at the same folder keeps the selection, the name and the copy
+    /// source; a different folder starts from its first install.
+    /// </summary>
     public void Refresh(string folder)
     {
+        var sameFolder = folder.Equals(_folder, StringComparison.OrdinalIgnoreCase);
         _folder = folder;
-        var kept = Selected;
-        var keptCopy = CopyFrom?.Install?.Directory;
+        var kept = sameFolder ? Selected : null;
+        var keptCopy = sameFolder ? CopyFrom?.Install?.Directory : null;
         var found = Installations.Find(folder, appFiles);
 
         // Rebuilding the lists makes the bound list boxes clear their selection; that is not the user's choice.
