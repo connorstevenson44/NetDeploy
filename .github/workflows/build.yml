@@ -51,18 +51,18 @@ jobs:
           global-json-file: global.json
 
       - name: Build test packages
-        run: dotnet run testpackages/build.cs
+        run: dotnet run tests/test-packages/build.cs
 
       - name: Deploy, upgrade and remove them
-        run: dotnet run --project testpackages/e2e -- testpackages/dist
+        run: dotnet run --project tests/test-packages/e2e -- tests/test-packages/dist
 
       - name: Publish the portable exe
         run: dotnet publish src/NetDeploy.App -p:PublishProfile=Portable
 
       - name: Deploy one with the command line
-        run: ./testpackages/cli.ps1 -Exe artifacts/portable/NetDeploy.exe -Dist testpackages/dist
+        run: ./tests/test-packages/cli.ps1 -Exe artifacts/portable/NetDeploy.exe -Dist tests/test-packages/dist
 
       - uses: actions/upload-artifact@v4
         with:
           name: TestPackages
-          path: testpackages/dist/
+          path: tests/test-packages/dist/

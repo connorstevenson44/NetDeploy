@@ -3,8 +3,9 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NetDeploy.App.Services;
-using NetDeploy.Core;
 using NetDeploy.Core.Config;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Installs;
 using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.ViewModels;

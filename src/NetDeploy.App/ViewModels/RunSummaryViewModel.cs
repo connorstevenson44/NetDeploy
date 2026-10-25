@@ -1,12 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using MaterialDesignThemes.Wpf;
-using NetDeploy.Core;
+using NetDeploy.Core.Deployment;
 using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.ViewModels;
-
-/// <summary>One line of a dry run's summary.</summary>
-public sealed record SummaryLine(PackIconKind Icon, string Text);
 
 /// <summary>What a dry run found the deploy would change, in a few lines, so nobody has to read the log for it.</summary>
 public sealed class RunSummaryViewModel(IReadOnlyList<SummaryLine> lines)

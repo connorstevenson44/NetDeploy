@@ -3,16 +3,6 @@ using System.Text.RegularExpressions;
 namespace NetDeploy.Core.Text;
 
 /// <summary>
-/// One connected change between two texts: the old text's [OldStart, OldEnd) became the new text's [NewStart, NewEnd).
-/// One side is empty for text that was only added or only taken out.
-/// </summary>
-public sealed record TextChange(int OldStart, int OldLength, int NewStart, int NewLength)
-{
-    public int OldEnd => OldStart + OldLength;
-    public int NewEnd => NewStart + NewLength;
-}
-
-/// <summary>
 /// Finds what changed between two texts, word by word, the way a word processor tracks changes. Lines are compared
 /// first, then the words of the lines that differ, and changes split only by spaces or punctuation are joined into one.
 /// </summary>

@@ -1,6 +1,6 @@
 using System.IO;
 using NetDeploy.App.ViewModels;
-using NetDeploy.Core;
+using NetDeploy.Core.Deployment;
 
 namespace NetDeploy.App.Tests;
 

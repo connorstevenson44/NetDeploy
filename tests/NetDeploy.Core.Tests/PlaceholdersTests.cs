@@ -1,3 +1,5 @@
+using NetDeploy.Core.Manifest;
+
 namespace NetDeploy.Core.Tests;
 
 public class PlaceholdersTests

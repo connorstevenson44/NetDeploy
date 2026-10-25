@@ -1,3 +1,7 @@
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Installs;
+using NetDeploy.Core.Manifest;
+
 namespace NetDeploy.Core.Cli;
 
 /// <summary>
@@ -139,29 +143,5 @@ public sealed class CliRunner(TextWriter output, DeployHistory history, bool isA
             log.Error($"Rollback failed: {ex.Message}");
             return false;
         }
-    }
-}
-
-/// <summary>Writes each line of the log to the console and to the log file.</summary>
-internal sealed class CliLog(TextWriter output, StreamWriter file) : IDeployLog, IDisposable
-{
-    private readonly Lock _gate = new();
-
-    public string FilePath => LogFiles.PathOf(file);
-
-    public void Write(LogLevel level, string message)
-    {
-        var line = LogFiles.Line(DateTime.Now, level, message);
-        lock (_gate)
-        {
-            file.WriteLine(line);
-            output.WriteLine(line);
-        }
-    }
-
-    public void Dispose()
-    {
-        lock (_gate)
-            file.Dispose();
     }
 }

@@ -4,7 +4,7 @@
   "app": { "exe": "${exe}", "window": "NetDeploy", "runAsAdmin": true, "status": "statusText" },
   "variables": {
     "exe": { "firstExisting": ["NetDeploy.exe", "../../../artifacts/portable/NetDeploy.exe"] },
-    "packages": { "firstExisting": ["packages", "../../../testpackages/dist"] },
+    "packages": { "firstExisting": ["packages", "../../test-packages/dist"] },
     "ordersDir": "C:\\Apps\\Contoso.Orders",
     "ordersData": "C:\\ProgramData\\Contoso.Orders",
     "reportsDir": "C:\\Apps\\Fabrikam.Reports",

@@ -1,3 +1,5 @@
+using NetDeploy.Core.Processes;
+
 namespace NetDeploy.Core.Tests;
 
 public sealed class FileRunnerTests : IDisposable

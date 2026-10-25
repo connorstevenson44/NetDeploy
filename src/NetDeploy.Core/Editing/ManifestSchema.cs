@@ -3,57 +3,6 @@ using System.Text.RegularExpressions;
 
 namespace NetDeploy.Core.Editing;
 
-/// <summary>How a step property is edited.</summary>
-public enum FieldKind { Text, Number, YesNo, Choice, Lines, Condition, Group, Inputs, Cleanup, Json }
-
-/// <summary>One property of a step, as deploy.schema.json describes it. A Group has its own fields, such as a check.</summary>
-public sealed record SchemaField(
-    string Name, FieldKind Kind, string? Description, bool Required, IReadOnlyList<string> Options, IReadOnlyList<SchemaField> Fields)
-{
-    public string Label => ManifestSchema.Label(Name);
-
-    /// <summary>
-    /// The kinds of the group this field applies to, such as fileExists for a check's path; empty when it applies to
-    /// every kind. The schema names them at the start of the description: "fileExists: a file or folder."
-    /// </summary>
-    public IReadOnlyList<string> Kinds { get; init; } = [];
-
-    public bool AppliesTo(string? kind) => Kinds.Count == 0 || Kinds.Contains(kind);
-}
-
-/// <summary>A step type: what it does and the properties it takes, name first.</summary>
-public sealed record StepSchema(string Type, string? Description, IReadOnlyList<SchemaField> Fields)
-{
-    public string Label => ManifestSchema.Label(Type);
-
-    /// <summary>A new step with the required properties filled with a first choice or left empty to fill in.</summary>
-    public JsonObject NewStep()
-    {
-        var step = new JsonObject { ["type"] = Type };
-        Fill(step, Fields);
-        return step;
-    }
-
-    private static void Fill(JsonObject owner, IEnumerable<SchemaField> fields)
-    {
-        foreach (var field in fields.Where(field => field.Required))
-            owner[field.Name] = field.Kind switch
-            {
-                FieldKind.Choice => field.Options[0],
-                FieldKind.Group => Group(field),
-                FieldKind.Condition => new JsonObject { ["ask"] = "" },
-                _ => "",
-            };
-    }
-
-    private static JsonObject Group(SchemaField field)
-    {
-        var group = new JsonObject();
-        Fill(group, field.Fields);
-        return group;
-    }
-}
-
 /// <summary>The step types and their properties, read from deploy.schema.json so the editor matches the schema.</summary>
 public static partial class ManifestSchema
 {

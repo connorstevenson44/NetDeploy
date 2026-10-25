@@ -485,8 +485,8 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# Test packages built by testpackages/build.cs
-testpackages/dist/
+# Test packages built by tests/test-packages/build.cs
+tests/test-packages/dist/
 
 # Results of the UI test runs, and the AutoTestRunner checkout CI builds the test runner from
 tests/ui-tests/*/results/

@@ -1,3 +1,6 @@
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Manifest;
+
 namespace NetDeploy.Core.Steps;
 
 /// <summary>Runs the "then" steps when the condition is true, otherwise the "else" steps.</summary>

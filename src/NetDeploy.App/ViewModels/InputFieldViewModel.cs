@@ -2,7 +2,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
-using NetDeploy.Core;
+using NetDeploy.Core.Manifest;
 
 namespace NetDeploy.App.ViewModels;
 

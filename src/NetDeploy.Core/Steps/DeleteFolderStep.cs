@@ -1,3 +1,5 @@
+using NetDeploy.Core.Deployment;
+
 namespace NetDeploy.Core.Steps;
 
 /// <summary>Deletes a folder and everything in it, except the subfolders listed in keep.</summary>

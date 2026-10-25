@@ -1,3 +1,6 @@
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Installs;
+using NetDeploy.Core.Manifest;
 using NetDeploy.Core.Steps;
 
 namespace NetDeploy.Core.Tests;

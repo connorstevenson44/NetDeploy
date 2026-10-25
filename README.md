@@ -119,7 +119,7 @@ OrdersService-2.4.0.zip
 ```
 
 [samples/OrdersService](samples/OrdersService/deploy.json) uses every step type, and
-[testpackages](testpackages/README.md) builds two real apps in two versions each to deploy and upgrade. Add
+[tests/test-packages](tests/test-packages/README.md) builds two real apps in two versions each to deploy and upgrade. Add
 `"$schema": "<path>/deploy.schema.json"` to a manifest to get autocomplete and validation in Visual Studio and VS Code
 from [schema/deploy.schema.json](schema/deploy.schema.json).
 
@@ -253,11 +253,25 @@ section comes from the new file.
 ## Solution layout
 
 ```text
-src/NetDeploy.Core/          manifest, runner, steps and config merge; no UI
-src/NetDeploy.App/           WPF app (Material Design for WPF, Pantone 301 theme in Styles.xaml)
+src/NetDeploy.Core/          no UI: the deploy itself, usable from the window and the command line
+  Manifest/                  deploy.json: the package, its loader, conditions and {placeholders}
+  Deployment/                the runner, the step context, rollback, the deploy log and history
+  Steps/                     one class per step type
+  Config/                    merging config files: JSON, XML and plain text
+  Installs/                  finding, updating and removing installs in an install folder
+  Processes/                 running programs and PowerShell
+  Editing/  Logs/  Text/     the deploy.json editor's model, reading apps' logs, text diffs
+  Cli/                       NetDeploy.exe deploy, for pipelines
+src/NetDeploy.App/           WPF app, MVVM with the CommunityToolkit
+  Views/                     windows and user controls (XAML)
+  ViewModels/                what the views bind to, tested without a window
+  Controls/  Converters/     custom controls and value converters the views use
+  Resources/                 styles (Material Design for WPF, Pantone 301 theme) and data templates
+  Services/                  settings, dialogs, elevation and the UI log
 tests/NetDeploy.Core.Tests/  xUnit tests
 tests/NetDeploy.App.Tests/   dry runs the sample in the real window and saves screenshots of each window
+tests/ui-tests/              the UI test cases, run by AutoTestRunner
+tests/test-packages/         two test apps in two versions, their build, and an end-to-end run on Windows
 schema/                      deploy.json schema
 samples/                     sample package
-testpackages/                two test apps in two versions, their build, and an end-to-end run on Windows
 ```

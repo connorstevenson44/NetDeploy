@@ -1,31 +1,9 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.Text.Json.Serialization;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Processes;
 
 namespace NetDeploy.Core.Steps;
-
-public enum ScheduledTaskAction { CreateOrUpdate, Enable, Disable, Run, Delete }
-
-public enum ScheduleKind { Daily, Hourly, EveryMinutes, OnStart }
-
-public sealed record TaskSchedule
-{
-    public required ScheduleKind Kind { get; init; }
-
-    /// <summary>Start time for daily tasks, as HH:mm.</summary>
-    public string? Time { get; init; }
-
-    /// <summary>Interval for everyMinutes tasks.</summary>
-    public int? Minutes { get; init; }
-
-    internal IEnumerable<string> ToArguments() => Kind switch
-    {
-        ScheduleKind.Daily => ["/SC", "DAILY", "/ST", Time ?? "00:00"],
-        ScheduleKind.Hourly => ["/SC", "HOURLY"],
-        ScheduleKind.EveryMinutes => ["/SC", "MINUTE", "/MO", (Minutes ?? 15).ToString(CultureInfo.InvariantCulture)],
-        _ => ["/SC", "ONSTART"],
-    };
-}
 
 /// <summary>Manages a Windows scheduled task through schtasks.exe.</summary>
 public sealed class ScheduledTaskStep : DeployStep

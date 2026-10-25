@@ -1,6 +1,6 @@
 <Project>
 
-  <!-- Settings shared by every project in the repository. The test packages in testpackages/ stand alone. -->
+  <!-- Settings shared by every project in the repository. The test packages in tests/test-packages/ stand alone. -->
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>

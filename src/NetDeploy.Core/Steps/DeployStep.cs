@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Manifest;
 
 namespace NetDeploy.Core.Steps;
 

@@ -1,0 +1,374 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+                    xmlns:materialConverters="clr-namespace:MaterialDesignThemes.Wpf.Converters;assembly=MaterialDesignThemes.Wpf"
+                    xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
+                    xmlns:controls="clr-namespace:NetDeploy.App.Controls"
+                    xmlns:converters="clr-namespace:NetDeploy.App.Converters"
+                    xmlns:manifest="clr-namespace:NetDeploy.Core.Manifest;assembly=NetDeploy.Core">
+    <ResourceDictionary.MergedDictionaries>
+        <!-- Material Design styles every control; Pantone 301 is the primary colour. -->
+        <materialDesign:CustomColorTheme BaseTheme="Light" PrimaryColor="#004B87" SecondaryColor="#004B87" />
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- Palette: Pantone 301 and white, plus tints of 301 and the few status colours the plan needs. -->
+    <SolidColorBrush x:Key="Brand" Color="#004B87" />
+    <SolidColorBrush x:Key="BrandTint" Color="#E8EFF6" />
+    <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Canvas" Color="#F4F7FA" />
+    <SolidColorBrush x:Key="Hairline" Color="#DCE4EC" />
+    <SolidColorBrush x:Key="InputOutline" Color="#B4C0CC" />
+    <SolidColorBrush x:Key="Ink" Color="#1A2633" />
+    <SolidColorBrush x:Key="InkMuted" Color="#5B6B7C" />
+    <SolidColorBrush x:Key="InkFaint" Color="#9AA8B6" />
+    <SolidColorBrush x:Key="Success" Color="#2E7D32" />
+    <SolidColorBrush x:Key="SuccessTint" Color="#E8F5E9" />
+    <SolidColorBrush x:Key="Warning" Color="#9A5B00" />
+    <SolidColorBrush x:Key="WarningTint" Color="#FFF4E0" />
+    <SolidColorBrush x:Key="Danger" Color="#C62828" />
+    <SolidColorBrush x:Key="DangerTint" Color="#FDECEC" />
+
+    <!-- Diff colours, as in Visual Studio and GitHub: red where a line goes, green where one arrives, hatched where a
+         side has no line. -->
+    <SolidColorBrush x:Key="DiffAdded" Color="#E6FFEC" />
+    <SolidColorBrush x:Key="DiffAddedGutter" Color="#CCFFD8" />
+    <SolidColorBrush x:Key="DiffRemoved" Color="#FFEBE9" />
+    <SolidColorBrush x:Key="DiffRemovedGutter" Color="#FFD7D5" />
+    <SolidColorBrush x:Key="DiffNeedsValue" Color="#FFF8C5" />
+    <DrawingBrush x:Key="DiffFiller" TileMode="Tile" Viewport="0,0,8,8" ViewportUnits="Absolute">
+        <DrawingBrush.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#F6F8FA" Geometry="M0,0 H8 V8 H0 Z" />
+                <GeometryDrawing Geometry="M0,8 L8,0">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#E1E6EB" Thickness="1" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
+    <!-- Search matches in a log, as in Visual Studio's find: every match in yellow, the one in view in orange. -->
+    <SolidColorBrush x:Key="SearchHit" Color="#FFF1A8" />
+    <SolidColorBrush x:Key="SearchHitCurrent" Color="#FFC24D" />
+
+    <!-- The line between the two sides of a diff -->
+    <Style x:Key="DiffDivider" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Hairline}" />
+        <Setter Property="BorderThickness" Value="1,0" />
+    </Style>
+
+    <!-- A bar to drag between two panes. The grip in its middle shows it can be dragged; it turns blue under the mouse.
+         The line down it is BorderBrush, so a splitter in the gap between two cards can leave it out. -->
+    <Style x:Key="PaneSplitter" TargetType="GridSplitter">
+        <Setter Property="Width" Value="9" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+        <Setter Property="ResizeDirection" Value="Columns" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Cursor" Value="SizeWE" />
+        <Setter Property="ToolTip" Value="Drag to resize" />
+        <Setter Property="BorderBrush" Value="{StaticResource Hairline}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridSplitter">
+                    <Grid Background="Transparent">
+                        <Rectangle x:Name="Line" Width="1" Fill="{TemplateBinding BorderBrush}" HorizontalAlignment="Center" />
+                        <Border x:Name="Grip" Width="4" Height="32" CornerRadius="2" Background="{StaticResource InputOutline}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Line" Property="Fill" Value="{StaticResource Brand}" />
+                            <Setter TargetName="Grip" Property="Background" Value="{StaticResource Brand}" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Line" Property="Fill" Value="{StaticResource Brand}" />
+                            <Setter TargetName="Grip" Property="Background" Value="{StaticResource Brand}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="GapSplitter" TargetType="GridSplitter" BasedOn="{StaticResource PaneSplitter}">
+        <Setter Property="Width" Value="12" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+
+    <!-- Every plain list, such as the folder list or the package's settings, keeps its rows readable by UI Automation
+         when its items are replaced. -->
+    <Style TargetType="ItemsControl">
+        <Setter Property="controls:ListAutomation.RefreshRows" Value="True" />
+    </Style>
+
+    <!-- A long list that only builds the rows on screen. Every list of files, settings or log lines uses it, so a
+         folder with thousands of files scrolls as smoothly as one with ten. The lists mix row types (folder headings
+         and files, sections and settings), so rows are not recycled: a recycled row briefly binds its old template to
+         an item of another type, and a command typed for files then throws on a folder heading. -->
+    <Style x:Key="VirtualList" TargetType="ItemsControl">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Standard" />
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Setter Property="controls:ListAutomation.RefreshRows" Value="True" />
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel />
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ItemsControl">
+                    <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsPresenter />
+                    </ScrollViewer>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    <materialConverters:BooleanToVisibilityConverter x:Key="InverseBoolToVisibility" TrueValue="Collapsed" FalseValue="Visible" />
+    <converters:CountToVisibilityConverter x:Key="ZeroToVisible" ShowWhenZero="True" />
+    <converters:CountToVisibilityConverter x:Key="NonZeroToVisible" />
+    <materialConverters:NullableToVisibilityConverter x:Key="NullToCollapsed" />
+    <materialConverters:NullableToVisibilityConverter x:Key="NullToVisible" NullValue="Visible" NotNullValue="Collapsed" />
+
+    <!-- Thin scroll bars without arrow buttons. -->
+    <Style TargetType="ScrollBar" BasedOn="{StaticResource MaterialDesignScrollBarMinimal}" />
+
+    <Style x:Key="AppWindow" TargetType="Window" BasedOn="{StaticResource MaterialDesignWindow}">
+        <Setter Property="Background" Value="{StaticResource Canvas}" />
+        <Setter Property="Foreground" Value="{StaticResource Ink}" />
+        <Setter Property="TextElement.FontSize" Value="13" />
+    </Style>
+
+    <!-- A white panel with a soft shadow. -->
+    <Style x:Key="Panel" TargetType="materialDesign:Card">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="UniformCornerRadius" Value="8" />
+        <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp1" />
+    </Style>
+
+    <Style x:Key="PanelTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource Ink}" />
+    </Style>
+
+    <Style x:Key="Caption" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- A label above a group on the left, like a VS tool window's -->
+    <Style x:Key="SectionLabel" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- A thin strip across the top of a pane, for its title and tools -->
+    <Style x:Key="PaneHeader" TargetType="Border">
+        <Setter Property="DockPanel.Dock" Value="Top" />
+        <Setter Property="BorderBrush" Value="{StaticResource Hairline}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="14,0,8,0" />
+        <Setter Property="MinHeight" Value="40" />
+    </Style>
+
+    <!-- The main action of a window: filled Pantone 301. -->
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="18,0" />
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6" />
+    </Style>
+
+    <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6" />
+    </Style>
+
+    <Style x:Key="QuietButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6" />
+    </Style>
+
+    <!-- A white outlined button for the Pantone 301 header bar. -->
+    <Style x:Key="HeaderButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderBrush" Value="#99FFFFFF" />
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6" />
+        <Setter Property="materialDesign:RippleAssist.Feedback" Value="White" />
+    </Style>
+
+    <!-- A small icon button on a change in the track-changes editor, sized to fit inside a line of text. -->
+    <Style x:Key="MarkButton" TargetType="Button">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="15" />
+        <Setter Property="Margin" Value="1,0" />
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Back" Background="Transparent" CornerRadius="3">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Back" Property="Background" Value="{StaticResource BrandTint}" />
+                            <Setter Property="Foreground" Value="{StaticResource Brand}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Back" Property="Background" Value="{StaticResource Hairline}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- An icon followed by a label, for buttons. -->
+    <DataTemplate x:Key="IconLabel">
+        <StackPanel Orientation="Horizontal">
+            <materialDesign:PackIcon Kind="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}"
+                                     Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBlock Text="{Binding}" VerticalAlignment="Center" />
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A form field's label. It sits above the box rather than floating on its border, so it is never clipped and
+         stays readable at any size. -->
+    <Style x:Key="FieldLabel" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="Margin" Value="1,0,0,5" />
+    </Style>
+
+    <!-- A labelled form field: Header is the label, Content the input. -->
+    <Style x:Key="Field" TargetType="HeaderedContentControl">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="HeaderedContentControl">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Header, RelativeSource={RelativeSource TemplatedParent}}" Style="{StaticResource FieldLabel}" />
+                        <ContentPresenter />
+                    </StackPanel>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Outlined inputs, 32 pixels tall. Their label is a Field's header, so a hint is only a placeholder inside the
+         empty box. Every text box, password box and drop-down in the app uses one of these. -->
+    <Style x:Key="InputBox" TargetType="TextBox" BasedOn="{StaticResource MaterialDesignOutlinedTextBox}">
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="BorderBrush" Value="{StaticResource InputOutline}" />
+        <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
+    </Style>
+    <Style x:Key="InputPassword" TargetType="PasswordBox" BasedOn="{StaticResource MaterialDesignOutlinedRevealPasswordBox}">
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="BorderBrush" Value="{StaticResource InputOutline}" />
+        <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
+    </Style>
+    <Style x:Key="InputChoice" TargetType="ComboBox" BasedOn="{StaticResource MaterialDesignOutlinedComboBox}">
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="BorderBrush" Value="{StaticResource InputOutline}" />
+        <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
+    </Style>
+
+    <!-- A small rounded label beside a name, such as an install's version -->
+    <Style x:Key="Chip" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BrandTint}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="6,1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextElement.Foreground" Value="{StaticResource Brand}" />
+        <Setter Property="TextElement.FontSize" Value="11" />
+        <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- Input editors, one per InputType. The form below picks one with the field's Type. -->
+    <DataTemplate x:Key="TextInput">
+        <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
+            <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Hint}" AutomationProperties.Name="{Binding Label}"
+                     Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+        </HeaderedContentControl>
+    </DataTemplate>
+    <DataTemplate x:Key="SecretInput">
+        <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
+            <PasswordBox Style="{StaticResource InputPassword}" materialDesign:HintAssist.Hint="{Binding Hint}" AutomationProperties.Name="{Binding Label}"
+                         materialDesign:PasswordBoxAssist.Password="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+        </HeaderedContentControl>
+    </DataTemplate>
+    <DataTemplate x:Key="YesNoInput">
+        <CheckBox IsChecked="{Binding IsChecked}" Margin="0,2,0,0" AutomationProperties.Name="{Binding Label}">
+            <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+        </CheckBox>
+    </DataTemplate>
+    <DataTemplate x:Key="ChoiceInput">
+        <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
+            <ComboBox Style="{StaticResource InputChoice}" ItemsSource="{Binding Options}" SelectedItem="{Binding Value}" AutomationProperties.Name="{Binding Label}" />
+        </HeaderedContentControl>
+    </DataTemplate>
+    <DataTemplate x:Key="PathInput">
+        <HeaderedContentControl Style="{StaticResource Field}" Header="{Binding Label}">
+            <Grid>
+                <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{Binding Hint}" AutomationProperties.Name="{Binding Label}"
+                         Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Padding="10,7,38,7" />
+                <Button Style="{StaticResource MaterialDesignIconButton}" Command="{Binding BrowseCommand}" ToolTip="Browse"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Width="28" Height="28" Padding="0" Margin="0,0,3,0">
+                    <materialDesign:PackIcon Kind="FolderOpenOutline" Width="18" Height="18" />
+                </Button>
+            </Grid>
+        </HeaderedContentControl>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:InputFieldViewModel}">
+        <ContentControl Content="{Binding}" Focusable="False" Margin="0,0,0,14">
+            <ContentControl.Style>
+                <Style TargetType="ContentControl">
+                    <Setter Property="ContentTemplate" Value="{StaticResource TextInput}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static manifest:InputType.Secret}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource SecretInput}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static manifest:InputType.YesNo}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource YesNoInput}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static manifest:InputType.Choice}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource ChoiceInput}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static manifest:InputType.Folder}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource PathInput}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Type}" Value="{x:Static manifest:InputType.File}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource PathInput}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ContentControl.Style>
+        </ContentControl>
+    </DataTemplate>
+</ResourceDictionary>

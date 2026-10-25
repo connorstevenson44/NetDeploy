@@ -3,8 +3,9 @@ using System.Windows;
 using System.Windows.Threading;
 using NetDeploy.App.Services;
 using NetDeploy.App.ViewModels;
-using NetDeploy.Core;
+using NetDeploy.App.Views;
 using NetDeploy.Core.Cli;
+using NetDeploy.Core.Deployment;
 
 namespace NetDeploy.App;
 

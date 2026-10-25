@@ -4,12 +4,6 @@ using System.Xml.Linq;
 namespace NetDeploy.Core.Logs;
 
 /// <summary>
-/// A file target in an nlog.config: where it writes, and where it moves old logs to, as full paths in which * stands
-/// for the parts NLog fills in as it runs, such as the date or the logger's name.
-/// </summary>
-public sealed record NLogFileTarget(string Name, string FilePattern, IReadOnlyList<string> ArchivePatterns);
-
-/// <summary>
 /// Reads the file targets of an app's nlog.config, to find its logs. The layouts in the paths are worked out as far as
 /// they can be from outside the app: ${basedir} is the config's folder, variables and special folders are filled in,
 /// and anything that changes as the app runs becomes *.

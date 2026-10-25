@@ -2,30 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace NetDeploy.Core.Config;
 
-public enum ConfigFileKind
-{
-    /// <summary>The package's file merged with the server's copy.</summary>
-    Update,
-
-    /// <summary>The server has no copy yet, so the package's file is used as is.</summary>
-    New,
-
-    /// <summary>A server-only override, such as appsettings.Production.json, checked against the new appsettings.json.</summary>
-    Override,
-
-    /// <summary>A file on the server opened for editing, outside any deploy.</summary>
-    Edit,
-}
-
-/// <summary>A config file the deploy will write, with the merge to review.</summary>
-public sealed record ConfigFileUpdate(string TargetPath, ConfigFileKind Kind, MergePlan Plan, string? PackageText)
-{
-    public string FileName => Path.GetFileName(TargetPath);
-
-    /// <summary>True when the user should look at this file before it is written.</summary>
-    public bool NeedsReview => Kind == ConfigFileKind.New || Plan.Rows.Any(row => row.IsChanged || row.Choice is null);
-}
-
 /// <summary>
 /// Works out how each config file in a package should land on the server, following how .NET layers
 /// configuration: appsettings.json ships with the app and decides which settings exist, and

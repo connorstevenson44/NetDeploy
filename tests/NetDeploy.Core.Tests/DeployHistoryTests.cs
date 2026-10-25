@@ -1,3 +1,5 @@
+using NetDeploy.Core.Deployment;
+
 namespace NetDeploy.Core.Tests;
 
 public sealed class DeployHistoryTests : IDisposable
