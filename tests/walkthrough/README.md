@@ -10,7 +10,12 @@ use, and both run in CI.
 
 ## Running it
 
-Build `walk` from the [AutoTestRunner](https://github.com/connorstevenson44/AutoTestRunner) repository, then from this repository's root, as administrator:
+On a test machine, take the **WalkthroughBundle** artifact from any run of the Walkthrough workflow (the run's
+Summary page, under Artifacts), unzip it and double-click `Run tests.cmd`, or `Step through.cmd` to go a step at a
+time. It asks for administrator. The bundle has `walk`, the suite, NetDeploy.exe and the test packages, and needs no
+.NET runtime. Arguments after `Run tests.cmd` go to `walk run`, so `"Run tests.cmd" --cases 3-5` runs just those.
+
+From a clone, build `walk` from the [AutoTestRunner](https://github.com/connorstevenson44/AutoTestRunner) repository, then from this repository's root, as administrator:
 
 ```powershell
 walk run tests\walkthrough\netdeploy                     # watch it, from case 1
