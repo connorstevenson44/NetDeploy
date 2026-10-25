@@ -19,7 +19,7 @@ env:
   # Where the test runner's source is, and the branch to build autotest.exe from. While AutoTestRunner is private, an
   # AUTOTESTRUNNER_TOKEN secret that can read it is needed (the older WALKTHROUGH_TOKEN name still works).
   TEST_RUNNER_REPO: connorstevenson44/AutoTestRunner
-  TEST_RUNNER_REF: claude/project-thread-466rov  # back to main once AutoTestRunner's rename merges
+  TEST_RUNNER_REF: main
 
 jobs:
   run:
