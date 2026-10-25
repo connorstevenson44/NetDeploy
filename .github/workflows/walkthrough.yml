@@ -72,7 +72,15 @@ jobs:
           if ($cases) { $arguments += @('--cases', $cases) }
           & .walkthrough\bin\walk.exe @arguments
           $code = $LASTEXITCODE
-          Get-Content tests\walkthrough\netdeploy\results\*\summary.txt -ErrorAction SilentlyContinue
+          # The summary goes on the run's page, and as an annotation that shows on the pull request.
+          $summary = Get-Content tests\walkthrough\netdeploy\results\*\summary.txt -Raw -ErrorAction SilentlyContinue
+          if (-not $summary) { $summary = "walk exited with $code before it wrote a summary." }
+          $summary
+          $fence = '```'
+          "$fence`n$summary`n$fence" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $level = if ($code -eq 0) { 'notice' } else { 'error' }
+          $message = $summary.Trim().Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+          Write-Output "::$level title=Walkthrough::$message"
           Stop-Process -Name NetDeploy -Force -ErrorAction SilentlyContinue
           exit $code
 
