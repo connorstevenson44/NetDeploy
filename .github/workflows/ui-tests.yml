@@ -41,7 +41,11 @@ jobs:
 
       # Self-contained, so the bundle runs on a test machine without the .NET 10 runtime.
       - name: Build the test runner (autotest.exe)
-        run: dotnet publish .autotestrunner/src/AutoTestRunner.Cli -c Release -r win-x64 --self-contained -o .autotestrunner/bin
+        # Built from outside this repository, so NetDeploy's Directory.Build.props and Directory.Packages.props don't apply
+        # to it: it has its own.
+        run: |
+          Copy-Item .autotestrunner "$env:RUNNER_TEMP\autotestrunner-src" -Recurse
+          dotnet publish "$env:RUNNER_TEMP\autotestrunner-src\src\AutoTestRunner.Cli" -c Release -r win-x64 --self-contained -o .autotestrunner/bin
 
       - name: Validate the test scripts
         run: .autotestrunner/bin/autotest.exe validate tests/ui-tests/netdeploy
