@@ -39,11 +39,8 @@ function Check($window, $shot) {
         $rect = $found.Current.BoundingRectangle
         if (-not (Inside $rect $bounds) -or -not (Inside $rect $workRect)) { $problems += "the $button button ($rect) doesn't all show" }
     }
-    # A list view with columns shows in UI Automation as a data grid on some versions of Windows, and a list on others.
-    $isList = foreach ($type in 'List', 'DataGrid') {
-        [Windows.Automation.PropertyCondition]::new($element::ControlTypeProperty, [Windows.Automation.ControlType]::$type)
-    }
-    $list = $window.FindFirst([Windows.Automation.TreeScope]::Descendants, [Windows.Automation.OrCondition]::new([Windows.Automation.Condition[]] $isList))
+    $list = $window.FindFirst([Windows.Automation.TreeScope]::Descendants,
+        [Windows.Automation.PropertyCondition]::new($element::ClassNameProperty, 'SysListView32'))
     if (-not $list) { $problems += "there is no list of cases" }
     elseif ($list.Current.BoundingRectangle.Height -lt 100) { $problems += "the list of cases is only $($list.Current.BoundingRectangle.Height) high" }
     if ($problems) { throw "The launcher at $shot doesn't fit: $($problems -join '; ')." }
