@@ -26,6 +26,6 @@
     "${packages}/Fabrikam.Reports-2.0.0.zip",
     "${packages}/Fabrikam.Reports-2.1.0.zip"
   ],
-  "reset": { "powershell": "../../manual/tools/Reset-TestMachine.ps1", "leftovers": "tools/Leftovers.ps1" },
+  "reset": { "powershell": "tools/Reset-TestMachine.ps1", "leftovers": "tools/Leftovers.ps1" },
   "screen": { "width": 1600, "height": 900 }
 }
