@@ -1,6 +1,6 @@
 # Lists what the NetDeploy test packages left on this computer, one line each: services, scheduled tasks, folders,
 # and what NetDeploy remembers of them. Prints nothing on a clean computer. Walkthrough runs it before a run to decide
-# whether to clean up first, as the AutoHotkey runner's Machine.Leftovers did.
+# whether to clean up first.
 $ErrorActionPreference = 'SilentlyContinue'
 
 Get-CimInstance Win32_Service -Filter "Name LIKE 'Contoso.Orders%'" | ForEach-Object { "service $($_.Name)" }

@@ -1,7 +1,7 @@
 # Removes everything the NetDeploy test packages install, so the manual tests can start from a clean computer:
 # the Contoso.Orders services, the \Contoso and \Fabrikam scheduled tasks, the install folders and the databases, and
 # what NetDeploy remembers of them: their deploy history, and the settings and recent files it keeps for you.
-# Run it in PowerShell as administrator. The manual test runner's Clean up button runs it too.
+# Run it in PowerShell as administrator. Walkthrough runs it before a run when an earlier one left something behind.
 $ErrorActionPreference = 'Continue'
 
 Get-CimInstance Win32_Service -Filter "Name LIKE 'Contoso.Orders%'" | ForEach-Object {
