@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.elements.schema.json",
+  "statusText": { "id": "StatusText" },
+  "continueButton": { "id": "ContinueButton" },
+  "startScreen": { "text": "Drop a package, folder or deploy.json here" },
+  "newInstallName": { "type": "Edit", "name": "New install name" },
+  "environment": { "type": "ComboBox", "name": "Environment" },
+  "folderRow": { "type": "Button", "helpText": "${path}" },
+  "upOneFolder": { "type": "Button", "helpText": "Up one folder" },
+  "fileName": { "type": "Text", "helpText": "${path}", "scrollToFind": true },
+  "fileText": { "id": "FileText" }
+}

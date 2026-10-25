@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.macro.schema.json",
+  "description": "Waits for the bar at the bottom to start with startsWith, after the last click changed it. Another window showing up instead, such as a failure's roll back offer, stops the wait.",
+  "params": {
+    "startsWith": { "description": "Such as Deploy finished." },
+    "within": { "description": "Seconds to wait.", "default": "180" }
+  },
+  "steps": [
+    { "waitText": "statusText", "startsWith": "${startsWith}", "new": true, "within": "${within}", "as": "status",
+      "what": "the bar at the bottom of NetDeploy" }
+  ],
+  "returns": "status"
+}
