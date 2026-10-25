@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
+  "name": "Throw away changes you don't want",
+  "needs": ["edit-on-server"],
+  "covers": "Undo all in the editor, and Discard for everything waiting to be written",
+  "steps": [
+    { "call": "goUpToInstallFolder" },
+    { "call": "openFolderInList", "with": { "path": "${ordersDir}\\main" } },
+    { "tab": "Files", "say": "Open the Files tab" },
+    { "call": "openFileInEditor", "with": { "path": "appsettings.json" } },
+    { "replaceText": "fileText", "regex": "(\"Region\":\\s*)\"west\"", "replacement": "$1\"north\"", "say": "Change Region to north" },
+    { "find": { "text": "1 change" }, "what": "the bar at the bottom saying 1 change" },
+    { "click": { "button": "Undo all" }, "say": "Click Undo all, to put the whole file back as it is on the server" },
+    { "waitGone": "finalize", "what": "the bar at the bottom", "say": "The file is back as it was, and the bar at the bottom has gone: nothing is waiting to be written." },
+    { "replaceText": "fileText", "regex": "(\"HeartbeatSeconds\":\\s*)10", "replacement": "$${1}30", "say": "Change HeartbeatSeconds to 30" },
+    { "call": "clickFileRowButton", "with": { "path": "README.txt", "tip": "Delete when finalized", "say": "Mark README.txt to be deleted" } },
+    { "find": { "text": "1 change, 1 file to delete" }, "what": "the bar saying 1 change and 1 file to delete" },
+    { "click": { "button": "Discard" }, "say": "Click Discard, to throw away everything that is waiting" },
+    { "waitGone": "finalize", "what": "the bar at the bottom" },
+    { "checkpoint": "Nothing was written",
+      "checks": [
+        { "jsonValue": "${ordersDir}\\main\\appsettings.json", "path": "Orders:Region", "equals": "west" },
+        { "jsonValue": "${ordersDir}\\main\\appsettings.json", "path": "Orders:HeartbeatSeconds", "equals": "10" },
+        { "fileExists": "${ordersDir}\\main\\README.txt" }
+      ],
+      "look": [
+        "Undo all took the Region change out of the editor straight away.",
+        "Discard closed the file and took the crossing out off README.txt.",
+        "Nothing asked to write anything."
+      ],
+      "tools": [
+        { "openFile": "${ordersDir}\\main\\appsettings.json" }
+      ] }
+  ]
+}

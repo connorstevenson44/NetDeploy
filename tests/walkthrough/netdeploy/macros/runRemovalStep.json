@@ -1,8 +1,0 @@
-{
-  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.macro.schema.json",
-  "description": "Runs the step the Remove install window shows: ticks I understand, then Run this step.",
-  "steps": [
-    { "tick": { "type": "CheckBox", "within": "removeWindow" }, "say": "Tick “I understand”" },
-    { "click": { "id": "RunButton", "within": "removeWindow" }, "say": "Run this step" }
-  ]
-}

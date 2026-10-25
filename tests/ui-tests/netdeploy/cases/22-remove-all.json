@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
+  "name": "Remove every install",
+  "needs": ["clone-main", "upgrade-reports"],
+  "covers": "Remove from the buttons that show when you point at an install, each step confirmed, and a clean computer at the end",
+  "steps": [
+    { "call": "goUpToInstallFolder" },
+    { "call": "removeInstall", "with": { "path": "${reportsDir}\\main" } },
+    { "call": "openPackage", "with": { "zip": "${packages}\\Contoso.Orders-1.1.0.zip" } },
+    { "call": "waitForHeader", "with": { "title": "Contoso.Orders 1.1.0" } },
+    { "note": "A removal can leave the folder list inside the next install, so each starts from the top.", "repeat": ["qa", "green", "main"],
+      "steps": [
+        { "call": "goUpToInstallFolder" },
+        { "call": "removeInstall", "with": { "path": "${ordersDir}\\${item}" } }
+      ] },
+    { "checkpoint": "Every install is gone",
+      "checks": [
+        { "service": "Contoso.Orders-main" },
+        { "service": "Contoso.Orders-green" },
+        { "service": "Contoso.Orders-qa" },
+        { "scheduledTask": "\\Contoso\\Orders Export-main", "exists": false },
+        { "scheduledTask": "\\Fabrikam\\Reports hourly", "exists": false },
+        { "fileMissing": "${ordersDir}\\main" },
+        { "fileMissing": "${ordersData}\\db-main" },
+        { "fileMissing": "${reportsDir}\\main" }
+      ],
+      "look": [
+        "Each removal went through its steps one at a time, the last thing installed first, ending with deleting the folder.",
+        "The folder list is empty apart from the New install row."
+      ],
+      "tools": [
+        { "openFolder": "C:\\Apps", "label": "Open C:\\Apps" },
+        { "console": "& '${suiteDir}\\tools\\Show-Services.ps1' @args", "args": ["Contoso.Orders"], "label": "Services" },
+        { "app": "taskschd.msc", "label": "Task Scheduler" }
+      ] },
+    { "closeApp": {}, "say": "Close NetDeploy" }
+  ]
+}

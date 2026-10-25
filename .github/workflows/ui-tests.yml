@@ -1,0 +1,109 @@
+name: UI tests
+
+# Runs NetDeploy's UI test cases with AutoTestRunner (the C# test runner on FlaUI), unattended on a Windows runner: the
+# same clicks a person watches, without the pauses. The run's log, screenshots, UI Automation dumps and junit.xml are in
+# the UiTests-Results artifact, and everything needed to run the cases on a test machine is in UiTests-ReadyToRun.
+on:
+  push:
+    branches: [main]
+    paths: [src/**, testpackages/**, tests/ui-tests/**, .github/workflows/ui-tests.yml]
+  pull_request:
+    paths: [src/**, testpackages/**, tests/ui-tests/**, .github/workflows/ui-tests.yml]
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: Cases to run, such as 1-2 or open-package
+        default: ''
+
+env:
+  # Where the test runner's source is, and the branch to build autotest.exe from. While AutoTestRunner is private, an
+  # AUTOTESTRUNNER_TOKEN secret that can read it is needed (the older WALKTHROUGH_TOKEN name still works).
+  TEST_RUNNER_REPO: connorstevenson44/AutoTestRunner
+  TEST_RUNNER_REF: main
+
+jobs:
+  run:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TEST_RUNNER_REPO }}
+          ref: ${{ env.TEST_RUNNER_REF }}
+          path: .autotestrunner
+          token: ${{ secrets.AUTOTESTRUNNER_TOKEN || secrets.WALKTHROUGH_TOKEN || github.token }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Self-contained, so the bundle runs on a test machine without the .NET 10 runtime.
+      - name: Build the test runner (autotest.exe)
+        run: dotnet publish .autotestrunner/src/AutoTestRunner.Cli -c Release -r win-x64 --self-contained -o .autotestrunner/bin
+
+      - name: Validate the test scripts
+        run: .autotestrunner/bin/autotest.exe validate tests/ui-tests/netdeploy
+
+      - name: Publish the portable exe
+        run: dotnet publish src/NetDeploy.App -p:PublishProfile=Portable
+
+      - name: Build test packages
+        run: dotnet run testpackages/build.cs
+
+      # The test runner, the suite, NetDeploy.exe and the packages in one folder, to run on a test machine. The suite
+      # finds NetDeploy.exe and the packages beside it.
+      - name: Make the ready-to-run test kit
+        run: |
+          $bundle = "$env:RUNNER_TEMP\ui-tests-ready-to-run"
+          $suite = "$bundle\netdeploy"
+          Copy-Item .autotestrunner\bin "$bundle\autotestrunner" -Recurse
+          Copy-Item tests\ui-tests\netdeploy $suite -Recurse
+          Copy-Item artifacts\portable\NetDeploy.exe $suite
+          New-Item "$suite\packages" -ItemType Directory | Out-Null
+          Copy-Item testpackages\dist\*.zip "$suite\packages"
+          Set-Content "$bundle\Open test launcher.cmd" '@"%~dp0autotestrunner\autotest.exe" launch "%~dp0netdeploy" %*'
+          Set-Content "$bundle\Open test launcher (step by step).cmd" '@"%~dp0autotestrunner\autotest.exe" launch "%~dp0netdeploy" --mode step-by-step %*'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UiTests-ReadyToRun
+          path: ${{ runner.temp }}/ui-tests-ready-to-run/
+
+      # The runner's screen is 1024x768, which leaves the folder list beside the package a row or less. 1600x900 leaves
+      # it a few rows, as on a laptop.
+      - name: Use a 1600x900 screen
+        continue-on-error: true
+        run: |
+          Set-DisplayResolution -Width 1600 -Height 900 -Force
+          Add-Type -AssemblyName System.Windows.Forms
+          "The screen is now $([Windows.Forms.Screen]::PrimaryScreen.Bounds.Size)"
+
+      # autotest prints its log as it goes. Exit codes: 0 passed, 1 a case failed, 2 the exe or a package is missing,
+      # 3 a script error, 4 not administrator.
+      - name: Run the cases unattended
+        timeout-minutes: 40
+        run: |
+          $cases = '${{ github.event.inputs.cases }}'
+          $arguments = @('run', 'tests\ui-tests\netdeploy', '--unattended', '--results', 'tests\ui-tests\netdeploy\results')
+          if ($cases) { $arguments += @('--cases', $cases) }
+          & .autotestrunner\bin\autotest.exe @arguments
+          $code = $LASTEXITCODE
+          # The summary goes on the run's page, and as an annotation that shows on the pull request.
+          $summary = Get-Content tests\ui-tests\netdeploy\results\*\summary.txt -Raw -ErrorAction SilentlyContinue
+          if (-not $summary) { $summary = "autotest exited with $code before it wrote a summary." }
+          $summary
+          $fence = '```'
+          "$fence`n$summary`n$fence" | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $level = if ($code -eq 0) { 'notice' } else { 'error' }
+          $message = $summary.Trim().Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+          Write-Output "::$level title=UI tests::$message"
+          Stop-Process -Name NetDeploy -Force -ErrorAction SilentlyContinue
+          exit $code
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: UiTests-Results
+          path: tests/ui-tests/netdeploy/results/

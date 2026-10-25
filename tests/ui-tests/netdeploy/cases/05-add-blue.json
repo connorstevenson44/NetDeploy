@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
+  "name": "Install it a second time, for Production (blue)",
+  "needs": ["add-main"],
+  "covers": "Picking from a list of choices, a second install beside the first, and the steps that only run for Production",
+  "steps": [
+    { "call": "goUpToInstallFolder" },
+    { "type": "newInstallName", "text": "blue", "say": "Name the new install blue" },
+    { "choose": "environment", "option": "Production", "say": "Set Environment to Production" },
+    { "click": { "button": "Add" }, "say": "Click Add to install blue" },
+    { "call": "waitForReview", "with": { "title": "Check the files" } },
+    { "call": "continuePastReview" },
+    { "call": "waitForReview", "with": { "title": "Check the config" } },
+    { "call": "continuePastReview" },
+    { "call": "waitForStatusBar", "with": { "startsWith": "Deploy finished.", "within": "300" }, "as": "status" },
+    { "checkpoint": "blue runs beside main, set up for Production",
+      "checks": [
+        { "service": "Contoso.Orders-blue", "state": "Running" },
+        { "service": "Contoso.Orders-main", "state": "Running" },
+        { "scheduledTask": "\\Contoso\\Orders Export-blue" },
+        { "fileExists": "${ordersData}\\db-blue\\orders.db" },
+        { "fileExists": "${ordersDir}\\blue\\PRODUCTION.txt" },
+        { "logged": "${logFile(status)}", "text": "Production: would restrict" }
+      ],
+      "look": [
+        "The folder list shows blue and main, both on v1.0.0.",
+        "In Services, Contoso Orders blue and Contoso Orders main are both running.",
+        "blue has a database of its own, in db-blue."
+      ],
+      "tools": [
+        { "openFolder": "${ordersDir}\\blue", "label": "Open blue" },
+        { "openFolder": "${ordersData}", "label": "Database folder" },
+        { "console": "& '${suiteDir}\\tools\\Show-Services.ps1' @args", "args": ["Contoso.Orders"], "label": "Services" },
+        { "console": "& '${suiteDir}\\tools\\Show-ScheduledTasks.ps1' @args", "args": ["\\Contoso\\"], "label": "Scheduled tasks" }
+      ] }
+  ]
+}
