@@ -53,10 +53,14 @@ jobs:
           name: ManualTestBundle
           path: ${{ runner.temp }}/bundle/
 
-      # The runner's screen is 1024x768, which leaves the folder list beside the package a row or less.
-      - name: Use a 1920x1080 screen
+      # The runner's screen is 1024x768, which leaves the folder list beside the package a row or less. 1600x900 leaves
+      # it a few rows, as on a laptop, so the cases scroll it to reach the rows below.
+      - name: Use a 1600x900 screen
         continue-on-error: true
-        run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
+        run: |
+          Set-DisplayResolution -Width 1600 -Height 900 -Force
+          Add-Type -AssemblyName System.Windows.Forms
+          "The screen is now $([Windows.Forms.Screen]::PrimaryScreen.Bounds.Size)"
 
       # Waits for AutoHotkey itself, not Start-Process -Wait, which also waits for every process it started, such as
       # a NetDeploy left open by a failed case. The log is printed as it is written, so a slow step shows while it runs.

@@ -7,6 +7,7 @@ class App {
     static Hwnd := 0
     static Window := ""
     static Marked := ""      ; the status text before the last click, so a wait sees the new one
+    static WheelNoted := false
 
     ; ===== Starting and stopping =====
 
@@ -116,9 +117,9 @@ class App {
 
     ; A control on the same row as another, such as a file's buttons beside its name.
     static FindInRow(anchor, condition, what) {
-        row := anchor.BoundingRectangle
-        middle := (row.t + row.b) // 2
         Loop {
+            row := anchor.BoundingRectangle
+            middle := (row.t + row.b) // 2
             end := A_TickCount + 10000 * Runner.TimeoutScale
             while A_TickCount < end {
                 Runner.Gate()
@@ -133,6 +134,26 @@ class App {
                 Sleep(200)
             }
             Runner.Stuck("find " what)
+            ; The buttons in the Files tab only show while the mouse is over the row.
+            this.Point(anchor)
+            Sleep(300)
+        }
+    }
+
+    ; A button that only shows while the mouse is over its row. Trying again points at the row again, in case the
+    ; mouse moved off it, or the row was scrolled, meanwhile.
+    static FindOnHover(row, condition, what) {
+        Loop {
+            end := A_TickCount + 10000 * Runner.TimeoutScale
+            while A_TickCount < end {
+                Runner.Gate()
+                if found := this.TryFind(condition, row)
+                    return found
+                Sleep(200)
+            }
+            Runner.Stuck("find " what)
+            this.Point(row)
+            Sleep(300)
         }
     }
 
@@ -160,38 +181,107 @@ class App {
         }
     }
 
-    ; Wheels the list a control is in until the control's middle is in view, for rows that can't scroll themselves
-    ; into view, such as the folders beside the package.
+    ; Scrolls the list a control is in until all of the control is in view, or its middle when it is taller than the
+    ; list, for rows that can't scroll themselves into view, such as the folders beside the package. Half a row isn't
+    ; enough: the buttons that show when the mouse is over a row sit in its middle.
     static BringIntoView(element) {
-        CoordMode("Mouse", "Screen")
-        Loop 60 {
+        last := "", still := 0
+        Loop 120 {
             try {
-                view := this.VisibleArea(element)
+                view := this.ScrolledArea(element, &list)
                 box := element.BoundingRectangle
-            } catch
+            } catch as e {
+                this.NoteNotInView(element, "it couldn't be told where it is: " e.Message)
                 return
-            middle := (box.t + box.b) // 2
-            if view.b - view.t < 10 || middle >= view.t && middle <= view.b
+            }
+            if !IsObject(list) || this.Fits(box, view)
                 return
-            spot := {l: view.l + 20, t: (view.t + view.b) // 2 - 5, r: view.l + 40, b: (view.t + view.b) // 2 + 5}
-            Runner.KeepClear(spot)
-            MouseMove(spot.l + 10, spot.t + 5, Runner.MouseSpeed)
-            Send(middle > view.b ? "{WheelDown}" : "{WheelUp}")
-            Sleep(120)
+            if view.b - view.t < 10
+                return this.NoteNotInView(element, "the lists it is in leave no room to show it")
+            ; At the list's end
+            still := box.t = last ? still + 1 : 0
+            if still = 3
+                return this.NoteNotInView(element, "scrolling didn't move it")
+            last := box.t
+            this.ScrollStep(list, box.b > view.b, view)
         }
+        this.NoteNotInView(element, "it was still out of view after 120 scrolls")
     }
 
-    ; The part of the screen a control's containers leave room for it to show in.
-    static VisibleArea(element) {
-        area := {l: -100000, t: -100000, r: 100000, b: 100000}
+    ; Logs why a control couldn't be scrolled into view, with where it and each container around it are on screen, so
+    ; the run's log shows what went wrong when the step after it fails.
+    static NoteNotInView(element, why) {
+        where := ""
         parent := element
-        while (parent := parent.Parent) {
+        Loop 30 {
+            try {
+                box := parent.BoundingRectangle
+                where .= (where ? " < " : "") parent.LocalizedType " " parent.ClassName " (" box.l "," box.t "," box.r "," box.b ")"
+                if parent.Type = UIA.Type.Window || !(parent := parent.Parent)
+                    break
+            } catch as e {
+                where .= " < (" e.Message ")"
+                break
+            }
+        }
+        Runner.Log("NOTE", "Couldn't scroll to a control, as " why ": " where)
+    }
+
+    static Fits(box, view) {
+        if box.b - box.t > view.b - view.t
+            return (box.t + box.b) // 2 >= view.t && (box.t + box.b) // 2 <= view.b
+        return box.t >= view.t && box.b <= view.b
+    }
+
+    ; The part of the screen the lists a control is in leave it to show in, and the innermost of them, which is the one
+    ; to scroll. Only lists that scroll up and down count: the other containers around a control either hold all of it,
+    ; or are only part of what holds it, such as the row it is on, or a tab's header.
+    static ScrolledArea(element, &list := "") {
+        area := {l: -100000, t: -100000, r: 100000, b: 100000}
+        list := ""
+        parent := element
+        while (parent := parent.Parent) && parent.Type != UIA.Type.Window {
+            scrolls := false
+            try scrolls := parent.GetPropertyValue(UIA.Property.ScrollVerticallyScrollable)
+            if !scrolls
+                continue
             box := parent.BoundingRectangle
             area := {l: Max(area.l, box.l), t: Max(area.t, box.t), r: Min(area.r, box.r), b: Min(area.b, box.b)}
-            if parent.Type = UIA.Type.Window
-                break
+            if !list
+                list := parent
         }
         return area
+    }
+
+    ; Scrolls a list a line, or a page when page is set. Through UI Automation when the list can, so it works whatever
+    ; window has the focus: Windows sends the mouse wheel to the focused window when it isn't set to scroll the one
+    ; under the mouse. Otherwise with the wheel over area, with NetDeploy in front.
+    static ScrollStep(list, down, area, page := false) {
+        if IsObject(list) {
+            if page
+                amount := down ? UIA.ScrollAmount.LargeIncrement : UIA.ScrollAmount.LargeDecrement
+            else
+                amount := down ? UIA.ScrollAmount.SmallIncrement : UIA.ScrollAmount.SmallDecrement
+            ; The UIA library's default for the other direction isn't a ScrollAmount UI Automation knows, and WPF
+            ; refuses the whole call for it, so it is given as NoAmount.
+            try {
+                list.ScrollPattern.Scroll(amount, UIA.ScrollAmount.NoAmount)
+                Sleep(120)
+                return
+            } catch as e {
+                if !this.WheelNoted {
+                    this.WheelNoted := true
+                    Runner.Log("NOTE", "Scrolling through UI Automation failed, so the mouse wheel is used: " e.Message)
+                }
+            }
+        }
+        spot := {l: area.l + 20, t: (area.t + area.b) // 2 - 5, r: area.l + 40, b: (area.t + area.b) // 2 + 5}
+        Runner.KeepClear(spot)
+        CoordMode("Mouse", "Screen")
+        MouseMove(spot.l + 10, spot.t + 5, Runner.MouseSpeed)
+        WinActivate(this.Hwnd)
+        Send(down ? "{WheelDown}" : "{WheelUp}")
+        Sleep(120)
     }
 
     ; Clicks a control: invokes, toggles or selects it through UI Automation, or with the mouse when it has none of
@@ -488,7 +578,7 @@ class App {
         SplitPath(path, &name)
         row := this.FolderRow(path)
         this.Hover(row, "Point at " name " to show its buttons")
-        this.Click(this.Find({Type: "Button", HelpText: tooltip}, "the button to " LowerFirst(what), 10000, row), what)
+        this.Click(this.FindOnHover(row, {Type: "Button", HelpText: tooltip}, "the button to " LowerFirst(what)), what)
     }
 
     ; Removes an install from its hover button. choose says what to do with each step, as in RunRemoval.
@@ -520,23 +610,21 @@ class App {
         return this.Find(condition, what)
     }
 
-    ; Scrolls each list in the window with the mouse wheel, up to its top and then down to its end, until something
-    ; that matches condition is built.
+    ; Scrolls each list in the window, up to its top and then down to its end, until something that matches condition
+    ; is built.
     static ScrollTo(condition) {
         if found := this.TryFind(condition)
             return found
-        CoordMode("Mouse", "Screen")
         for list in this.Main().FindElements({Type: "List"}) {
             try box := list.BoundingRectangle
             catch
                 continue
             if box.b - box.t < 120
                 continue
-            spot := {l: box.l + 40, t: (box.t + box.b) // 2 - 20, r: box.l + 80, b: (box.t + box.b) // 2 + 20}
-            Runner.KeepClear(spot)
-            MouseMove(spot.l + 20, spot.t + 20, Runner.MouseSpeed)
-            ; A list is at its end once a few turns of the wheel build no new rows.
-            for wheel in ["WheelUp", "WheelDown"] {
+            scroller := ""
+            try scroller := list.GetPropertyValue(UIA.Property.ScrollVerticallyScrollable) ? list : ""
+            ; A list is at its end once a few steps build no new rows.
+            for down in [false, true] {
                 last := "", still := 0
                 Loop 400 {
                     if found := this.TryFind(condition, list)
@@ -546,8 +634,7 @@ class App {
                     if still = 5
                         break
                     last := shown
-                    Send("{" wheel "}")
-                    Sleep(120)
+                    this.ScrollStep(scroller, down, box, true)
                 }
             }
         }
