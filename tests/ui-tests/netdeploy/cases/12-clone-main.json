@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
+  "name": "Copy main as a new install (qa)",
+  "needs": ["rename-blue"],
+  "covers": "Clone from the buttons that show when you point at an install, and a new install that starts as a copy",
+  "steps": [
+    { "call": "goUpToInstallFolder" },
+    { "call": "clickInstallRowButton", "with": { "path": "${ordersDir}\\main", "tip": "Clone: deploy as a new install that starts from a copy of this one", "say": "Clone main" } },
+    { "type": "newInstallName", "text": "qa", "say": "Name the new install qa" },
+    { "find": { "comboBox": "Start from" }, "what": "Start from", "say": "Start from says A copy of main, so qa starts with main's files and settings, such as Region west." },
+    { "click": { "button": "Add" }, "say": "Click Add to install qa" },
+    { "call": "waitForReview", "with": { "title": "Check the files" } },
+    { "call": "continuePastReview" },
+    { "answerDialog": "NetDeploy", "button": "No", "expect": "Run a settings check on the old version first?", "say": "Say No to the optional settings check" },
+    { "call": "waitForReview", "with": { "title": "Check the config" } },
+    { "call": "continuePastReview" },
+    { "call": "waitForStatusBar", "with": { "startsWith": "Deploy finished.", "within": "300" } },
+    { "checkpoint": "qa is a copy of main",
+      "checks": [
+        { "service": "Contoso.Orders-qa", "state": "Running" },
+        { "jsonValue": "${ordersDir}\\qa\\appsettings.json", "path": "Orders:Region", "equals": "west" },
+        { "jsonValue": "${ordersDir}\\qa\\appsettings.json", "path": "Payments:ApiKey", "equals": "${apiKey}" },
+        { "fileExists": "${ordersData}\\db-qa\\orders.db" },
+        { "scheduledTask": "\\Contoso\\Orders Export-qa" }
+      ],
+      "look": [
+        "Start from said A copy of main before the deploy.",
+        "The folder list shows green, main and qa."
+      ],
+      "tools": [
+        { "openFolder": "${ordersDir}\\qa", "label": "Open qa" },
+        { "openFile": "${ordersDir}\\qa\\appsettings.json" },
+        { "console": "& '${suiteDir}\\tools\\Show-Services.ps1' @args", "args": ["Contoso.Orders"], "label": "Services" }
+      ] }
+  ]
+}

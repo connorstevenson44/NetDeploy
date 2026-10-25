@@ -1,7 +1,0 @@
-{
-  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.macro.schema.json",
-  "description": "Goes up to the top of the install folder, from wherever the folder list is.",
-  "steps": [
-    { "click": "upOneFolder", "whileEnabled": true, "say": "Go up a folder" }
-  ]
-}

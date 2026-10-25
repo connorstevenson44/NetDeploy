@@ -488,6 +488,6 @@ $RECYCLE.BIN/
 # Test packages built by testpackages/build.cs
 testpackages/dist/
 
-# Results of the Walkthrough runs, and the Walkthrough checkout CI builds them with
-tests/walkthrough/*/results/
-.walkthrough/
+# Results of the UI test runs, and the AutoTestRunner checkout CI builds the test runner from
+tests/ui-tests/*/results/
+.autotestrunner/

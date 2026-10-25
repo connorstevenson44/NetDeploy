@@ -1,0 +1,8 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/macro.schema.json",
+  "description": "Waits for the header to name what is open, such as Contoso.Orders 1.0.0.",
+  "params": { "title": { "description": "What the header starts with." } },
+  "steps": [
+    { "find": { "text": "${title}    ", "match": "startsWith" }, "within": 30, "what": "\"${title}\" in the header" }
+  ]
+}

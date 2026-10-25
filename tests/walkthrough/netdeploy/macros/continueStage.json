@@ -1,8 +1,0 @@
-{
-  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.macro.schema.json",
-  "description": "Continue, Continue the dry run, or Write files and continue: the button under a review.",
-  "steps": [
-    { "find": "continueButton", "as": "continueButton" },
-    { "click": "continueButton", "say": "Click ${continueButton.name}" }
-  ]
-}

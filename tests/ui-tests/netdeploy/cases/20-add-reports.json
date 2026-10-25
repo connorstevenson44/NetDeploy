@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
+  "name": "Install Fabrikam.Reports 2.0.0",
+  "needsNote": "No Fabrikam.Reports yet",
+  "covers": "An older-style .NET Framework app, a question during the deploy, and a window asking for a step's details",
+  "steps": [
+    { "call": "openPackage", "with": { "zip": "${packages}\\Fabrikam.Reports-2.0.0.zip" } },
+    { "call": "waitForHeader", "with": { "title": "Fabrikam.Reports 2.0.0" } },
+    { "type": "newInstallName", "text": "main", "say": "Name the new install main" },
+    { "click": { "button": "Add" }, "say": "Click Add to install Fabrikam.Reports" },
+    { "call": "waitForReview", "with": { "title": "Check the files" } },
+    { "call": "continuePastReview" },
+    { "call": "waitForReview", "with": { "title": "Check the config" } },
+    { "call": "showConfigFileDiff", "with": { "name": "Fabrikam.Reports.exe.config" } },
+    { "replaceText": "fileText", "regex": "(key=\"SmtpPassword\"\\s+value=)\"\"", "replacement": "$1\"smtp-test-123\"", "say": "Fill in SmtpPassword: it's empty in the package, so it needs a value" },
+    { "call": "showConfigFileDiff", "with": { "name": "web.config" } },
+    { "say": "An older-style .NET Framework app keeps its settings in .exe.config, and its website's in web.config. Both are new here." },
+    { "call": "continuePastReview" },
+    { "answerDialog": "NetDeploy", "button": "Yes", "expect": "Run a report now to check the install?", "within": 120, "say": "Say Yes to running a report now" },
+    { "find": { "window": "Schedule the hourly report" }, "within": 120, "what": "the \"Schedule the hourly report\" window" },
+    { "choose": { "comboBox": "Run the hourly report as", "within": { "window": "Schedule the hourly report" } }, "option": "SYSTEM", "say": "Pick SYSTEM" },
+    { "call": "continueInputsWindow", "with": { "title": "Schedule the hourly report", "say": "Keep SYSTEM as the account the hourly report runs as" } },
+    { "call": "waitForStatusBar", "with": { "startsWith": "Deploy finished.", "within": "300" }, "as": "status" },
+    { "checkpoint": "Fabrikam.Reports is installed",
+      "checks": [
+        { "fileExists": "${reportsDir}\\main\\data\\sales.csv" },
+        { "fileCount": "${reportsDir}\\main\\reports", "pattern": "*.pdf", "equals": 1 },
+        { "scheduledTask": "\\Fabrikam\\Reports hourly" },
+        { "logged": "${logFile(status)}", "text": "The report site is not published" }
+      ],
+      "look": [
+        "The question came up once, and then the window asking for the account, in that order.",
+        "In Task Scheduler, \\Fabrikam\\Reports hourly runs every hour as SYSTEM."
+      ],
+      "tools": [
+        { "openFolder": "${reportsDir}\\main", "label": "Open main" },
+        { "console": "& '${suiteDir}\\tools\\Show-ScheduledTasks.ps1' @args", "args": ["\\Fabrikam\\"], "label": "Scheduled tasks" },
+        { "openFile": "${logFile(status)}", "label": "Open the log" }
+      ] }
+  ]
+}
