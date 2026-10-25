@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.suite.schema.json",
+  "name": "NetDeploy manual tests",
+  "app": { "exe": "${exe}", "window": "NetDeploy", "runAsAdmin": true, "status": "statusText" },
+  "variables": {
+    "exe": { "firstExisting": ["NetDeploy.exe", "../../../artifacts/portable/NetDeploy.exe"] },
+    "packages": { "firstExisting": ["packages", "../../../testpackages/dist"] },
+    "ordersDir": "C:\\Apps\\Contoso.Orders",
+    "ordersData": "C:\\ProgramData\\Contoso.Orders",
+    "reportsDir": "C:\\Apps\\Fabrikam.Reports",
+    "apiKey": "pk-test-123"
+  },
+  "helpers": {
+    "logFile": { "regex": "Log: (.+)$" },
+    "fileName": { "regex": "[^\\\\/]+$" }
+  },
+  "requires": [
+    "${exe}",
+    "${packages}/Contoso.Orders-1.0.0.zip",
+    "${packages}/Contoso.Orders-1.1.0.zip",
+    "${packages}/Fabrikam.Reports-2.0.0.zip",
+    "${packages}/Fabrikam.Reports-2.1.0.zip"
+  ],
+  "reset": { "powershell": "../../manual/tools/Reset-TestMachine.ps1", "leftovers": "tools/Leftovers.ps1" },
+  "screen": { "width": 1600, "height": 900 }
+}

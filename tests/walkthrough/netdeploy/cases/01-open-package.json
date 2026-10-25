@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.case.schema.json",
+  "name": "Open a package",
+  "needsNote": "A clean computer",
+  "covers": "The start screen, opening a package, its settings, and the Steps and deploy.json tabs",
+  "steps": [
+    { "startApp": {}, "say": "Start NetDeploy" },
+    { "find": "startScreen", "what": "the start screen",
+      "say": "NetDeploy starts empty. From here you can open a package to install, a folder of installs to look after, or a deploy.json to edit." },
+    { "call": "openPackage", "with": { "zip": "${packages}\\Contoso.Orders-1.0.0.zip" } },
+    { "call": "waitHeader", "with": { "title": "Contoso.Orders 1.0.0" } },
+    { "say": "The package is open. On the left are its settings, and below them the folder it installs into, which isn't there yet." },
+    { "tab": "Steps", "say": "Open the Steps tab" },
+    { "say": "The Steps tab lists everything the package does when it is deployed, in order." },
+    { "tab": "deploy.json", "say": "Open the deploy.json tab" },
+    { "say": "The deploy.json tab shows the package's instructions in an editor." },
+    { "tab": "Files", "say": "Back to the Files tab" },
+    { "checkpoint": "The package is open",
+      "checks": [
+        { "fileMissing": "${ordersDir}" }
+      ],
+      "look": [
+        "The title bar says Contoso.Orders 1.0.0, with where the zip is beside it.",
+        "PACKAGE shows Database folder and Environment (Staging), then the Dry run and Add buttons.",
+        "INSTALL FOLDER shows C:\\Apps\\Contoso.Orders, marked not created yet, with a New install row at the bottom.",
+        "Under the folder list it says to type a name for the new install.",
+        "The Steps tab listed 11 steps, with what Lock down production does either way indented under it."
+      ] }
+  ]
+}

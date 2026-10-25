@@ -1,0 +1,82 @@
+name: Walkthrough
+
+# Runs the cases ported to Walkthrough, the C# runner that is replacing the AutoHotkey one, unattended on a Windows
+# runner. It runs beside the Manual tests workflow until the JSON suite has every case and has passed on main for two
+# weeks; then the AutoHotkey runner goes. The run's log, screenshots, UI Automation dumps and junit.xml are in the
+# WalkthroughResults artifact.
+on:
+  push:
+    branches: [main]
+    paths: [src/**, testpackages/**, tests/walkthrough/**, tests/manual/tools/**, .github/workflows/walkthrough.yml]
+  pull_request:
+    paths: [src/**, testpackages/**, tests/walkthrough/**, tests/manual/tools/**, .github/workflows/walkthrough.yml]
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: Cases to run, such as 1-2 or open-package
+        default: ''
+
+env:
+  # The repository Walkthrough lives in (AutoTestRunner), and the branch to build walk from. A private repository needs a WALKTHROUGH_TOKEN secret
+  # that can read it.
+  WALKTHROUGH_REPO: connorstevenson44/AutoTestRunner
+  WALKTHROUGH_REF: main
+
+jobs:
+  run:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WALKTHROUGH_REPO }}
+          ref: ${{ env.WALKTHROUGH_REF }}
+          path: .walkthrough
+          token: ${{ secrets.WALKTHROUGH_TOKEN || github.token }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build walk
+        run: dotnet publish .walkthrough/src/Walkthrough.Cli -c Release -o .walkthrough/bin
+
+      - name: Check the suite's scripts
+        run: .walkthrough/bin/walk.exe check tests/walkthrough/netdeploy
+
+      - name: Publish the portable exe
+        run: dotnet publish src/NetDeploy.App -p:PublishProfile=Portable
+
+      - name: Build test packages
+        run: dotnet run testpackages/build.cs
+
+      # The runner's screen is 1024x768, which leaves the folder list beside the package a row or less. 1600x900 leaves
+      # it a few rows, as on a laptop.
+      - name: Use a 1600x900 screen
+        continue-on-error: true
+        run: |
+          Set-DisplayResolution -Width 1600 -Height 900 -Force
+          Add-Type -AssemblyName System.Windows.Forms
+          "The screen is now $([Windows.Forms.Screen]::PrimaryScreen.Bounds.Size)"
+
+      # walk prints its log as it goes. Exit codes: 0 passed, 1 a case failed, 2 the exe or a package is missing,
+      # 3 a script error, 4 not administrator.
+      - name: Run the cases unattended
+        timeout-minutes: 40
+        run: |
+          $cases = '${{ github.event.inputs.cases }}'
+          $arguments = @('run', 'tests\walkthrough\netdeploy', '--unattended', '--results', 'tests\walkthrough\netdeploy\results')
+          if ($cases) { $arguments += @('--cases', $cases) }
+          & .walkthrough\bin\walk.exe @arguments
+          $code = $LASTEXITCODE
+          Get-Content tests\walkthrough\netdeploy\results\*\summary.txt -ErrorAction SilentlyContinue
+          Stop-Process -Name NetDeploy -Force -ErrorAction SilentlyContinue
+          exit $code
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: WalkthroughResults
+          path: tests/walkthrough/netdeploy/results/

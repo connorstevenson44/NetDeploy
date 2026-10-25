@@ -490,3 +490,7 @@ testpackages/dist/
 
 # Results of the AutoHotkey manual test runs
 tests/manual/results/
+
+# Results of the Walkthrough runs, and the Walkthrough checkout CI builds them with
+tests/walkthrough/*/results/
+.walkthrough/
