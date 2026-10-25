@@ -104,6 +104,30 @@ public class StepTests
         Assert.Contains("no deploy.json", error.Message);
     }
 
+    [Fact]
+    public void A_write_to_a_file_in_use_is_tried_again_until_the_file_is_free()
+    {
+        var tries = 0;
+
+        FileSystem.WhenFree(() =>
+        {
+            if (++tries < 3)
+                throw new IOException("The process cannot access the file because it is being used by another process.", unchecked((int)0x80070020));
+        }, waitMilliseconds: 1);
+
+        Assert.Equal(3, tries);
+    }
+
+    [Fact]
+    public void A_write_that_fails_for_another_reason_or_stays_locked_is_not_hidden()
+    {
+        var tries = 0;
+
+        Assert.Throws<IOException>(() => FileSystem.WhenFree(() => { tries++; throw new IOException("The disk is full.", unchecked((int)0x80070070)); }, waitMilliseconds: 1));
+        Assert.Equal(1, tries);
+        Assert.Throws<IOException>(() => FileSystem.WhenFree(() => throw new IOException("In use.", unchecked((int)0x80070021)), tries: 3, waitMilliseconds: 1));
+    }
+
     private static StepContext Context(string packageDirectory) =>
         new(new DeployRunner(new FakeUser(), new TestLog()))
         {

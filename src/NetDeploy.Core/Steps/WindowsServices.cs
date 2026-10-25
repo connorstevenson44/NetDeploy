@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.ServiceProcess;
 using Microsoft.Win32;
 
@@ -66,17 +68,54 @@ internal static class WindowsServices
 
     public static bool Exists(string name) => Status(name) is not null;
 
-    /// <summary>Returns true if the service was running and has been stopped.</summary>
+    /// <summary>
+    /// Returns true if the service was running and has been stopped. A service that runs in a process of its own is
+    /// stopped once that process has gone too: Windows says a service has stopped as soon as it says so itself, while
+    /// its program is still shutting down and has its files open.
+    /// </summary>
     public static bool Stop(string name, TimeSpan timeout)
     {
         using var service = new ServiceController(name);
         if (service.Status == ServiceControllerStatus.Stopped)
             return false;
+        var process = OwnProcess(service);
+        var started = Stopwatch.StartNew();
         if (service.Status != ServiceControllerStatus.StopPending)
             service.Stop();
         service.WaitForStatus(ServiceControllerStatus.Stopped, timeout);
+        if (process is not null)
+            using (process)
+                process.WaitForExit(timeout - started.Elapsed is { Ticks: > 0 } left ? left : TimeSpan.Zero);
         return true;
     }
+
+    /// <summary>The service's process, when it has one to itself rather than sharing a host such as svchost.</summary>
+    private static Process? OwnProcess(ServiceController service)
+    {
+        const int ServiceWin32OwnProcess = 0x10;
+        try
+        {
+            // ServiceHandle opens a new handle each time, and a deleted service stays until every handle to it is closed.
+            using var handle = service.ServiceHandle;
+            if (!QueryServiceStatusEx(handle, 0, out var status, Marshal.SizeOf<ServiceStatusProcess>(), out _)
+                || (status.ServiceType & ServiceWin32OwnProcess) == 0 || status.ProcessId == 0)
+                return null;
+            return Process.GetProcessById(status.ProcessId);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ServiceStatusProcess
+    {
+        public int ServiceType, CurrentState, ControlsAccepted, Win32ExitCode, ServiceSpecificExitCode, CheckPoint, WaitHint, ProcessId, ServiceFlags;
+    }
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool QueryServiceStatusEx(SafeHandle service, int infoLevel, out ServiceStatusProcess status, int size, out int needed);
 
     /// <summary>Returns true if the service was not running and has been started.</summary>
     public static bool Start(string name, TimeSpan timeout)
