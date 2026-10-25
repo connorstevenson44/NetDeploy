@@ -1,6 +1,6 @@
 # NetDeploy UI tests
 
-NetDeploy's manual test plan as 22 automated UI test cases, run by
+NetDeploy's manual test plan as 23 automated UI test cases, run by
 [AutoTestRunner](https://github.com/connorstevenson44/AutoTestRunner): a C# test runner on FlaUI whose cases are JSON.
 The mouse moves to each control, it is outlined in orange, a panel beside the app says what is happening, and each
 case ends at a checkpoint of checks it makes itself and things to look at. The cases replaced the AutoHotkey runner

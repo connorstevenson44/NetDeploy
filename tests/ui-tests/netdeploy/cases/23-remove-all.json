@@ -20,8 +20,15 @@
         { "service": "Contoso.Orders-qa" },
         { "scheduledTask": "\\Contoso\\Orders Export-main", "exists": false },
         { "scheduledTask": "\\Fabrikam\\Reports hourly", "exists": false },
+        { "scheduledTask": "\\Contoso\\Orders Export-green", "exists": false },
+        { "scheduledTask": "\\Contoso\\Orders Export-qa", "exists": false },
         { "fileMissing": "${ordersDir}\\main" },
+        { "fileMissing": "${ordersDir}\\green" },
+        { "fileMissing": "${ordersDir}\\qa" },
+        { "fileMissing": "${ordersDir}\\main.backups", "label": "main's backups went with it" },
         { "fileMissing": "${ordersData}\\db-main" },
+        { "fileMissing": "${ordersData}\\db-green" },
+        { "fileMissing": "${ordersData}\\db-qa" },
         { "fileMissing": "${reportsDir}\\main" }
       ],
       "look": [
