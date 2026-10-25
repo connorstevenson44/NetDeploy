@@ -1,0 +1,8 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.macro.schema.json",
+  "description": "Opens a file in the Files tab's editor, with the Edit button on its row.",
+  "params": { "path": { "description": "The file's path from the folder listed." } },
+  "steps": [
+    { "call": "fileButton", "with": { "path": "${path}", "tip": "Edit", "say": "Edit ${path}" } }
+  ]
+}

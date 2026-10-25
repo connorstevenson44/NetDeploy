@@ -5,8 +5,8 @@ NetDeploy's manual test, being ported from the AutoHotkey runner in `tests/manua
 person watching sees the same thing: the mouse moves to each control, it is outlined in orange, a panel beside the
 app says what is happening, and each case ends at a checkpoint of checks it makes itself and things to look at.
 
-So far cases 1 and 2 are ported. Until every case is, and the suite has passed on main for two weeks, the AutoHotkey
-runner stays the one to use, and both run in CI.
+All 22 cases are ported. Until the suite has passed on main for two weeks, the AutoHotkey runner stays the one to
+use, and both run in CI.
 
 ## Running it
 
@@ -35,12 +35,16 @@ carries on, Enter goes a step at a time, Esc stops. Results go in `netdeploy\res
 | --- | --- | --- |
 | `suite.json` | How to start NetDeploy, the variables, what must exist, how to reset the machine | `Settings`, `App.Start`, `Machine.Reset` |
 | `elements.json` | NetDeploy's controls by name | The conditions in `App.ahk` |
-| `macros/` | `openPackage`, `waitHeader`, `waitStage`, `continueStage`, `configFile`, `waitStatus` | The NetDeploy helpers in `App.ahk` |
+| `macros/` | Opening a package, the deploy's reviews, the folder list and its hover buttons, a file's buttons, removing an install a step at a time | The NetDeploy helpers in `App.ahk` |
 | `cases/` | One file per case, each step a line of `Cases.ahk` | `Cases.ahk` |
 | `tools/Leftovers.ps1` | What an earlier run left behind | `Machine.Leftovers` |
+| `tools/Services.ps1`, `Tasks.ps1`, `Database.ps1` | What the checkpoints' Services, Scheduled tasks and Database buttons show | `Tool.Services`, `Tool.Tasks`, `Tool.Database` |
 
 The reset is `tests\manual\tools\Reset-TestMachine.ps1`, shared with the AutoHotkey runner.
 
 Most of NetDeploy's buttons have no AutomationId yet, so the cases find them by their text and tooltips, as the
 AutoHotkey cases do. Giving the controls a test touches an `x:Name` or `AutomationProperties.AutomationId` lets the
 elements switch to ids, and keeps the tests working when wording changes.
+
+Two things differ from the AutoHotkey cases: case 19 waits for a new heartbeat line in the live log rather than
+checking for one afterwards, and what case 13's commands print is in `run.log` rather than a file of its own.

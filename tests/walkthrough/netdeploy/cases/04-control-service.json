@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.case.schema.json",
+  "name": "Start, stop and restart a service",
+  "needs": ["add-main"],
+  "covers": "A service stopped outside NetDeploy and Refresh, then Stop, Start and Restart from the buttons beside an install, with the dot following along",
+  "steps": [
+    { "call": "goToRoot" },
+    { "powershell": "Stop-Service -Name $args[0]", "args": ["Contoso.Orders-main"], "say": "Stop main's service outside NetDeploy, as if it had crashed" },
+    { "click": "refresh", "say": "Click Refresh above the folder list, so NetDeploy looks at the services again" },
+    { "hover": { "text": "Contoso.Orders-main: stopped", "match": "contains" }, "say": "The dot beside main is red now. Pointing at it says the service has stopped" },
+    { "call": "installButton", "with": { "path": "${ordersDir}\\main", "tip": "Start its services", "say": "Start main's service again, with the button that shows when you point at main" } },
+    { "call": "waitStatus", "with": { "startsWith": "Contoso.Orders-main: start done.", "within": "120" } },
+    { "hover": { "text": "Contoso.Orders-main: running", "match": "contains" }, "say": "And the dot is green again" },
+    { "call": "installButton", "with": { "path": "${ordersDir}\\main", "tip": "Stop its services", "say": "Stop main's service from NetDeploy" } },
+    { "answerDialog": "Stop service", "button": "Yes", "expect": "Stop Contoso.Orders-main?", "say": "Yes, stop it" },
+    { "call": "waitStatus", "with": { "startsWith": "Contoso.Orders-main: stop done.", "within": "120" } },
+    { "hover": { "text": "Contoso.Orders-main: stopped", "match": "contains" }, "say": "NetDeploy asked first, then stopped it: the dot is red" },
+    { "powershell": "(Get-Service -Name $args[0]).Status", "args": ["Contoso.Orders-main"], "as": "stopped" },
+    { "call": "installButton", "with": { "path": "${ordersDir}\\main", "tip": "Start its services", "say": "Start it again" } },
+    { "call": "waitStatus", "with": { "startsWith": "Contoso.Orders-main: start done.", "within": "120" } },
+    { "call": "installButton", "with": { "path": "${ordersDir}\\main", "tip": "Restart its services", "say": "Restart main's service" } },
+    { "answerDialog": "Restart service", "button": "Yes", "expect": "Restart Contoso.Orders-main?", "say": "Yes, restart it" },
+    { "call": "waitStatus", "with": { "startsWith": "Contoso.Orders-main: restart done.", "within": "120" } },
+    { "hover": { "text": "Contoso.Orders-main: running", "match": "contains" }, "say": "After the restart the dot is green" },
+    { "checkpoint": "NetDeploy shows how main's service is doing, and starts and stops it",
+      "checks": [
+        { "equals": "${stopped.first}", "to": "Stopped", "label": "Stop from NetDeploy stopped the service" },
+        { "service": "Contoso.Orders-main", "state": "Running" },
+        { "lastLine": "${ordersDir}\\main\\logs\\heartbeat.log", "contains": "1.0.0", "label": "The service's latest heartbeat says 1.0.0" }
+      ],
+      "look": [
+        "The dot beside main went red while its service was stopped, and green once it was started.",
+        "Stop and Restart asked first; Start didn't.",
+        "The bar at the bottom said what was done each time."
+      ],
+      "tools": [
+        { "console": "& '${suiteDir}\\tools\\Services.ps1' @args", "args": ["Contoso.Orders"], "label": "Services" }
+      ] }
+  ]
+}
