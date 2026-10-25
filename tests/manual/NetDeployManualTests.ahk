@@ -157,24 +157,24 @@ class Launcher {
             . "and Esc stops.")
 
         ui.SetFont("s9 c1A2633 bold")
-        ui.Add("Text", "w720 y+14", "NetDeploy.exe")
+        ui.Add("Text", "xm w100 h23 y+14 0x200", "NetDeploy.exe")
         ui.SetFont("norm")
-        this.ExeBox := this.Anchor(ui.Add("Edit", "w600 y+4 ReadOnly", Settings.Exe), "w")
+        this.ExeBox := this.Anchor(ui.Add("Edit", "x+8 yp w492 ReadOnly", Settings.Exe), "w")
         this.Anchor(ui.Add("Button", "x+8 yp-1 w112", "Browse…"), "x").OnEvent("Click", (*) => Launcher.BrowseExe())
         ui.SetFont("bold")
-        ui.Add("Text", "xm w720 y+10", "Test packages")
+        ui.Add("Text", "xm w100 h23 y+8 0x200", "Test packages")
         ui.SetFont("norm")
-        this.PackagesBox := this.Anchor(ui.Add("Edit", "w600 y+4 ReadOnly", Settings.Packages), "w")
+        this.PackagesBox := this.Anchor(ui.Add("Edit", "x+8 yp w492 ReadOnly", Settings.Packages), "w")
         this.Anchor(ui.Add("Button", "x+8 yp-1 w112", "Browse…"), "x").OnEvent("Click", (*) => Launcher.BrowsePackages())
-        this.FilesNote := this.Anchor(ui.Add("Text", "xm w600 y+6 cC62828", ""), "w")
-        this.BuildButton := this.Anchor(ui.Add("Button", "x+8 yp-4 w112 Hidden", "Build them"), "x")
-        this.BuildButton.OnEvent("Click", (*) => Launcher.Build())
 
+        ; What is missing to run, or else what an earlier run left, with the button that sorts it out.
         ui.SetFont("bold")
         ui.Add("Text", "xm w720 y+12", "This computer")
         ui.SetFont("norm")
         this.MachineNote := this.Anchor(ui.Add("Text", "w600 y+4 r2", ""), "w")
-        this.CleanButton := this.Anchor(ui.Add("Button", "x+8 yp w112 Hidden", "Clean up"), "x")
+        this.BuildButton := this.Anchor(ui.Add("Button", "x+8 yp w112 Hidden", "Build them"), "x")
+        this.BuildButton.OnEvent("Click", (*) => Launcher.Build())
+        this.CleanButton := this.Anchor(ui.Add("Button", "xp yp w112 Hidden", "Clean up"), "x")
         this.CleanButton.OnEvent("Click", (*) => Launcher.CleanUp())
 
         ui.SetFont("bold")
@@ -186,23 +186,23 @@ class Launcher {
         this.List.ModifyCol(1, "AutoHdr"), this.List.ModifyCol(2, 300), this.List.ModifyCol(3, 140)
         ; What a case tries is often wider than its column, so the one picked in the list shows here in full.
         ui.SetFont("c5B6B7C")
-        this.Covers := this.Anchor(ui.Add("Text", "xm w720 r3 y+6"), "yw")
+        this.Covers := this.Anchor(ui.Add("Text", "xm w720 r2 y+6"), "yw")
         this.List.OnEvent("ItemFocus", (list, row) => Launcher.Covers.Text := Cases.All[row].Covers)
         this.List.Modify(1, "Select Focus")
         this.Covers.Text := Cases.All[1].Covers
 
+        ; How it runs on the left, and the speed above Start and Close on the right.
         ui.SetFont("c1A2633 bold")
-        this.Anchor(ui.Add("Text", "xm w720 y+12", "How it runs"), "y")
+        this.Anchor(ui.Add("Text", "xm w720 y+10", "How it runs"), "y")
         ui.SetFont("norm")
-        this.ByItself := this.Anchor(ui.Add("Radio", "xm w720 y+4 Checked", "By itself, showing each check for a few seconds (Space holds it there)"), "y")
-        this.WaitAtChecks := this.Anchor(ui.Add("Radio", "xm w720 y+2", "By itself, waiting for you at each check"), "y")
-        this.EachStep := this.Anchor(ui.Add("Radio", "xm w720 y+2", "Step by step: it waits for you to press Enter before each step"), "y")
-
-        this.Anchor(ui.Add("Text", "xm w50 h26 y+12 0x200", "Speed"), "y")
-        this.Speed := this.Anchor(ui.Add("DropDownList", "x+4 yp w120", ["Slow", "Modest", "Fast"]), "y")
+        this.ByItself := this.Anchor(ui.Add("Radio", "xm w470 y+4 Section Checked", "By itself, showing each check for a few seconds (Space holds it there)"), "y")
+        this.WaitAtChecks := this.Anchor(ui.Add("Radio", "xm w470 y+2", "By itself, waiting for you at each check"), "y")
+        this.EachStep := this.Anchor(ui.Add("Radio", "xm w470 y+2", "Step by step: it waits for you to press Enter before each step"), "y")
+        this.Anchor(ui.Add("Text", "xm+482 ys-4 w120 h24 Right 0x200", "Speed"), "xy")
+        this.Speed := this.Anchor(ui.Add("DropDownList", "xm+610 yp w110", ["Slow", "Modest", "Fast"]), "xy")
         this.Speed.Choose(Settings.Speed)
         ui.SetFont("s10 bold")
-        start := this.Anchor(ui.Add("Button", "x+308 yp-4 w120 h34 Default", "Start"), "xy")
+        start := this.Anchor(ui.Add("Button", "xm+482 y+8 w120 h34 Default", "Start"), "xy")
         start.OnEvent("Click", (*) => Launcher.Start())
         ui.SetFont("s9 norm")
         this.Anchor(ui.Add("Button", "x+8 yp w110 h34", "Close"), "xy").OnEvent("Click", (*) => ExitApp())
@@ -211,6 +211,7 @@ class Launcher {
         this.Refresh()
         this.Fit()
         ui.Show()
+        this.List.Focus()
     }
 
     ; Remembers where a control was put, to move it with the window's right edge (x) or bottom edge (y), or to grow it
@@ -242,7 +243,18 @@ class Launcher {
         for anchor in this.Anchors
             anchor.Control.Move(anchor.X + (InStr(anchor.How, "x") ? grow : 0), anchor.Y + (InStr(anchor.How, "y") ? drop : 0),
                 anchor.Width + (InStr(anchor.How, "w") ? grow : 0), anchor.Height + (InStr(anchor.How, "h") ? drop : 0))
-        this.List.ModifyCol(4, "AutoHdr")
+        this.FillLastColumn()
+    }
+
+    ; Widens "What it tries" to the list's right edge and no further, so the list has no sideways scroll bar.
+    ; Column widths here are in the list's own pixels, as are those it reports.
+    static FillLastColumn() {
+        rect := Buffer(16)
+        DllCall("GetClientRect", "ptr", this.List.Hwnd, "ptr", rect)
+        width := NumGet(rect, 8, "int")
+        Loop 3
+            width -= SendMessage(0x101D, A_Index - 1, 0, this.List)  ; LVM_GETCOLUMNWIDTH
+        SendMessage(0x101E, 3, Max(width, 50), this.List)  ; LVM_SETCOLUMNWIDTH
     }
 
     static Refresh() {
@@ -251,14 +263,18 @@ class Launcher {
             missing.Push("NetDeploy.exe")
         for name in Settings.MissingPackages()
             missing.Push(name)
-        this.FilesNote.Text := missing.Length ? "Can't find: " Join(missing, ", ") : ""
-        this.BuildButton.Visible := missing.Length && Settings.IsRepo
-
         leftovers := Machine.Leftovers()
-        this.MachineNote.Text := leftovers.Length
-            ? "Left over from an earlier run: " this.Summary(leftovers) ". Starting from case 1 cleans it up first."
-            : "Ready: none of the test packages' services, tasks or folders are here."
-        this.CleanButton.Visible := leftovers.Length > 0
+        if missing.Length {
+            them := missing.Length = 1 ? "it" : "them"
+            this.MachineNote.Text := "Can't find " Join(missing, ", ") ". Use Browse to find " them
+                . (Settings.IsRepo ? ", or build " them " from this repository." : ".")
+        } else if leftovers.Length
+            this.MachineNote.Text := "Left over from an earlier run: " this.Summary(leftovers) ". Starting from case 1 cleans it up first."
+        else
+            this.MachineNote.Text := "Ready: none of the test packages' services, tasks or folders are here."
+        this.MachineNote.SetFont(missing.Length ? "cC62828" : "c1A2633")
+        this.BuildButton.Visible := missing.Length && Settings.IsRepo
+        this.CleanButton.Visible := !missing.Length && leftovers.Length
     }
 
     ; What an earlier run left, with the services, tasks and folders counted, such as "2 services, 3 folders and the test

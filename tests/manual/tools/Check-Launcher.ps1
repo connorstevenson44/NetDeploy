@@ -1,5 +1,6 @@
-# Opens the manual test runner's launcher and checks it fits the screen: the whole window on the work area, and the
-# Start and Close buttons in it, as it opens and once made as small as it goes. A screenshot of each is saved in $Out.
+# Opens the manual test runner's launcher and checks it fits the screen: the whole window on the work area, the Start
+# and Close buttons in it, and room for a few cases in the list, as it opens and once made as small as it goes. A
+# screenshot of each is saved in $Out.
 # CI runs it at a few screen sizes, since a small screen at 100% lays out like a laptop's at 125% or 150%.
 #   Check-Launcher.ps1 -AutoHotkey <AutoHotkey64.exe> -Out <folder> -Name 1280x720
 param(
@@ -19,7 +20,8 @@ function Inside($inner, $outer) {
     $inner.Left -ge $outer.Left -and $inner.Top -ge $outer.Top -and $inner.Right -le $outer.Right -and $inner.Bottom -le $outer.Bottom
 }
 
-# Fails when the window or one of its buttons is off the work area, after saving what the screen showed.
+# Fails when the window or one of its buttons is off the work area, or the list of cases has shrunk to a row or two,
+# after saving what the screen showed.
 function Check($window, $shot) {
     Start-Sleep -Milliseconds 500
     $work = [Windows.Forms.Screen]::PrimaryScreen.WorkingArea
@@ -37,6 +39,13 @@ function Check($window, $shot) {
         $rect = $found.Current.BoundingRectangle
         if (-not (Inside $rect $bounds) -or -not (Inside $rect $workRect)) { $problems += "the $button button ($rect) doesn't all show" }
     }
+    # A list view with columns shows in UI Automation as a data grid on some versions of Windows, and a list on others.
+    $isList = foreach ($type in 'List', 'DataGrid') {
+        [Windows.Automation.PropertyCondition]::new($element::ControlTypeProperty, [Windows.Automation.ControlType]::$type)
+    }
+    $list = $window.FindFirst([Windows.Automation.TreeScope]::Descendants, [Windows.Automation.OrCondition]::new([Windows.Automation.Condition[]] $isList))
+    if (-not $list) { $problems += "there is no list of cases" }
+    elseif ($list.Current.BoundingRectangle.Height -lt 100) { $problems += "the list of cases is only $($list.Current.BoundingRectangle.Height) high" }
     if ($problems) { throw "The launcher at $shot doesn't fit: $($problems -join '; ')." }
     Write-Output "The launcher at $shot fits: the window is $($bounds.Width)x$($bounds.Height) on a $($work.Width)x$($work.Height) work area."
 }
