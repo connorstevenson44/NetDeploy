@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.case.schema.json",
+  "name": "Read, follow and search an app's logs",
+  "needs": ["upgrade-main"],
+  "covers": "The App logs tab for an app with an nlog.config: the live log growing as the service writes, a search highlighting matches, a regular expression, and Search all marking the zipped archive that has them",
+  "steps": [
+    { "note": "An nlog.config, as an app that logs with NLog has, pointing at the heartbeat log the service writes, and two older logs in the archive folder it names, one of them zipped as NLog zips them.", "powershell": ["$main = $args[0]", "$archive = Join-Path $main 'logs\\archive'", "New-Item -ItemType Directory -Force -Path $archive | Out-Null", "Set-Content -LiteralPath (Join-Path $main 'nlog.config') -Encoding UTF8 -Value @'", "<?xml version=\"1.0\" encoding=\"utf-8\"?>", "<nlog xmlns=\"http://www.nlog-project.org/schemas/NLog.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">", "  <targets>", "    <target xsi:type=\"File\" name=\"heartbeat\" fileName=\"${basedir}/logs/heartbeat.log\" archiveFileName=\"${basedir}/logs/archive/heartbeat.{#}.log\"", "            archiveAboveSize=\"1048576\" maxArchiveFiles=\"5\" enableArchiveFileCompression=\"true\" />", "  </targets>", "  <rules><logger name=\"*\" minlevel=\"Info\" writeTo=\"heartbeat\" /></rules>", "</nlog>", "'@", "Set-Content -LiteralPath (Join-Path $archive 'heartbeat.1.log') -Encoding UTF8 -Value @(", "    '2026-10-20 09:00:00 1.0.0 region West | ORD-2001 payment authorised',", "    '2026-10-20 09:00:10 1.0.0 region West | ORD-2002 shipped')", "$zipped = Join-Path $env:TEMP 'heartbeat.2.log'", "Set-Content -LiteralPath $zipped -Encoding UTF8 -Value @(", "    '2026-10-19 09:00:00 1.0.0 region West | ORD-1042 payment declined',", "    '2026-10-19 09:00:10 1.0.0 region West | ORD-1042 payment declined again')", "Compress-Archive -LiteralPath $zipped -DestinationPath (Join-Path $archive 'heartbeat.2.zip') -Force", "Remove-Item -LiteralPath $zipped"], "args": ["${ordersDir}\\main"] },
+    { "say": "main now has an nlog.config, as an app that logs with NLog would. It says the log is logs\\heartbeat.log, the file the service writes its heartbeat to, with older logs in logs\\archive, one of them zipped." },
+    { "call": "goToRoot" },
+    { "call": "goInto", "with": { "path": "${ordersDir}\\main" } },
+    { "tab": "App logs", "say": "Open the App logs tab, which shows because main has an nlog.config" },
+    { "find": "logText", "what": "the log's text", "as": "live" },
+    { "find": { "button": "heartbeat.log" }, "what": "the live log in the list of logs" },
+    { "say": "The live log is open. The service writes a line every 10 seconds, and it shows here as it is written." },
+    { "waitText": "logText", "changes": true, "within": 30, "what": "the log's text, for a new heartbeat line" },
+    { "type": "searchLog", "text": "region", "say": "Search the live log for region" },
+    { "waitText": "matchCount", "contains": " of ", "as": "first", "what": "the number of matches" },
+    { "say": "Each match is highlighted in yellow, the one in view in orange: ${first}. The arrows go to the next and the one before." },
+    { "click": { "button": "Next match" }, "say": "Go to the next match" },
+    { "click": { "button": "Regular expression" }, "say": "Turn on Regular expression" },
+    { "type": "searchLog", "text": "ORD-10\\d+", "say": "Search for ORD-10 and a number, as a regular expression" },
+    { "waitText": "matchCount", "contains": "No matches", "as": "none", "what": "No matches in the live log" },
+    { "click": { "button": "Search all" }, "say": "Click Search all, to search every log, the zipped one too" },
+    { "waitText": { "id": "SearchStatus" }, "contains": "Found in", "within": 60, "as": "searched", "what": "the search of every log finishing" },
+    { "if": { "shows": { "button": "heartbeat.1.log, no matches" } },
+      "steps": [
+        { "set": { "plain": "marked" } }
+      ],
+      "else": [
+        { "set": { "plain": "not marked" } }
+      ] },
+    { "click": { "button": "heartbeat.2.log in heartbeat.2.zip, 2 matches" }, "what": "the zipped log, marked with 2 matches", "say": "Open the zipped log that has the matches" },
+    { "waitText": "logText", "contains": "ORD-1042", "as": "opened", "what": "the zipped log's text" },
+    { "checkpoint": "The app's logs could be read, followed and searched",
+      "checks": [
+        { "contains": "${live.value}", "text": "region", "label": "The live log showed the service's heartbeat" },
+        { "matches": "${first}", "regex": "^1 of \\d", "label": "Searching the live log found region" },
+        { "equals": "${none}", "to": "No matches", "label": "ORD-10 and a number wasn't in the live log" },
+        { "equals": "${searched}", "to": "Found in 1 of 3 logs", "label": "Search all found it in 1 of the 3 logs" },
+        { "equals": "${plain}", "to": "marked", "label": "The plain archive was marked as having no matches" },
+        { "contains": "${opened.value}", "text": "ORD-1042 payment declined", "label": "The zipped log opened from inside its zip" }
+      ],
+      "look": [
+        "A new heartbeat line showed without doing anything.",
+        "The list on the left has LIVE, with heartbeat.log, then ARCHIVED, with heartbeat.1.log and heartbeat.2.log in heartbeat.2.zip.",
+        "heartbeat.2.log has a yellow 2 beside it, and heartbeat.1.log and heartbeat.log are faded.",
+        "Both ORD-1042 in the zipped log are highlighted, the first in orange, and the box above it says 1 of 2.",
+        "Lines are coloured by their level when a log has one, such as ERROR in red."
+      ],
+      "tools": [
+        { "openFolder": "${ordersDir}\\main\\logs", "label": "Open the logs folder" },
+        { "openFile": "${ordersDir}\\main\\nlog.config" }
+      ] }
+  ]
+}

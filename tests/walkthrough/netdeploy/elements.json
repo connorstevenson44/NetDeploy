@@ -4,9 +4,20 @@
   "continueButton": { "id": "ContinueButton" },
   "startScreen": { "text": "Drop a package, folder or deploy.json here" },
   "newInstallName": { "type": "Edit", "name": "New install name" },
+  "installName": { "type": "Edit", "name": "Install name" },
   "environment": { "type": "ComboBox", "name": "Environment" },
   "folderRow": { "type": "Button", "helpText": "${path}" },
+  "installButton": { "type": "Button", "helpText": "${tip}", "within": { "element": "folderRow", "with": { "path": "${path}" } } },
   "upOneFolder": { "type": "Button", "helpText": "Up one folder" },
+  "refresh": { "type": "Button", "helpText": "Refresh" },
   "fileName": { "type": "Text", "helpText": "${path}", "scrollToFind": true },
-  "fileText": { "id": "FileText" }
+  "fileFolder": { "type": "Button", "helpText": "${path}", "scrollToFind": true },
+  "fileButton": { "type": "Button", "helpText": "${tip}", "sameRowAs": { "element": "fileName", "with": { "path": "${path}" } } },
+  "filterFiles": { "type": "Edit", "name": "Filter files" },
+  "fileText": { "id": "FileText" },
+  "finalize": { "type": "Button", "name": "Finalize" },
+  "removeWindow": { "window": "Remove install" },
+  "logText": { "id": "LogText" },
+  "searchLog": { "type": "Edit", "name": "Search the log" },
+  "matchCount": { "id": "MatchCount" }
 }

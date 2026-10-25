@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.macro.schema.json",
+  "description": "One of the buttons that show when the mouse is over an install's row, such as Clone or Remove.",
+  "params": {
+    "path": { "description": "The install's full path." },
+    "tip": { "description": "The button's tooltip." },
+    "say": { "description": "What clicking it does." }
+  },
+  "steps": [
+    { "hover": { "element": "folderRow", "with": { "path": "${path}" } }, "what": "the ${fileName(path)} folder on the left",
+      "say": "Point at ${fileName(path)} to show its buttons" },
+    { "click": { "element": "installButton", "with": { "path": "${path}", "tip": "${tip}" } }, "what": "the button to ${say}",
+      "say": "${say}" }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.macro.schema.json",
+  "description": "Continues in a window that asks for a step's details, once it is filled in, and waits for it to close.",
+  "params": {
+    "title": { "description": "The window's title." },
+    "say": { "description": "What continuing does." }
+  },
+  "steps": [
+    { "click": { "button": "Continue", "within": { "window": "${title}" } }, "say": "${say}" },
+    { "waitGone": { "window": "${title}" }, "within": 10 }
+  ]
+}

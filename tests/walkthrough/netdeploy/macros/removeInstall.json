@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.macro.schema.json",
+  "description": "Removes an install with the Remove button that shows when the mouse is over its row, then goes through each step NetDeploy asks about.",
+  "params": {
+    "path": { "description": "The install's full path." },
+    "choice": { "description": "What to do with each step: run, stop at the first, or lastOnly to skip all but the last.", "default": "run" }
+  },
+  "steps": [
+    { "call": "installButton", "with": { "path": "${path}", "tip": "Remove this install, confirming each step", "say": "Remove ${fileName(path)}" } },
+    { "answerDialog": "Remove install", "button": "Yes", "expect": "Remove ${fileName(path)}", "say": "Yes, remove ${fileName(path)}" },
+    { "call": "runRemoval", "with": { "choice": "${choice}" }, "as": "status" }
+  ],
+  "returns": "status"
+}

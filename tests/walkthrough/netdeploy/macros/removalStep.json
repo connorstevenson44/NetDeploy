@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/walkthrough.macro.schema.json",
+  "description": "Answers the Remove install window for one step: says what the step does, then runs it, skips it or stops removing.",
+  "params": {
+    "choice": { "description": "run, stop, or lastOnly to skip every step but the last." }
+  },
+  "steps": [
+    { "find": { "id": "Counter", "within": "removeWindow" }, "as": "counter", "within": 10, "what": "the step counter" },
+    { "find": { "id": "StepTitle", "within": "removeWindow" }, "as": "stepTitle", "within": 10, "what": "the step's title" },
+    { "find": { "id": "Explanation", "within": "removeWindow" }, "as": "explanation", "within": 10, "what": "what the step does",
+      "say": "${counter}: ${stepTitle}\n${explanation}" },
+    { "if": { "equals": "${choice}", "to": "stop" },
+      "steps": [ { "click": { "button": "Stop removing", "within": "removeWindow" }, "say": "Stop removing" } ],
+      "else": [
+        { "if": { "equals": "${choice}", "to": "lastOnly" },
+          "steps": [
+            { "if": { "equals": "${stepNumber(counter)}", "to": "${stepCount(counter)}" },
+              "steps": [ { "call": "runRemovalStep" } ],
+              "else": [ { "click": { "button": "Skip this step", "within": "removeWindow" }, "say": "Skip this step" } ] }
+          ],
+          "else": [ { "call": "runRemovalStep" } ] }
+      ] },
+    { "note": "The next step's window can show straight away, so this waits for this step's counter to go rather than the window.",
+      "waitGone": { "id": "Counter", "name": "${counter}", "within": "removeWindow" }, "within": 60 }
+  ]
+}
