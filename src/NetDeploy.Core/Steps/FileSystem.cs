@@ -8,7 +8,7 @@ internal static class FileSystem
         foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
             Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
         foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
-            File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)), overwrite: true);
+            WhenFree(() => File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)), overwrite: true));
     }
 
     /// <summary>Makes target a copy of source.</summary>
@@ -17,12 +17,35 @@ internal static class FileSystem
         if (Directory.Exists(target))
         {
             foreach (var file in Directory.EnumerateFiles(target))
-                File.Delete(file);
+                WhenFree(() => File.Delete(file));
             foreach (var directory in Directory.EnumerateDirectories(target))
-                Directory.Delete(directory, recursive: true);
+                WhenFree(() => Directory.Delete(directory, recursive: true));
         }
         CopyDirectory(source, target);
     }
+
+    /// <summary>
+    /// Runs a write, trying again for a few seconds while another process has the file open. A stopped service's
+    /// program can stay locked for a moment after the service stops, and a virus scanner can open a file just written.
+    /// </summary>
+    public static void WhenFree(Action write, int tries = 20, int waitMilliseconds = 250)
+    {
+        for (var tried = 1; ; tried++)
+        {
+            try
+            {
+                write();
+                return;
+            }
+            catch (IOException ex) when (InUse(ex) && tried < tries)
+            {
+                Thread.Sleep(waitMilliseconds);
+            }
+        }
+    }
+
+    // ERROR_SHARING_VIOLATION and ERROR_LOCK_VIOLATION.
+    internal static bool InUse(IOException ex) => (ex.HResult & 0xFFFF) is 32 or 33;
 
     /// <summary>True when two files have the same bytes. Compares sizes first, then reads both in chunks.</summary>
     public static bool SameContents(string first, string second)
