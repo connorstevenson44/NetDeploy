@@ -53,6 +53,19 @@ jobs:
           name: ManualTestBundle
           path: ${{ runner.temp }}/bundle/
 
+      # The launcher has to fit a laptop, where the cut-off bottom hid Start. A small screen at 100% lays out like a
+      # bigger one scaled up: 1280x720 like 1600x900 at 125%, 800x600 about like it at 150%. The folders give it
+      # something to clean up, as after an earlier run; the run below removes them.
+      - name: Check the launcher fits the screen
+        run: |
+          New-Item C:\Apps\Contoso.Orders, C:\Apps\Fabrikam.Reports, C:\ProgramData\Contoso.Orders -ItemType Directory -Force | Out-Null
+          foreach ($size in '1600x900', '1280x720', '800x600') {
+            $width, $height = $size -split 'x'
+            try { Set-DisplayResolution -Width $width -Height $height -Force -ErrorAction Stop }
+            catch { Write-Output "Skipped $size, which the screen can't do: $_"; continue }
+            tests\manual\tools\Check-Launcher.ps1 -AutoHotkey "$env:RUNNER_TEMP\ahk\AutoHotkey64.exe" -Out tests\manual\results\launcher -Name $size
+          }
+
       # The runner's screen is 1024x768, which leaves the folder list beside the package a row or less. 1600x900 leaves
       # it a few rows, as on a laptop, so the cases scroll it to reach the rows below.
       - name: Use a 1600x900 screen

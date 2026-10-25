@@ -86,7 +86,9 @@ a box's label, a tooltip. `lib\Runner.ahk` is the panel, the pace, pausing, goin
 
 CI runs every case unattended on a Windows runner (the Manual tests workflow): no pauses or waiting at checks, and the
 first thing it can't find ends the run with a screenshot and a dump of the UI Automation tree in the ManualTestResults
-artifact. So when a UI change renames a button or a box, that workflow fails before the manual test does.
+artifact. So when a UI change renames a button or a box, that workflow fails before the manual test does. Before the
+run, `tools\Check-Launcher.ps1` opens the launcher at a few screen sizes and checks that it fits and that Start and
+Close show, with a screenshot of each in the same artifact.
 
 ```powershell
 AutoHotkey64.exe NetDeployManualTests.ahk --unattended [--cases 1-5] [--exe <NetDeploy.exe>] [--packages <folder>]

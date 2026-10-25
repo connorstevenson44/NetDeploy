@@ -141,12 +141,14 @@ Main() {
     Launcher.Show()
 }
 
-; The window to pick the cases, the speed and how it runs, and to clean up, before a run you watch.
+; The window to pick the cases, the speed and how it runs, and to clean up, before a run you watch. It fits the screen:
+; the list of cases takes what room there is, so the buttons at the bottom always show, even on a laptop at 150%.
 class Launcher {
     static Show() {
-        ui := Gui("+MinSize", "NetDeploy manual tests")
+        ui := Gui("+Resize", "NetDeploy manual tests")
         ui.BackColor := "FFFFFF"
         ui.MarginX := 18, ui.MarginY := 14
+        this.Anchors := []
         ui.SetFont("s14 c004B87 bold", "Segoe UI")
         ui.Add("Text", "w720", "NetDeploy manual tests")
         ui.SetFont("s9 c5B6B7C norm")
@@ -157,51 +159,90 @@ class Launcher {
         ui.SetFont("s9 c1A2633 bold")
         ui.Add("Text", "w720 y+14", "NetDeploy.exe")
         ui.SetFont("norm")
-        this.ExeBox := ui.Add("Edit", "w600 y+4 ReadOnly", Settings.Exe)
-        ui.Add("Button", "x+8 yp-1 w112", "Browse…").OnEvent("Click", (*) => Launcher.BrowseExe())
+        this.ExeBox := this.Anchor(ui.Add("Edit", "w600 y+4 ReadOnly", Settings.Exe), "w")
+        this.Anchor(ui.Add("Button", "x+8 yp-1 w112", "Browse…"), "x").OnEvent("Click", (*) => Launcher.BrowseExe())
         ui.SetFont("bold")
         ui.Add("Text", "xm w720 y+10", "Test packages")
         ui.SetFont("norm")
-        this.PackagesBox := ui.Add("Edit", "w600 y+4 ReadOnly", Settings.Packages)
-        ui.Add("Button", "x+8 yp-1 w112", "Browse…").OnEvent("Click", (*) => Launcher.BrowsePackages())
-        this.FilesNote := ui.Add("Text", "xm w600 y+6 cC62828", "")
-        this.BuildButton := ui.Add("Button", "x+8 yp-4 w112 Hidden", "Build them")
+        this.PackagesBox := this.Anchor(ui.Add("Edit", "w600 y+4 ReadOnly", Settings.Packages), "w")
+        this.Anchor(ui.Add("Button", "x+8 yp-1 w112", "Browse…"), "x").OnEvent("Click", (*) => Launcher.BrowsePackages())
+        this.FilesNote := this.Anchor(ui.Add("Text", "xm w600 y+6 cC62828", ""), "w")
+        this.BuildButton := this.Anchor(ui.Add("Button", "x+8 yp-4 w112 Hidden", "Build them"), "x")
         this.BuildButton.OnEvent("Click", (*) => Launcher.Build())
 
         ui.SetFont("bold")
         ui.Add("Text", "xm w720 y+12", "This computer")
         ui.SetFont("norm")
-        this.MachineNote := ui.Add("Text", "w600 y+4 r2", "")
-        this.CleanButton := ui.Add("Button", "x+8 yp w112 Hidden", "Clean up")
+        this.MachineNote := this.Anchor(ui.Add("Text", "w600 y+4 r2", ""), "w")
+        this.CleanButton := this.Anchor(ui.Add("Button", "x+8 yp w112 Hidden", "Clean up"), "x")
         this.CleanButton.OnEvent("Click", (*) => Launcher.CleanUp())
 
         ui.SetFont("bold")
         ui.Add("Text", "xm w720 y+10", "Cases (each one carries on from where the one before it ended)")
         ui.SetFont("norm")
-        this.List := ui.Add("ListView", "w720 r22 y+4 Checked -Multi", ["#", "Case", "Run after", "What it tries"])
+        this.List := this.Anchor(ui.Add("ListView", "w720 r22 y+4 Checked -Multi", ["#", "Case", "Run after", "What it tries"]), "wh")
         for index, testCase in Cases.All
             this.List.Add("Check", index, testCase.Name, testCase.Needs, testCase.Covers)
-        this.List.ModifyCol(1, 30), this.List.ModifyCol(2, 300), this.List.ModifyCol(3, 140), this.List.ModifyCol(4, 900)
+        this.List.ModifyCol(1, "AutoHdr"), this.List.ModifyCol(2, 300), this.List.ModifyCol(3, 140)
+        ; What a case tries is often wider than its column, so the one picked in the list shows here in full.
+        ui.SetFont("c5B6B7C")
+        this.Covers := this.Anchor(ui.Add("Text", "xm w720 r3 y+6"), "yw")
+        this.List.OnEvent("ItemFocus", (list, row) => Launcher.Covers.Text := Cases.All[row].Covers)
+        this.List.Modify(1, "Select Focus")
+        this.Covers.Text := Cases.All[1].Covers
 
-        ui.SetFont("bold")
-        ui.Add("Text", "xm w720 y+12", "How it runs")
+        ui.SetFont("c1A2633 bold")
+        this.Anchor(ui.Add("Text", "xm w720 y+12", "How it runs"), "y")
         ui.SetFont("norm")
-        this.ByItself := ui.Add("Radio", "xm w720 y+4 Checked", "By itself, showing each check for a few seconds (Space holds it there)")
-        this.WaitAtChecks := ui.Add("Radio", "xm w720 y+2", "By itself, waiting for you at each check")
-        this.EachStep := ui.Add("Radio", "xm w720 y+2", "Step by step: it waits for you to press Enter before each step")
+        this.ByItself := this.Anchor(ui.Add("Radio", "xm w720 y+4 Checked", "By itself, showing each check for a few seconds (Space holds it there)"), "y")
+        this.WaitAtChecks := this.Anchor(ui.Add("Radio", "xm w720 y+2", "By itself, waiting for you at each check"), "y")
+        this.EachStep := this.Anchor(ui.Add("Radio", "xm w720 y+2", "Step by step: it waits for you to press Enter before each step"), "y")
 
-        ui.Add("Text", "xm w50 h26 y+12 0x200", "Speed")
-        this.Speed := ui.Add("DropDownList", "x+4 yp w120", ["Slow", "Modest", "Fast"])
+        this.Anchor(ui.Add("Text", "xm w50 h26 y+12 0x200", "Speed"), "y")
+        this.Speed := this.Anchor(ui.Add("DropDownList", "x+4 yp w120", ["Slow", "Modest", "Fast"]), "y")
         this.Speed.Choose(Settings.Speed)
         ui.SetFont("s10 bold")
-        start := ui.Add("Button", "x+300 yp-4 w120 h34 Default", "Start")
+        start := this.Anchor(ui.Add("Button", "x+308 yp-4 w120 h34 Default", "Start"), "xy")
         start.OnEvent("Click", (*) => Launcher.Start())
         ui.SetFont("s9 norm")
-        ui.Add("Button", "x+8 yp w110 h34", "Close").OnEvent("Click", (*) => ExitApp())
+        this.Anchor(ui.Add("Button", "x+8 yp w110 h34", "Close"), "xy").OnEvent("Click", (*) => ExitApp())
         ui.OnEvent("Close", (*) => ExitApp())
         this.Ui := ui
         this.Refresh()
+        this.Fit()
         ui.Show()
+    }
+
+    ; Remembers where a control was put, to move it with the window's right edge (x) or bottom edge (y), or to grow it
+    ; with the window's width (w) or height (h).
+    static Anchor(control, how) {
+        control.GetPos(&x, &y, &width, &height)
+        this.Anchors.Push({Control: control, How: how, X: x, Y: y, Width: width, Height: height})
+        return control
+    }
+
+    ; Sizes the window to its controls, or to the screen's work area if that is smaller (Show does that on its own), and
+    ; lets the list of cases take up the difference. Gui sizes are in pixels at 100%, so this holds at any scaling.
+    static Fit() {
+        this.Width := 0, this.Height := 0
+        for hwnd, control in this.Ui {
+            control.GetPos(&x, &y, &width, &height)
+            this.Width := Max(this.Width, x + width + this.Ui.MarginX), this.Height := Max(this.Height, y + height + this.Ui.MarginY)
+        }
+        this.Ui.Show("Hide")
+        this.Ui.GetClientPos(, , &width, &height)
+        this.List.GetPos(, , , &listHeight)
+        this.Ui.Opt("+MinSize" Min(width, this.Width) "x" Min(height, this.Height - listHeight + 120))
+        this.Layout(width, height)
+        this.Ui.OnEvent("Size", (ui, minMax, width, height) => minMax != -1 && Launcher.Layout(width, height))
+    }
+
+    static Layout(width, height) {
+        grow := width - this.Width, drop := height - this.Height
+        for anchor in this.Anchors
+            anchor.Control.Move(anchor.X + (InStr(anchor.How, "x") ? grow : 0), anchor.Y + (InStr(anchor.How, "y") ? drop : 0),
+                anchor.Width + (InStr(anchor.How, "w") ? grow : 0), anchor.Height + (InStr(anchor.How, "h") ? drop : 0))
+        this.List.ModifyCol(4, "AutoHdr")
     }
 
     static Refresh() {
@@ -215,9 +256,27 @@ class Launcher {
 
         leftovers := Machine.Leftovers()
         this.MachineNote.Text := leftovers.Length
-            ? "Left over from an earlier run: " Join(leftovers, ", ") ". Starting from case 1 cleans it up first."
+            ? "Left over from an earlier run: " this.Summary(leftovers) ". Starting from case 1 cleans it up first."
             : "Ready: none of the test packages' services, tasks or folders are here."
         this.CleanButton.Visible := leftovers.Length > 0
+    }
+
+    ; What an earlier run left, with the services, tasks and folders counted, such as "2 services, 3 folders and the test
+    ; installs' deploy history", to fit in two lines. Clean up lists each one.
+    static Summary(leftovers) {
+        parts := []
+        for kind in ["service", "task", "folder"] {
+            count := 0
+            for leftover in leftovers
+                count += InStr(leftover, kind " ") = 1
+            if count
+                parts.Push(count " " kind (count = 1 ? "" : "s"))
+        }
+        for leftover in leftovers
+            if !RegExMatch(leftover, "^(service|task|folder) ")
+                parts.Push(leftover)
+        last := parts.Pop()
+        return parts.Length ? Join(parts, ", ") " and " last : last
     }
 
     static BrowseExe() {
@@ -244,8 +303,7 @@ class Launcher {
     }
 
     static CleanUp() {
-        if MsgBox("Remove everything the test packages installed: their services, scheduled tasks and folders "
-            . "(C:\Apps\Contoso.Orders, C:\Apps\Fabrikam.Reports and C:\ProgramData\Contoso.Orders)?", "Clean up", "OKCancel Icon?") != "OK"
+        if MsgBox("Remove what the test packages left on this computer?`n`n" Join(Machine.Leftovers(), "`n"), "Clean up", "OKCancel Icon?") != "OK"
             return
         App.CloseAll()
         this.Ui.Opt("+Disabled")
