@@ -5,7 +5,7 @@ using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.Tests;
 
-public class FilePlanViewModelTests : IDisposable
+public sealed class FilePlanViewModelTests : IDisposable
 {
     private readonly string _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "files", Path.GetRandomFileName())).FullName;
     private readonly CopyFilesStep _step = new() { From = "app", To = "{Target}", DeleteExtra = true };

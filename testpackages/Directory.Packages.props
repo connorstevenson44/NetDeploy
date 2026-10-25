@@ -1,0 +1,6 @@
+<Project>
+  <!-- The test apps stand alone: each sets its own package versions, apart from NetDeploy's. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

@@ -4,7 +4,13 @@ using System.Text.Json.Serialization;
 namespace NetDeploy.Core;
 
 /// <summary>One deploy as the history keeps it: what went where, when, by whom, and how it ended.</summary>
+/// <param name="App">The package's app name.</param>
+/// <param name="Version">The version deployed.</param>
+/// <param name="Install">The install's name, or null for a package without an install block.</param>
 /// <param name="Folder">The install's folder, or null for a package without an install block.</param>
+/// <param name="Time">When the deploy ended.</param>
+/// <param name="User">Who ran it, as DOMAIN\user.</param>
+/// <param name="Result">Whether it succeeded, failed or was cancelled.</param>
 /// <param name="RolledBack">True when a failed deploy was rolled back to its backup.</param>
 /// <param name="Log">The deploy's log file, when it has one.</param>
 public sealed record DeployRecord(

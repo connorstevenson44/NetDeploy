@@ -4,7 +4,7 @@ using NetDeploy.Core;
 
 namespace NetDeploy.App.Tests;
 
-public class InstallViewModelTests : IDisposable
+public sealed class InstallViewModelTests : IDisposable
 {
     private readonly string _folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "installs", Path.GetRandomFileName())).FullName;
 

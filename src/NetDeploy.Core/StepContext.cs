@@ -1,3 +1,5 @@
+using NetDeploy.Core.Steps;
+
 namespace NetDeploy.Core;
 
 /// <summary>What a step can see and use while it runs.</summary>

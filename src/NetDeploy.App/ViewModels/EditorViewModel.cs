@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text.Json.Nodes;
 using System.Windows;
@@ -103,6 +104,7 @@ public sealed partial class EditorViewModel : ObservableObject
     public ObservableCollection<EditorRowViewModel> Rows { get; } = [];
     public ObservableCollection<EditorFieldViewModel> Fields { get; } = [];
     public ObservableCollection<EditorProblemViewModel> Problems { get; } = [];
+    [SuppressMessage("Performance", "CA1822", Justification = "Bound from XAML, which needs an instance property.")]
     public IReadOnlyList<StepSchema> StepTypes => ManifestSchema.Steps;
 
     /// <summary>Where the config is saved; null for a new one not saved yet.</summary>

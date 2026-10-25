@@ -1,8 +1,11 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+
+using NetDeploy.Core.Steps;
 
 namespace NetDeploy.Core;
 
@@ -102,7 +105,7 @@ public static partial class ManifestLoader
         var segments = PathSegment().Matches(path[1..]).ToList();
         JsonNode? node = root;
         foreach (var segment in segments[..^1])
-            node = segment.Groups["index"].Success ? node?[int.Parse(segment.Groups["index"].Value)] : node?[Name(segment)];
+            node = segment.Groups["index"].Success ? node?[int.Parse(segment.Groups["index"].Value, CultureInfo.InvariantCulture)] : node?[Name(segment)];
         return segments.Count > 0 && node is JsonObject owner && owner.Remove(Name(segments[^1]));
 
         static string Name(Match segment) => segment.Groups["name"].Success ? segment.Groups["name"].Value : segment.Groups["quoted"].Value;

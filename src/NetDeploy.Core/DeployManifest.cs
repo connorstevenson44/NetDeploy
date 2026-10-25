@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
 
+using NetDeploy.Core.Steps;
+
 namespace NetDeploy.Core;
 
 /// <summary>The contents of a package's deploy.json.</summary>

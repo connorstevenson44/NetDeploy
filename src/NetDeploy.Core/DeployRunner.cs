@@ -1,3 +1,5 @@
+using NetDeploy.Core.Steps;
+
 namespace NetDeploy.Core;
 
 public enum StepState { Pending, Running, Succeeded, Skipped, Failed }

@@ -1,19 +1,19 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace NetDeploy.Core;
+namespace NetDeploy.Core.Steps;
 
 /// <summary>One step of a deploy. Each subclass is both the step's settings in deploy.json and the code that runs it.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(Steps.CheckPrerequisiteStep), "checkPrerequisite")]
-[JsonDerivedType(typeof(Steps.CopyFilesStep), "copyFiles")]
-[JsonDerivedType(typeof(Steps.RunExeStep), "runExe")]
-[JsonDerivedType(typeof(Steps.PowerShellStep), "powershell")]
-[JsonDerivedType(typeof(Steps.BackupStep), "backup")]
-[JsonDerivedType(typeof(Steps.ServiceStep), "service")]
-[JsonDerivedType(typeof(Steps.ScheduledTaskStep), "scheduledTask")]
-[JsonDerivedType(typeof(Steps.IfStep), "if")]
-[JsonDerivedType(typeof(Steps.DeleteFolderStep), "deleteFolder")]
+[JsonDerivedType(typeof(CheckPrerequisiteStep), "checkPrerequisite")]
+[JsonDerivedType(typeof(CopyFilesStep), "copyFiles")]
+[JsonDerivedType(typeof(RunExeStep), "runExe")]
+[JsonDerivedType(typeof(PowerShellStep), "powershell")]
+[JsonDerivedType(typeof(BackupStep), "backup")]
+[JsonDerivedType(typeof(ServiceStep), "service")]
+[JsonDerivedType(typeof(ScheduledTaskStep), "scheduledTask")]
+[JsonDerivedType(typeof(IfStep), "if")]
+[JsonDerivedType(typeof(DeleteFolderStep), "deleteFolder")]
 public abstract class DeployStep
 {
     private static readonly JsonSerializerOptions CopyOptions = new(ManifestLoader.Options)

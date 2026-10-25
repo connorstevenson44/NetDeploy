@@ -271,7 +271,7 @@ public class JsonMergeTests
     {
         const string current = """{ "Db": "prod" }""";
         Assert.Equal(current, ConfigMerger.Plan(null, current, """{ "Db": "local" }""", Json, Defaults).CurrentText);
-        Assert.Null(ConfigMerger.PlanNew(current, Json).CurrentText);
+        Assert.Null(ConfigMerger.PlanNewFile(current, Json).CurrentText);
     }
 
     [Fact]

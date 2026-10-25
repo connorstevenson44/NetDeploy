@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 namespace NetDeploy.Core.Steps;
@@ -21,7 +22,7 @@ public sealed record TaskSchedule
     {
         ScheduleKind.Daily => ["/SC", "DAILY", "/ST", Time ?? "00:00"],
         ScheduleKind.Hourly => ["/SC", "HOURLY"],
-        ScheduleKind.EveryMinutes => ["/SC", "MINUTE", "/MO", (Minutes ?? 15).ToString()],
+        ScheduleKind.EveryMinutes => ["/SC", "MINUTE", "/MO", (Minutes ?? 15).ToString(CultureInfo.InvariantCulture)],
         _ => ["/SC", "ONSTART"],
     };
 }

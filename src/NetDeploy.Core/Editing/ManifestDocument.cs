@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -99,7 +100,7 @@ public sealed partial class ManifestDocument(JsonObject root)
         var rest = error;
         while (ProblemPath().Match(rest) is { Success: true } part
             && node[part.Groups["list"].Value] is JsonArray list
-            && int.Parse(part.Groups["index"].Value) is var index && index < list.Count)
+            && int.Parse(part.Groups["index"].Value, CultureInfo.InvariantCulture) is var index && index < list.Count)
         {
             node = list[index]!;
             rest = rest[part.Length..];
@@ -111,12 +112,14 @@ public sealed partial class ManifestDocument(JsonObject root)
         return unreadable is null ? new(error, null) : new(Plain(error), unreadable);
     }
 
+    private static readonly string[] NestedStepLists = ["then", "else", "cleanup"];
+
     /// <summary>The innermost step that doesn't read as a step on its own.</summary>
     private static JsonObject? Unreadable(JsonArray steps)
     {
         foreach (var step in steps.OfType<JsonObject>())
         {
-            var inner = new[] { "then", "else", "cleanup" }.Select(list => step[list] as JsonArray).OfType<JsonArray>().Select(Unreadable).FirstOrDefault(found => found is not null);
+            var inner = NestedStepLists.Select(list => step[list] as JsonArray).OfType<JsonArray>().Select(Unreadable).FirstOrDefault(found => found is not null);
             if (inner is not null)
                 return inner;
             try

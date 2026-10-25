@@ -261,7 +261,7 @@ public static class ConfigMerger
     }
 
     /// <summary>A file the server doesn't have yet: every setting is new, taken from the package.</summary>
-    public static MergePlan PlanNew(string incomingText, IConfigFormat format)
+    public static MergePlan PlanNewFile(string incomingText, IConfigFormat format)
     {
         var rows = format.Read(incomingText)
             .Select(pair => new MergeRow(pair.Key, null, null, pair.Value, MergeChoice.TakeIncoming, "New file"))

@@ -1,5 +1,7 @@
 using NetDeploy.Core.Config;
 
+using NetDeploy.Core.Steps;
+
 namespace NetDeploy.Core.Tests;
 
 public sealed class DeployRunnerTests : IDisposable

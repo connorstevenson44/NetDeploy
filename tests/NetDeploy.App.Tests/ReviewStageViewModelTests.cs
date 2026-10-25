@@ -5,7 +5,7 @@ using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.Tests;
 
-public class ReviewStageViewModelTests : IDisposable
+public sealed class ReviewStageViewModelTests : IDisposable
 {
     private readonly string _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "stages", Path.GetRandomFileName())).FullName;
 

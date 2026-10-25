@@ -18,7 +18,7 @@ public sealed class FileRunnerTests : IDisposable
         var exitCode = await FileRunner.RunAsync(path, "\"a b\" c", _log, TestContext.Current.CancellationToken);
 
         Assert.Equal(3, exitCode);
-        Assert.Contains(_log.Entries, entry => entry.Message.Contains("got") && entry.Message.Contains("c"));
+        Assert.Contains(_log.Entries, entry => entry.Message.Contains("got") && entry.Message.Contains('c'));
     }
 
     [Theory]

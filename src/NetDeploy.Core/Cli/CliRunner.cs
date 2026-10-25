@@ -5,6 +5,7 @@ namespace NetDeploy.Core.Cli;
 /// and history as the window, with what the window would ask taken from the command line instead.
 /// </summary>
 /// <param name="output">Where the log and messages are written: the console.</param>
+/// <param name="history">Where each deploy is recorded, as the window records them.</param>
 /// <param name="isAdministrator">Whether this process can run a package that needs administrator rights.</param>
 public sealed class CliRunner(TextWriter output, DeployHistory history, bool isAdministrator)
 {
