@@ -95,7 +95,9 @@ internal static class WindowsServices
         const int ServiceWin32OwnProcess = 0x10;
         try
         {
-            if (!QueryServiceStatusEx(service.ServiceHandle, 0, out var status, Marshal.SizeOf<ServiceStatusProcess>(), out _)
+            // ServiceHandle opens a new handle each time, and a deleted service stays until every handle to it is closed.
+            using var handle = service.ServiceHandle;
+            if (!QueryServiceStatusEx(handle, 0, out var status, Marshal.SizeOf<ServiceStatusProcess>(), out _)
                 || (status.ServiceType & ServiceWin32OwnProcess) == 0 || status.ProcessId == 0)
                 return null;
             return Process.GetProcessById(status.ProcessId);
