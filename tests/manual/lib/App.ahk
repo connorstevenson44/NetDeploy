@@ -117,9 +117,9 @@ class App {
 
     ; A control on the same row as another, such as a file's buttons beside its name.
     static FindInRow(anchor, condition, what) {
-        row := anchor.BoundingRectangle
-        middle := (row.t + row.b) // 2
         Loop {
+            row := anchor.BoundingRectangle
+            middle := (row.t + row.b) // 2
             end := A_TickCount + 10000 * Runner.TimeoutScale
             while A_TickCount < end {
                 Runner.Gate()
@@ -134,6 +134,26 @@ class App {
                 Sleep(200)
             }
             Runner.Stuck("find " what)
+            ; The buttons in the Files tab only show while the mouse is over the row.
+            this.Point(anchor)
+            Sleep(300)
+        }
+    }
+
+    ; A button that only shows while the mouse is over its row. Trying again points at the row again, in case the
+    ; mouse moved off it, or the row was scrolled, meanwhile.
+    static FindOnHover(row, condition, what) {
+        Loop {
+            end := A_TickCount + 10000 * Runner.TimeoutScale
+            while A_TickCount < end {
+                Runner.Gate()
+                if found := this.TryFind(condition, row)
+                    return found
+                Sleep(200)
+            }
+            Runner.Stuck("find " what)
+            this.Point(row)
+            Sleep(300)
         }
     }
 
@@ -168,20 +188,20 @@ class App {
         last := "", still := 0
         Loop 120 {
             try {
-                view := this.VisibleArea(element, &list)
+                view := this.ScrolledArea(element, &list)
                 box := element.BoundingRectangle
             } catch as e {
                 this.NoteNotInView(element, "it couldn't be told where it is: " e.Message)
                 return
             }
-            if this.Fits(box, view)
+            if !IsObject(list) || this.Fits(box, view)
                 return
             if view.b - view.t < 10
-                return this.NoteNotInView(element, "its containers leave no room to show it")
-            ; At the list's end, or in something that doesn't scroll
+                return this.NoteNotInView(element, "the lists it is in leave no room to show it")
+            ; At the list's end
             still := box.t = last ? still + 1 : 0
             if still = 3
-                return this.NoteNotInView(element, IsObject(list) ? "scrolling didn't move it" : "nothing around it scrolls")
+                return this.NoteNotInView(element, "scrolling didn't move it")
             last := box.t
             this.ScrollStep(list, box.b > view.b, view)
         }
@@ -213,19 +233,22 @@ class App {
         return box.t >= view.t && box.b <= view.b
     }
 
-    ; The part of the screen a control's containers leave room for it to show in, and the innermost of them that
-    ; scrolls up and down.
-    static VisibleArea(element, &list := "") {
+    ; The part of the screen the lists a control is in leave it to show in, and the innermost of them, which is the one
+    ; to scroll. Only lists that scroll up and down count: the other containers around a control either hold all of it,
+    ; or are only part of what holds it, such as the row it is on, or a tab's header.
+    static ScrolledArea(element, &list := "") {
         area := {l: -100000, t: -100000, r: 100000, b: 100000}
         list := ""
         parent := element
-        while (parent := parent.Parent) {
+        while (parent := parent.Parent) && parent.Type != UIA.Type.Window {
+            scrolls := false
+            try scrolls := parent.GetPropertyValue(UIA.Property.ScrollVerticallyScrollable)
+            if !scrolls
+                continue
             box := parent.BoundingRectangle
             area := {l: Max(area.l, box.l), t: Max(area.t, box.t), r: Min(area.r, box.r), b: Min(area.b, box.b)}
             if !list
-                try list := parent.GetPropertyValue(UIA.Property.ScrollVerticallyScrollable) ? parent : ""
-            if parent.Type = UIA.Type.Window
-                break
+                list := parent
         }
         return area
     }
@@ -555,7 +578,7 @@ class App {
         SplitPath(path, &name)
         row := this.FolderRow(path)
         this.Hover(row, "Point at " name " to show its buttons")
-        this.Click(this.Find({Type: "Button", HelpText: tooltip}, "the button to " LowerFirst(what), 10000, row), what)
+        this.Click(this.FindOnHover(row, {Type: "Button", HelpText: tooltip}, "the button to " LowerFirst(what)), what)
     }
 
     ; Removes an install from its hover button. choose says what to do with each step, as in RunRemoval.
