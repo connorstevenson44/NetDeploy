@@ -20,8 +20,7 @@ env:
   # The repository Walkthrough lives in (AutoTestRunner), and the branch to build walk from. A private repository needs a WALKTHROUGH_TOKEN secret
   # that can read it.
   WALKTHROUGH_REPO: connorstevenson44/AutoTestRunner
-  # walkthrough-phase-1 until AutoTestRunner's phase 1 PR is merged; then main.
-  WALKTHROUGH_REF: walkthrough-phase-1
+  WALKTHROUGH_REF: main
 
 jobs:
   run:
