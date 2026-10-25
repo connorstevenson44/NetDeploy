@@ -26,6 +26,7 @@
         { "scheduledTask": "\\Contoso\\Orders Export-blue", "exists": false },
         { "fileVersion": "${ordersDir}\\green\\Contoso.Orders.exe", "startsWith": "1.1.0" },
         { "fileMissing": "${ordersDir}\\blue" },
+        { "fileMissing": "${ordersDir}\\blue.backups", "label": "blue's backups went with it" },
         { "fileExists": "${ordersData}\\db-green\\orders.db" },
         { "fileMissing": "${ordersData}\\db-blue" },
         { "service": "Contoso.Orders-main", "state": "Running" }
