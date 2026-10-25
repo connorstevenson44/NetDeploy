@@ -63,8 +63,8 @@ jobs:
           Copy-Item artifacts\portable\NetDeploy.exe $suite
           New-Item "$suite\packages" -ItemType Directory | Out-Null
           Copy-Item testpackages\dist\*.zip "$suite\packages"
-          Set-Content "$bundle\Run tests.cmd" '@"%~dp0walk\walk.exe" run "%~dp0netdeploy" %*'
-          Set-Content "$bundle\Step through.cmd" '@"%~dp0walk\walk.exe" run "%~dp0netdeploy" --mode steps %*'
+          Set-Content "$bundle\Run tests.cmd" '@"%~dp0walk\walk.exe" open "%~dp0netdeploy" %*'
+          Set-Content "$bundle\Step through.cmd" '@"%~dp0walk\walk.exe" open "%~dp0netdeploy" --mode steps %*'
 
       - uses: actions/upload-artifact@v4
         with:
