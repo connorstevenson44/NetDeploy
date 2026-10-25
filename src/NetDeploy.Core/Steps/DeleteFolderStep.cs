@@ -36,13 +36,13 @@ public sealed class DeleteFolderStep : DeployStep
         }
 
         if (kept.Count == 0)
-            Directory.Delete(folder, recursive: true);
+            FileSystem.WhenFree(() => Directory.Delete(folder, recursive: true));
         else
         {
             foreach (var file in Directory.EnumerateFiles(folder))
-                File.Delete(file);
+                FileSystem.WhenFree(() => File.Delete(file));
             foreach (var subfolder in Directory.EnumerateDirectories(folder).Where(sub => !IsKept(sub, kept)))
-                Directory.Delete(subfolder, recursive: true);
+                FileSystem.WhenFree(() => Directory.Delete(subfolder, recursive: true));
         }
         context.Log.Info($"Deleted {folder}{(kept.Count == 0 ? "" : " except " + string.Join(", ", Keep))}");
         return Task.CompletedTask;

@@ -52,7 +52,7 @@ public sealed class CopyFilesStep : DeployStep
                     break;
                 case FileAction.Delete:
                     if (!context.DryRun)
-                        File.Delete(destination);
+                        FileSystem.WhenFree(() => File.Delete(destination));
                     deleted++;
                     break;
                 case FileAction.Replace:
@@ -127,7 +127,7 @@ public sealed class CopyFilesStep : DeployStep
     private static void Replace(string source, string destination, bool isConfig)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-        File.Copy(source, destination, overwrite: true);
+        FileSystem.WhenFree(() => File.Copy(source, destination, overwrite: true));
         if (isConfig)
             ConfigUpdates.SaveBase(destination, File.ReadAllText(source));
     }
