@@ -19,8 +19,7 @@ env:
   # The repository Walkthrough lives in (AutoTestRunner), and the branch to build walk from. A private repository needs a WALKTHROUGH_TOKEN secret
   # that can read it.
   WALKTHROUGH_REPO: connorstevenson44/AutoTestRunner
-  # claude/project-thread-en3oeg until AutoTestRunner's PR for the new panel and launcher is merged; then main.
-  WALKTHROUGH_REF: claude/project-thread-en3oeg
+  WALKTHROUGH_REF: main
 
 jobs:
   run:
