@@ -170,17 +170,41 @@ class App {
             try {
                 view := this.VisibleArea(element, &list)
                 box := element.BoundingRectangle
-            } catch
+            } catch as e {
+                this.NoteNotInView(element, "it couldn't be told where it is: " e.Message)
                 return
-            if view.b - view.t < 10 || this.Fits(box, view)
+            }
+            if this.Fits(box, view)
                 return
+            if view.b - view.t < 10
+                return this.NoteNotInView(element, "its containers leave no room to show it")
             ; At the list's end, or in something that doesn't scroll
             still := box.t = last ? still + 1 : 0
             if still = 3
-                return
+                return this.NoteNotInView(element, IsObject(list) ? "scrolling didn't move it" : "nothing around it scrolls")
             last := box.t
             this.ScrollStep(list, box.b > view.b, view)
         }
+        this.NoteNotInView(element, "it was still out of view after 120 scrolls")
+    }
+
+    ; Logs why a control couldn't be scrolled into view, with where it and each container around it are on screen, so
+    ; the run's log shows what went wrong when the step after it fails.
+    static NoteNotInView(element, why) {
+        where := ""
+        parent := element
+        Loop 30 {
+            try {
+                box := parent.BoundingRectangle
+                where .= (where ? " < " : "") parent.LocalizedType " " parent.ClassName " (" box.l "," box.t "," box.r "," box.b ")"
+                if parent.Type = UIA.Type.Window || !(parent := parent.Parent)
+                    break
+            } catch as e {
+                where .= " < (" e.Message ")"
+                break
+            }
+        }
+        Runner.Log("NOTE", "Couldn't scroll to a control, as " why ": " where)
     }
 
     static Fits(box, view) {
