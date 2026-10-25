@@ -41,5 +41,5 @@ Most of NetDeploy's buttons have no AutomationId yet, so the cases find them by 
 AutoHotkey cases do. Giving the controls a test touches an `x:Name` or `AutomationProperties.AutomationId` lets the
 elements switch to ids, and keeps the tests working when wording changes.
 
-Two of the AutoHotkey cases' checks became waits: case 19 waits for a new heartbeat line in the live log, and case 13's
-command-line output is in `run.log` rather than a file of its own.
+Two things differ from the AutoHotkey cases: case 19 waits for a new heartbeat line in the live log rather than
+checking for one afterwards, and what case 13's commands print is in `run.log` rather than a file of its own.
