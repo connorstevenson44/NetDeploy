@@ -19,7 +19,8 @@ env:
   # The repository Walkthrough lives in (AutoTestRunner), and the branch to build walk from. A private repository needs a WALKTHROUGH_TOKEN secret
   # that can read it.
   WALKTHROUGH_REPO: connorstevenson44/AutoTestRunner
-  WALKTHROUGH_REF: main
+  # claude/project-thread-en3oeg until AutoTestRunner's PR for the new panel and launcher is merged; then main.
+  WALKTHROUGH_REF: claude/project-thread-en3oeg
 
 jobs:
   run:
@@ -63,8 +64,8 @@ jobs:
           Copy-Item artifacts\portable\NetDeploy.exe $suite
           New-Item "$suite\packages" -ItemType Directory | Out-Null
           Copy-Item testpackages\dist\*.zip "$suite\packages"
-          Set-Content "$bundle\Run tests.cmd" '@"%~dp0walk\walk.exe" run "%~dp0netdeploy" %*'
-          Set-Content "$bundle\Step through.cmd" '@"%~dp0walk\walk.exe" run "%~dp0netdeploy" --mode steps %*'
+          Set-Content "$bundle\Run tests.cmd" '@"%~dp0walk\walk.exe" open "%~dp0netdeploy" %*'
+          Set-Content "$bundle\Step through.cmd" '@"%~dp0walk\walk.exe" open "%~dp0netdeploy" --mode steps %*'
 
       - uses: actions/upload-artifact@v4
         with:

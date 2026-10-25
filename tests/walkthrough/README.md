@@ -8,13 +8,20 @@ replaced the AutoHotkey runner that was in `tests/manual`, and CI runs them on e
 ## Running it
 
 On a test machine, take the **WalkthroughBundle** artifact from any run of the Walkthrough workflow (the run's
-Summary page, under Artifacts), unzip it and double-click `Run tests.cmd`, or `Step through.cmd` to go a step at a
-time. It asks for administrator. The bundle has `walk`, the suite, NetDeploy.exe and the test packages, and needs no
-.NET runtime. Arguments after `Run tests.cmd` go to `walk run`, so `"Run tests.cmd" --cases 3-5` runs just those.
+Summary page, under Artifacts), unzip it and double-click `Run tests.cmd`. It asks for administrator, then opens the launcher: tick the cases, pick
+how it runs and how fast, and Start. The launcher shows how each case went last time, and whether an earlier run left
+services, tasks or folders behind, with a button that cleans them up. `Step through.cmd` opens it set to go a step at
+a time. The bundle has `walk`, the suite, NetDeploy.exe and the test packages, and needs no .NET runtime. Arguments
+after `Run tests.cmd` go to `walk open`, so `"Run tests.cmd" --cases 3-5` ticks just those.
+
+While it runs, the panel beside the app shows the case, what it is doing now and what it is waiting for, and below,
+everything it has done. Each command a case runs, NetDeploy.exe's or a PowerShell script's, shows there with its
+command line and what it prints as it prints it, then its exit code.
 
 From a clone, build `walk` from the [AutoTestRunner](https://github.com/connorstevenson44/AutoTestRunner) repository, then from this repository's root, as administrator:
 
 ```powershell
+walk open tests\walkthrough\netdeploy                    # the launcher
 walk run tests\walkthrough\netdeploy                     # watch it, from case 1
 walk run tests\walkthrough\netdeploy --cases 1-2 --mode steps
 walk run tests\walkthrough\netdeploy --unattended        # as CI runs it

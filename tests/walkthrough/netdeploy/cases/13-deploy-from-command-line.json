@@ -27,7 +27,7 @@
         { "jsonValue": "${ordersDir}\\qa\\appsettings.json", "path": "Orders:Region", "equals": "west" }
       ],
       "look": [
-        "What the command printed is in the run's log, run.log, after OUTPUT: the log, then the log file's path at the end.",
+        "What each command printed is under it in the panel, and in run.log after OUTPUT: the deploy's log, then the log file's path at the end.",
         "The newest deploy under HISTORY is by you, a minute ago."
       ],
       "tools": [
