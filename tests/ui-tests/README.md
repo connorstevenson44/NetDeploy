@@ -11,12 +11,15 @@ that was in `tests/manual`, and CI runs them on every change in the **UI tests**
 Take the **UiTests-ReadyToRun** artifact from any run of the UI tests workflow (the run's Summary page, under
 Artifacts), unzip it and double-click `Open test launcher.cmd`. It asks for administrator, then opens the launcher:
 tick the cases, pick how it runs and how fast, and Start. The launcher shows how each case went last time, and whether
-an earlier run left services, tasks or folders behind, with a button that cleans them up.
-`Open test launcher (step by step).cmd` opens it set to wait for Enter before every step.
+an earlier run left services, tasks or folders behind, with a button that cleans them up. Step by step, beside Start,
+waits for Enter before every step. **New case** opens the builder, which records a case as you use NetDeploy: see
+[Building a case](https://github.com/connorstevenson44/AutoTestRunner#building-a-case). The pencil on a case opens it
+to change: the builder plays it to any step, rolls back to one, or records again from one, and marks the cases that
+carry on from it as needing a look, with a warning in the launcher.
 
 The kit has the test runner (`autotestrunner\autotest.exe`), the suite, NetDeploy.exe and the test packages, and needs
-no .NET runtime. Arguments after either `.cmd` go to `autotest launch`, so `"Open test launcher.cmd" --cases 3-5` ticks
-just those.
+no .NET runtime. Arguments after the `.cmd` go to `autotest launch`, so `"Open test launcher.cmd" --cases 3-5` ticks
+just those, and `--mode step-by-step` starts it set to step by step.
 
 While it runs, the panel beside the app shows the case, what it is doing now and what it is waiting for, and below,
 everything it has done. Each command a case runs, NetDeploy.exe's or a PowerShell script's, shows there with its
@@ -33,6 +36,7 @@ autotest run tests\ui-tests\netdeploy                              # runs every 
 autotest run tests\ui-tests\netdeploy --cases 1-2 --mode step-by-step
 autotest run tests\ui-tests\netdeploy --unattended                 # no panel and no pauses, as CI runs it
 autotest validate tests\ui-tests\netdeploy                         # checks the scripts without running them
+autotest record tests\ui-tests\netdeploy --after open-package       # builds a new case from where case open-package leaves off
 ```
 
 It finds NetDeploy.exe and the test packages where a build of this repository puts them
