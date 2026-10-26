@@ -1,25 +1,26 @@
 {
   "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
-  "name": "Change your mind while removing an install",
+  "name": "Stop removing an install",
   "needs": ["clone-main"],
-  "covers": "Stop removing, at the first step, leaving the install as it was",
+  "covers": "Stop removing at the first step, leaving the install as it was",
+  "tags": ["remove"],
   "steps": [
     { "call": "goUpToInstallFolder" },
-    { "call": "removeInstall", "with": { "path": "${ordersDir}\\qa", "choice": "stop" } },
-    { "checkpoint": "qa is just as it was",
+    { "call": "removeInstall", "with": { "path": "${ordersDir}\\qa", "choice": "stop" }, "as": "status" },
+    { "checkpoint": "qa is untouched",
       "checks": [
+        { "contains": "${status}", "text": "Removal stopped", "label": "Status" },
         { "service": "Contoso.Orders-qa", "state": "Running" },
         { "scheduledTask": "\\Contoso\\Orders Export-qa" },
         { "fileExists": "${ordersDir}\\qa\\Contoso.Orders.exe" },
         { "fileExists": "${ordersData}\\db-qa\\orders.db" }
       ],
       "look": [
-        "The removal window said what its first step would do, and nothing ran.",
-        "The bar at the bottom says Removal stopped.",
-        "qa is still in the folder list, with its green dot."
+        "The removal window described its first step, and nothing ran.",
+        "qa is still in the folder list, with a green dot."
       ],
       "tools": [
-        { "openFolder": "${ordersDir}\\qa", "label": "Open qa" },
+        { "openFolder": "${ordersDir}\\qa", "label": "qa" },
         { "console": "& '${suiteDir}\\tools\\Show-Services.ps1' @args", "args": ["Contoso.Orders"], "label": "Services" }
       ] }
   ]

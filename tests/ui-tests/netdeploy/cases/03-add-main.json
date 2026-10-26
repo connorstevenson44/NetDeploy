@@ -1,21 +1,21 @@
 {
   "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
-  "name": "Install the app for the first time (main)",
+  "name": "Add install main (Staging)",
   "needs": ["dry-run"],
-  "covers": "A real deploy: the Windows service, the scheduled task, the database, the settings, and the green dot for a running service",
+  "covers": "A first deploy: the Windows service, the scheduled task, the database, the settings, and the dot for a running service",
+  "tags": ["deploy"],
   "steps": [
-    { "click": { "button": "Add" }, "say": "Click Add to install main for real" },
+    { "click": { "button": "Add" } },
     { "call": "waitForReview", "with": { "title": "Check the files" } },
     { "call": "continuePastReview" },
     { "call": "waitForReview", "with": { "title": "Check the config" } },
-    { "say": "This time the settings could be edited before they are written." },
     { "call": "continuePastReview" },
     { "call": "waitForStatusBar", "with": { "startsWith": "Deploy finished.", "within": "300" }, "as": "status" },
     { "call": "goUpToInstallFolder" },
-    { "hover": { "text": "Contoso.Orders-main: running", "match": "contains" }, "say": "The green dot beside main means its service is running" },
     { "checkpoint": "main is installed and running",
       "checks": [
         { "service": "Contoso.Orders-main", "state": "Running" },
+        { "shows": { "text": "Contoso.Orders-main: running", "match": "contains" }, "within": 10, "label": "main's dot" },
         { "scheduledTask": "\\Contoso\\Orders Export-main" },
         { "fileExists": "${ordersData}\\db-main\\orders.db" },
         { "jsonValue": "${ordersDir}\\main\\appsettings.json", "path": "ConnectionStrings:Orders", "equals": "Data Source=${ordersData}\\db-main\\orders.db" },
@@ -25,13 +25,13 @@
         { "logged": "${logFile(status)}", "text": "Check passed." }
       ],
       "look": [
-        "The folder list shows main, v1.0.0 and a green dot. Pointing at the dot says the service is running.",
-        "In Services, Contoso Orders main is running and starts by itself (Automatic, Delayed Start).",
-        "In Task Scheduler, \\Contoso\\Orders Export-main runs every day at 02:00 as SYSTEM.",
-        "The database is in C:\\ProgramData\\Contoso.Orders\\db-main, not in the install folder, and has 4 orders."
+        "Folder list: main, v1.0.0, green dot.",
+        "Services: Contoso Orders main, Running, Automatic (Delayed Start).",
+        "Task Scheduler: \\Contoso\\Orders Export-main, daily at 02:00, as SYSTEM.",
+        "Database: 4 orders, in C:\\ProgramData\\Contoso.Orders\\db-main."
       ],
       "tools": [
-        { "openFolder": "${ordersDir}\\main", "label": "Open main" },
+        { "openFolder": "${ordersDir}\\main", "label": "main" },
         { "openFolder": "${ordersData}", "label": "Database folder" },
         { "console": "& '${suiteDir}\\tools\\Show-Database.ps1' @args", "args": ["${ordersDir}\\main\\Contoso.Orders.exe", "${ordersData}\\db-main\\orders.db"], "label": "Database" },
         { "console": "& '${suiteDir}\\tools\\Show-Services.ps1' @args", "args": ["Contoso.Orders"], "label": "Services" },

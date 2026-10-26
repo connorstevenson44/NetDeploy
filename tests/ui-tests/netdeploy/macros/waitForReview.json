@@ -3,6 +3,6 @@
   "description": "Waits for one of the deploy's reviews, by its title on the right.",
   "params": { "title": { "description": "Such as Check the files." } },
   "steps": [
-    { "find": { "text": "${title}" }, "within": 120, "what": "\"${title}\" on the right" }
+    { "find": { "text": "${title}" }, "within": 120 }
   ]
 }

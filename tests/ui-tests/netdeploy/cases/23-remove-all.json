@@ -2,7 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
   "name": "Remove every install",
   "needs": ["clone-main", "upgrade-reports"],
-  "covers": "Remove from the buttons that show when you point at an install, each step confirmed, and a clean computer at the end",
+  "covers": "Remove on an install's row, each step confirmed, and a clean computer at the end",
+  "tags": ["remove"],
   "steps": [
     { "call": "goUpToInstallFolder" },
     { "call": "removeInstall", "with": { "path": "${reportsDir}\\main" } },
@@ -19,27 +20,27 @@
         { "service": "Contoso.Orders-green" },
         { "service": "Contoso.Orders-qa" },
         { "scheduledTask": "\\Contoso\\Orders Export-main", "exists": false },
-        { "scheduledTask": "\\Fabrikam\\Reports hourly", "exists": false },
         { "scheduledTask": "\\Contoso\\Orders Export-green", "exists": false },
         { "scheduledTask": "\\Contoso\\Orders Export-qa", "exists": false },
+        { "scheduledTask": "\\Fabrikam\\Reports hourly", "exists": false },
         { "fileMissing": "${ordersDir}\\main" },
         { "fileMissing": "${ordersDir}\\green" },
         { "fileMissing": "${ordersDir}\\qa" },
-        { "fileMissing": "${ordersDir}\\main.backups", "label": "main's backups went with it" },
+        { "fileMissing": "${ordersDir}\\main.backups" },
         { "fileMissing": "${ordersData}\\db-main" },
         { "fileMissing": "${ordersData}\\db-green" },
         { "fileMissing": "${ordersData}\\db-qa" },
         { "fileMissing": "${reportsDir}\\main" }
       ],
       "look": [
-        "Each removal went through its steps one at a time, the last thing installed first, ending with deleting the folder.",
-        "The folder list is empty apart from the New install row."
+        "Each removal went a step at a time, last installed first, ending with the folder.",
+        "Folder list: only the New install row."
       ],
       "tools": [
-        { "openFolder": "C:\\Apps", "label": "Open C:\\Apps" },
+        { "openFolder": "C:\\Apps", "label": "C:\\Apps" },
         { "console": "& '${suiteDir}\\tools\\Show-Services.ps1' @args", "args": ["Contoso.Orders"], "label": "Services" },
         { "app": "taskschd.msc", "label": "Task Scheduler" }
       ] },
-    { "closeApp": {}, "say": "Close NetDeploy" }
+    { "closeApp": {} }
   ]
 }

@@ -1,28 +1,31 @@
 {
   "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
-  "name": "Cancel an upgrade halfway, then roll it back",
+  "name": "Cancel an upgrade and roll back",
   "needs": ["add-blue"],
-  "covers": "The arrow saying the package is newer, a secret setting, the files an upgrade adds and deletes, a yes/no question, Cancel during a deploy, and Roll back",
+  "covers": "The newer-version arrow, a secret setting, the files an upgrade adds and deletes, a yes/no question, Cancel during a deploy, and Roll back",
+  "tags": ["upgrade", "rollback"],
   "steps": [
     { "call": "openPackage", "with": { "zip": "${packages}\\Contoso.Orders-1.1.0.zip" } },
     { "call": "waitForHeader", "with": { "title": "Contoso.Orders 1.1.0" } },
-    { "type": { "edit": "Payments API key (new in 1.1)" }, "text": "${apiKey}", "secret": true, "say": "Type the payments API key, a secret setting new in 1.1" },
+    { "type": { "edit": "Payments API key (new in 1.1)" }, "text": "${apiKey}", "secret": true },
     { "call": "goUpToInstallFolder" },
-    { "hover": { "text": "The package (1.1.0) is newer: deploying here updates it.", "within": { "element": "folderRow", "with": { "path": "${ordersDir}\\blue" } } }, "what": "the arrow beside blue's version", "say": "The green arrow beside blue's version points up: the open package is newer than what is installed" },
+    { "checkpoint": "blue is marked as having an update",
+      "checks": [
+        { "shows": { "text": "The package (1.1.0) is newer: deploying here updates it.", "within": { "element": "folderRow", "with": { "path": "${ordersDir}\\blue" } } },
+          "within": 10, "label": "blue's version arrow" }
+      ] },
     { "call": "openFolderInList", "with": { "path": "${ordersDir}\\blue" } },
-    { "find": { "button": "Update" }, "say": "blue is on 1.0.0, so the button says Update." },
-    { "click": { "button": "Update" }, "say": "Click Update to upgrade blue" },
+    { "click": { "button": "Update" } },
     { "call": "waitForReview", "with": { "title": "Check the files" } },
-    { "hover": { "element": "fileName", "with": { "path": "templates/password-reset.html" } }, "say": "1.1.0 no longer has password-reset.html, so it will be deleted (crossed out, in red)" },
-    { "hover": { "element": "fileName", "with": { "path": "templates/return-received.html" } }, "say": "and return-received.html is new" },
+    { "hover": { "element": "fileName", "with": { "path": "templates/password-reset.html" } }, "what": "password-reset.html" },
+    { "hover": { "element": "fileName", "with": { "path": "templates/return-received.html" } }, "what": "return-received.html" },
     { "call": "continuePastReview" },
-    { "answerDialog": "NetDeploy", "button": "No", "expect": "Run a settings check on the old version first?", "say": "Say No to the optional check of the old version's settings" },
+    { "answerDialog": "NetDeploy", "button": "No", "expect": "Run a settings check on the old version first?" },
     { "call": "waitForReview", "with": { "title": "Check the config" } },
-    { "say": "Now cancel, while the settings are being checked. The service is already stopped and a backup taken, so NetDeploy offers to put things back." },
-    { "click": { "button": "Cancel" }, "say": "Click Cancel" },
-    { "answerDialog": "Roll back", "button": "Yes", "expect": "Restore the backup", "say": "Yes, restore the backup and start the service again" },
+    { "click": { "button": "Cancel" } },
+    { "answerDialog": "Roll back", "button": "Yes", "expect": "Restore the backup" },
     { "call": "waitForStatusBar", "with": { "startsWith": "Rolled back to the backup.", "within": "120" } },
-    { "checkpoint": "blue is back as it was",
+    { "checkpoint": "blue is back on 1.0.0",
       "checks": [
         { "service": "Contoso.Orders-blue", "state": "Running" },
         { "fileVersion": "${ordersDir}\\blue\\Contoso.Orders.exe", "startsWith": "1.0.0" },
@@ -30,12 +33,12 @@
         { "fileMissing": "${ordersDir}\\blue\\templates\\return-received.html" }
       ],
       "look": [
-        "The folder list still shows blue on v1.0.0.",
-        "The Log tab shows the cancel, then the backup put back and the service started.",
-        "The blue.backups folder, next to blue, holds the backup."
+        "Files review: password-reset.html crossed out in red, return-received.html new.",
+        "Log tab: the cancel, then the backup put back and the service started.",
+        "blue.backups, next to blue, holds the backup."
       ],
       "tools": [
-        { "openFolder": "${ordersDir}\\blue", "label": "Open blue" },
+        { "openFolder": "${ordersDir}\\blue", "label": "blue" },
         { "openFolder": "${ordersDir}", "label": "Install folder" },
         { "console": "& '${suiteDir}\\tools\\Show-Services.ps1' @args", "args": ["Contoso.Orders"], "label": "Services" }
       ] }

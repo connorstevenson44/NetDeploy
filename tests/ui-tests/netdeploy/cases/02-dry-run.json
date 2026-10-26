@@ -1,42 +1,38 @@
 {
   "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
-  "name": "Try a deploy without changing anything",
+  "name": "Dry run a new install",
   "needs": ["open-package"],
-  "covers": "Naming a new install, a dry run, the list of files and the settings files it would write, the summary of what it would change, and nothing being written",
+  "covers": "Naming a new install, Dry run, the file and config reviews, the summary of changes, and nothing written",
+  "tags": ["deploy", "dry-run"],
   "steps": [
-    { "type": "newInstallName", "text": "main", "say": "Name the new install main" },
-    { "find": { "button": "Add" }, "say": "The deploy button now says Add, because this would add a new install called main." },
-    { "click": { "button": "Dry run" }, "say": "Click Dry run, to see what a deploy would do without doing it" },
+    { "type": "newInstallName", "text": "main" },
+    { "click": { "button": "Dry run" } },
     { "call": "waitForReview", "with": { "title": "Check the files" } },
-    { "find": { "text": "Dry run: nothing will change" }, "what": "the sign saying it's a dry run",
-      "say": "A dry run shows the same lists as a real deploy. Nothing is installed yet, so every file would be added." },
+    { "find": { "text": "Dry run: nothing will change" } },
     { "call": "continuePastReview" },
     { "call": "waitForReview", "with": { "title": "Check the config" } },
     { "repeat": ["appsettings.json", "appsettings.Production.json", "Contoso.Orders.Export.exe.config"],
       "steps": [ { "call": "showConfigFileDiff", "with": { "name": "${item}" } } ] },
-    { "say": "Each settings file is shown just as it would be written. In a dry run they can't be changed." },
     { "call": "continuePastReview" },
     { "call": "waitForStatusBar", "with": { "startsWith": "Dry run finished." }, "as": "status" },
-    { "find": { "text": "Dry run: what the deploy would change" }, "what": "the dry run's summary above the log" },
-    { "hover": { "text": "Files: ", "match": "startsWith" }, "as": "files",
-      "say": "Above the log, a summary counts the files a deploy would add, replace and delete, and lists the steps that would change the server" },
-    { "checkpoint": "The dry run changed nothing",
+    { "find": { "text": "Dry run: what the deploy would change" } },
+    { "hover": { "text": "Files: ", "match": "startsWith" }, "as": "files" },
+    { "checkpoint": "Dry run changed nothing",
       "checks": [
         { "fileMissing": "${ordersDir}" },
         { "fileMissing": "${ordersData}" },
         { "service": "Contoso.Orders-main" },
         { "fileExists": "${logFile(status)}" },
-        { "matches": "${files}", "regex": "^Files: [1-9]\\d* added, 0 replaced, 0 deleted\\.$",
-          "label": "The summary says every file would be added, and none replaced or deleted" }
+        { "matches": "${files}", "regex": "^Files: [1-9]\\d* added, 0 replaced, 0 deleted\\.$", "label": "Files summary" },
+        { "shows": { "button": "Add" }, "label": "Deploy button" }
       ],
       "look": [
-        "The summary above the log lists the service, the scheduled task and the scripts the deploy would run.",
-        "The Log tab lists each step and what it would have done.",
-        "The Steps tab marks every step as done or skipped.",
-        "The bar at the bottom says Dry run finished. Nothing was changed."
+        "Summary above the log: the service, the scheduled task and the scripts it would run.",
+        "Log tab: each step and what it would have done.",
+        "Steps tab: every step marked done or skipped."
       ],
       "tools": [
-        { "openFile": "${logFile(status)}", "label": "Open the log" }
+        { "openFile": "${logFile(status)}", "label": "Log" }
       ] }
   ]
 }

@@ -1,39 +1,42 @@
 {
   "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
-  "name": "Pick up where you left off",
+  "name": "Reopen from Recent",
   "needs": ["clone-main"],
-  "covers": "The start screen's Recent list, a package opening with the install folder and each install's settings from last time, and the sign for the same version",
+  "covers": "The start screen's Recent list, a package reopening with its install folder and each install's last settings, and the same-version sign",
+  "tags": ["settings"],
   "steps": [
-    { "startApp": {}, "say": "Start NetDeploy" },
-    { "find": { "text": "RECENT" }, "what": "the Recent list on the start screen", "say": "NetDeploy starts afresh, and the start screen lists what was opened lately: the packages, the install folder and the deploy.json's folder." },
-    { "click": { "button": "Contoso.Orders-1.1.0.zip" }, "say": "Click Contoso.Orders-1.1.0.zip in the Recent list, to open it again" },
+    { "startApp": {} },
+    { "find": { "text": "RECENT" } },
+    { "click": { "button": "Contoso.Orders-1.1.0.zip" } },
     { "call": "waitForHeader", "with": { "title": "Contoso.Orders 1.1.0" } },
-    { "find": { "edit": "Install folder" }, "what": "the Install folder box", "as": "folder" },
-    { "say": "The install folder is the one it was last deployed to, ${folder.value}, without typing it again." },
+    { "find": { "edit": "Install folder" }, "as": "folder" },
     { "call": "goUpToInstallFolder" },
-    { "hover": { "text": "The package is the same version (1.1.0).", "within": { "element": "folderRow", "with": { "path": "${ordersDir}\\main" } } }, "what": "the sign beside main's version", "say": "main is on 1.1.0 already, so the sign beside its version says the package is the same version" },
+    { "checkpoint": "main is marked as the same version",
+      "checks": [
+        { "shows": { "text": "The package is the same version (1.1.0).", "within": { "element": "folderRow", "with": { "path": "${ordersDir}\\main" } } },
+          "within": 10, "label": "main's version sign" }
+      ] },
     { "call": "openFolderInList", "with": { "path": "${ordersDir}\\green" } },
     { "find": "environment", "as": "green" },
-    { "say": "green started out as blue, for Production, and Environment says ${green.selection}." },
     { "call": "goUpToInstallFolder" },
     { "call": "openFolderInList", "with": { "path": "${ordersDir}\\main" } },
     { "find": "environment", "as": "main" },
-    { "hover": { "text": "Reinstall main" }, "say": "Environment says ${main.selection} for main. Below the folders, the plan says Reinstall, as main is already on this version" },
-    { "checkpoint": "NetDeploy remembered what was opened and how each install was set up",
+    { "checkpoint": "NetDeploy remembered what was open and each install's settings",
       "checks": [
-        { "equals": "${folder.value}", "to": "${ordersDir}", "label": "The install folder was filled in as C:\\Apps\\Contoso.Orders" },
-        { "equals": "${green.selection}", "to": "Production", "label": "Environment said Production for green" },
-        { "equals": "${main.selection}", "to": "Staging", "label": "Environment said Staging for main" },
-        { "fileExists": "${settingsFile}", "label": "The remembered settings are in your own settings" },
-        { "fileCount": "${ordersDir}", "pattern": "settings.json", "equals": 0, "recursive": true, "label": "and not in an install" },
-        { "fileCount": "${folderOf(exe)}", "pattern": "settings.json", "equals": 0, "label": "or beside NetDeploy.exe" }
+        { "equals": "${folder.value}", "to": "${ordersDir}", "label": "Install folder" },
+        { "equals": "${green.selection}", "to": "Production", "label": "green's environment" },
+        { "equals": "${main.selection}", "to": "Staging", "label": "main's environment" },
+        { "shows": { "text": "Reinstall main" }, "within": 10, "label": "Plan" },
+        { "fileExists": "${settingsFile}" },
+        { "fileCount": "${ordersDir}", "pattern": "settings.json", "equals": 0, "recursive": true, "label": "settings.json in an install" },
+        { "fileCount": "${folderOf(exe)}", "pattern": "settings.json", "equals": 0, "label": "settings.json beside NetDeploy.exe" }
       ],
       "look": [
-        "The Recent list showed the packages, C:\\Apps\\Contoso.Orders and the editor folder, newest first.",
-        "The payments API key box is empty: secrets are never remembered."
+        "Recent: the packages, C:\\Apps\\Contoso.Orders and the editor folder, newest first.",
+        "The payments API key box is empty."
       ],
       "tools": [
-        { "openFile": "${settingsFile}", "label": "Open the settings" }
+        { "openFile": "${settingsFile}", "label": "settings.json" }
       ] }
   ]
 }

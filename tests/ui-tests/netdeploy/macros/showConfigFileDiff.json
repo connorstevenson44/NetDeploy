@@ -3,6 +3,6 @@
   "description": "Shows one config file's diff in the config review, by clicking its chip.",
   "params": { "name": { "description": "The file's name, as its chip shows it." } },
   "steps": [
-    { "click": { "text": "${name}" }, "how": "mouse", "say": "Show ${name}" }
+    { "click": { "text": "${name}" }, "how": "mouse" }
   ]
 }
