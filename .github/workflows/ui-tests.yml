@@ -68,7 +68,6 @@ jobs:
           New-Item "$suite\packages" -ItemType Directory | Out-Null
           Copy-Item tests\test-packages\dist\*.zip "$suite\packages"
           Set-Content "$bundle\Open test launcher.cmd" '@"%~dp0autotestrunner\autotest.exe" launch "%~dp0netdeploy" %*'
-          Set-Content "$bundle\Open test launcher (step by step).cmd" '@"%~dp0autotestrunner\autotest.exe" launch "%~dp0netdeploy" --mode step-by-step %*'
 
       - uses: actions/upload-artifact@v4
         with:
