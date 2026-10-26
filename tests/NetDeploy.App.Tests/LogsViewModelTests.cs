@@ -4,7 +4,7 @@ using NetDeploy.App.ViewModels;
 
 namespace NetDeploy.App.Tests;
 
-public class LogsViewModelTests : IDisposable
+public sealed class LogsViewModelTests : IDisposable
 {
     private readonly string _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "logs", Path.GetRandomFileName())).FullName;
     private readonly List<IDisposable> _open = [];

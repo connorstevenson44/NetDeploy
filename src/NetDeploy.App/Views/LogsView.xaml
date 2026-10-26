@@ -1,0 +1,218 @@
+<UserControl x:Class="NetDeploy.App.Views.LogsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
+             xmlns:controls="clr-namespace:NetDeploy.App.Controls">
+    <!-- An app's logs, from its nlog.config: the search across the top, the logs down the left (live, then archived,
+         zipped ones too) and the open log on the right. Searching every log marks the ones with matches, and the
+         open log highlights its own. DataContext is a LogsViewModel. -->
+    <UserControl.Resources>
+        <FontFamily x:Key="Code">Cascadia Mono, Consolas</FontFamily>
+
+        <Style x:Key="SearchBox" TargetType="TextBox" BasedOn="{StaticResource MaterialDesignOutlinedTextBox}">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{StaticResource Surface}" />
+            <Setter Property="BorderBrush" Value="{StaticResource InputOutline}" />
+            <Setter Property="materialDesign:TextFieldAssist.HasLeadingIcon" Value="True" />
+            <Setter Property="materialDesign:TextFieldAssist.LeadingIcon" Value="Magnify" />
+            <Setter Property="materialDesign:TextFieldAssist.LeadingIconSize" Value="16" />
+            <Setter Property="materialDesign:TextFieldAssist.HasClearButton" Value="True" />
+            <Setter Property="materialDesign:TextFieldAssist.TextFieldCornerRadius" Value="6" />
+            <Setter Property="materialDesign:HintAssist.IsFloating" Value="False" />
+        </Style>
+
+        <!-- A small toggle beside the search box, such as .* for a regular expression -->
+        <Style x:Key="SearchToggle" TargetType="ToggleButton" BasedOn="{StaticResource MaterialDesignFlatToggleButton}">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        </Style>
+
+        <Style x:Key="SearchButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+        </Style>
+
+        <!-- A heading in the list of logs -->
+        <DataTemplate DataType="{x:Type vm:LogSectionViewModel}">
+            <TextBlock Text="{Binding Title}" Style="{StaticResource SectionLabel}" Margin="14,12,0,4" />
+        </DataTemplate>
+
+        <!-- A log: click it to open it. After a search of every log, a count of its matches shows, and a log
+             without any fades. Its height is its two lines', not a button's usual 32. -->
+        <DataTemplate DataType="{x:Type vm:AppLogViewModel}">
+            <Button x:Name="Row" Command="{Binding DataContext.OpenLogCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    CommandParameter="{Binding}" ToolTip="{Binding Where}" AutomationProperties.Name="{Binding AutomationName}"
+                    Cursor="Hand" Focusable="False" Height="Auto">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Back" Background="Transparent" CornerRadius="4" Margin="6,1" Padding="8,5">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Back" Property="Background" Value="{StaticResource Canvas}" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsOpen}" Value="True">
+                                <Setter TargetName="Back" Property="Background" Value="{StaticResource BrandTint}" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+                <DockPanel>
+                    <Border DockPanel.Dock="Right" Background="{StaticResource SearchHit}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0"
+                            VerticalAlignment="Center" ToolTip="Matches in this log"
+                            Visibility="{Binding HasHits, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding HitsText}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Warning}" />
+                    </Border>
+                    <materialDesign:PackIcon x:Name="Icon" Kind="{Binding Icon}" Width="16" Height="16" Foreground="{StaticResource InkMuted}"
+                                             VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <StackPanel>
+                        <TextBlock x:Name="Name" Text="{Binding Name}" FontFamily="{StaticResource Code}" FontSize="12"
+                                   Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="Detail" Text="{Binding Detail}" FontSize="11" Foreground="{StaticResource InkMuted}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </DockPanel>
+            </Button>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsLive}" Value="True">
+                    <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource Success}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsOpen}" Value="True">
+                    <Setter TargetName="Name" Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsMiss}" Value="True">
+                    <Setter TargetName="Row" Property="Opacity" Value="0.5" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <!-- What the logs come from -->
+        <Border Style="{StaticResource PaneHeader}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource SearchButton}" Command="{Binding RefreshCommand}" ToolTip="Read the logs again">
+                    <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" />
+                </Button>
+                <materialDesign:PackIcon Kind="TextBoxSearchOutline" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                         VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding ConfigPath}"><Run Text="Logs from nlog.config" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding Folder, Mode=OneWay}" Foreground="{StaticResource InkMuted}" FontSize="12" FontFamily="{StaticResource Code}" /></TextBlock>
+            </DockPanel>
+        </Border>
+
+        <!-- The search: in the open log as you type, and in every log with Search all -->
+        <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="10,8,10,6">
+            <StackPanel>
+                <DockPanel>
+                    <Grid DockPanel.Dock="Right" Margin="8,0,0,0">
+                        <Button Style="{StaticResource QuietButton}" Height="32" Padding="10,0" Command="{Binding SearchAllCommand}"
+                                Content="Search all" Tag="{x:Static materialDesign:PackIconKind.FileSearchOutline}" ContentTemplate="{StaticResource IconLabel}"
+                                ToolTip="Search every log, archived and zipped ones too, and mark the ones with matches"
+                                Visibility="{Binding IsSearching, Converter={StaticResource InverseBoolToVisibility}}" />
+                        <Button Style="{StaticResource QuietButton}" Height="32" Padding="10,0" Command="{Binding CancelSearchCommand}"
+                                Content="Stop" Tag="{x:Static materialDesign:PackIconKind.Cancel}" ContentTemplate="{StaticResource IconLabel}"
+                                ToolTip="Stop searching; the logs searched so far stay marked"
+                                Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+                    <TextBlock x:Name="MatchCount" DockPanel.Dock="Right" Text="{Binding MatchText}" FontSize="12" Foreground="{StaticResource InkMuted}"
+                               VerticalAlignment="Center" MinWidth="70" Margin="8,0,0,0" AutomationProperties.AutomationId="MatchCount" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource SearchButton}" Command="{Binding NextMatchCommand}" ToolTip="Next match (Enter)"
+                            AutomationProperties.Name="Next match">
+                        <materialDesign:PackIcon Kind="ChevronDown" Width="18" Height="18" />
+                    </Button>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource SearchButton}" Command="{Binding PreviousMatchCommand}" ToolTip="Previous match (Shift+Enter)"
+                            AutomationProperties.Name="Previous match" Margin="4,0,0,0">
+                        <materialDesign:PackIcon Kind="ChevronUp" Width="18" Height="18" />
+                    </Button>
+                    <ToggleButton DockPanel.Dock="Right" Style="{StaticResource SearchToggle}" IsChecked="{Binding MatchCase}"
+                                  ToolTip="Match case" AutomationProperties.Name="Match case">
+                        <materialDesign:PackIcon Kind="FormatLetterCase" Width="18" Height="18" />
+                    </ToggleButton>
+                    <ToggleButton DockPanel.Dock="Right" Style="{StaticResource SearchToggle}" IsChecked="{Binding IsRegex}"
+                                  ToolTip="Regular expression" AutomationProperties.Name="Regular expression">
+                        <materialDesign:PackIcon Kind="Regex" Width="18" Height="18" />
+                    </ToggleButton>
+                    <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" materialDesign:HintAssist.Hint="Search the log"
+                             AutomationProperties.Name="Search the log" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged, Delay=300}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding NextMatchCommand}" />
+                            <KeyBinding Key="Enter" Modifiers="Shift" Command="{Binding PreviousMatchCommand}" />
+                        </TextBox.InputBindings>
+                    </TextBox>
+                </DockPanel>
+
+                <!-- How the search of every log is going, or how it went; or why the query can't be searched for -->
+                <ProgressBar Height="3" Margin="0,6,0,0" Value="{Binding SearchProgress, Mode=OneWay}" Background="{StaticResource Hairline}" BorderThickness="0"
+                             Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibility}}" />
+                <DockPanel Margin="2,4,0,0" Visibility="{Binding SearchStatus, Converter={StaticResource NullToCollapsed}}">
+                    <ProgressBar DockPanel.Dock="Left" Style="{StaticResource MaterialDesignCircularProgressBar}" IsIndeterminate="True"
+                                 Width="12" Height="12" Margin="0,0,6,0" Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock x:Name="SearchStatus" Text="{Binding SearchStatus}" Style="{StaticResource Caption}" AutomationProperties.AutomationId="SearchStatus" />
+                </DockPanel>
+                <TextBlock Text="{Binding QueryError}" Style="{StaticResource Caption}" Foreground="{StaticResource Danger}" Margin="2,4,0,0"
+                           Visibility="{Binding QueryError, Converter={StaticResource NullToCollapsed}}" />
+            </StackPanel>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" MinWidth="180" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="280" />
+            </Grid.ColumnDefinitions>
+
+            <!-- The logs -->
+            <Grid>
+                <ItemsControl ItemsSource="{Binding Rows}" Style="{StaticResource VirtualList}" Padding="0,0,0,8" />
+                <TextBlock Text="{Binding Problem}" Style="{StaticResource Caption}" Margin="14,14"
+                           Visibility="{Binding Problem, Converter={StaticResource NullToCollapsed}}" />
+            </Grid>
+
+            <GridSplitter Grid.Column="1" Style="{StaticResource PaneSplitter}" />
+
+            <!-- The open log -->
+            <DockPanel Grid.Column="2" Visibility="{Binding HasOpen, Converter={StaticResource BoolToVisibility}}">
+                <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="12,0,8,0" MinHeight="36">
+                    <DockPanel LastChildFill="False">
+                        <ToggleButton DockPanel.Dock="Right" Style="{StaticResource SearchToggle}" IsChecked="{Binding Follow}"
+                                      ToolTip="Follow: keep the newest lines in view as the app writes them" AutomationProperties.Name="Follow"
+                                      Visibility="{Binding Open.IsLive, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                            <materialDesign:PackIcon Kind="ArrowCollapseDown" Width="18" Height="18" />
+                        </ToggleButton>
+                        <ProgressBar DockPanel.Dock="Right" Style="{StaticResource MaterialDesignCircularProgressBar}" IsIndeterminate="True"
+                                     Width="16" Height="16" Margin="8,0" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}" />
+                        <materialDesign:PackIcon Kind="{Binding Open.Icon}" Width="16" Height="16" Foreground="{StaticResource Brand}"
+                                                 VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding Open.Name}" FontFamily="{StaticResource Code}" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Open.Where}" />
+                        <Border Style="{StaticResource Chip}" Margin="8,0,0,0" Background="{StaticResource SuccessTint}" TextElement.Foreground="{StaticResource Success}"
+                                ToolTip="The app is writing to this log now; new lines show as they are written"
+                                Visibility="{Binding Open.IsLive, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                            <TextBlock Text="live" />
+                        </Border>
+                        <TextBlock Text="{Binding Open.Zip, StringFormat=in {0}}" Style="{StaticResource Caption}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                   Visibility="{Binding Open.IsZipped, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
+                    </DockPanel>
+                </Border>
+                <!-- Only the end of a long log is shown, or it can't be read -->
+                <Border DockPanel.Dock="Top" Background="{StaticResource WarningTint}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="12,5"
+                        Visibility="{Binding Note, Converter={StaticResource NullToCollapsed}}">
+                    <DockPanel>
+                        <materialDesign:PackIcon Kind="InformationOutline" Foreground="{StaticResource Warning}" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding Note}" FontSize="12" TextWrapping="Wrap" />
+                    </DockPanel>
+                </Border>
+                <controls:LogViewer Logs="{Binding}" Foreground="{StaticResource Ink}" Background="{StaticResource Surface}" LineNumbersForeground="{StaticResource InkFaint}"
+                               AutomationProperties.Name="{Binding Open.Name, StringFormat=The text of {0}}" />
+            </DockPanel>
+        </Grid>
+    </DockPanel>
+</UserControl>

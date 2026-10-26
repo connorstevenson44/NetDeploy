@@ -3,6 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- Kept in their own file so the UI test can load them without starting the app. -->
     <Application.Resources>
-        <ResourceDictionary Source="Styles.xaml" />
+        <ResourceDictionary Source="Resources/Styles.xaml" />
     </Application.Resources>
 </Application>

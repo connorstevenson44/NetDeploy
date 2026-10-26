@@ -5,8 +5,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using NetDeploy.App.Services;
-using NetDeploy.Core;
-using NetDeploy.Core.Steps;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Installs;
+using NetDeploy.Core.Manifest;
 
 namespace NetDeploy.App.ViewModels;
 
@@ -31,6 +32,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private IReadOnlyCollection<string> _appFiles = [];
     private string? _installFolder;
 
+    /// <param name="user">Asks the person questions and shows them messages.</param>
     /// <param name="settings">What to remember between runs; without it, nothing outlives the window.</param>
     /// <param name="history">Where deploys are recorded and the folder view reads them; without it, they aren't.</param>
     public MainViewModel(IUserInteraction user, UserSettings? settings = null, DeployHistory? history = null)

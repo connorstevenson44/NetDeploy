@@ -1,8 +1,8 @@
 using System.IO;
 using System.Text.Json.Nodes;
 using NetDeploy.App.ViewModels;
-using NetDeploy.Core;
 using NetDeploy.Core.Editing;
+using NetDeploy.Core.Manifest;
 
 namespace NetDeploy.App.Tests;
 

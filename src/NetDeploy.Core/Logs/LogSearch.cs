@@ -2,12 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace NetDeploy.Core.Logs;
 
-/// <summary>Where a match is in a log's text.</summary>
-public readonly record struct LogMatch(int Start, int Length);
-
-/// <summary>How far a search of every log has got: the log just searched and its matches, if one was.</summary>
-public sealed record LogSearchProgress(double Fraction, AppLog? Searched = null, int Matches = 0);
-
 /// <summary>
 /// Searches logs a line at a time, for text as typed or a regular expression. A match never spans lines, the same in
 /// the log on screen as in every log.

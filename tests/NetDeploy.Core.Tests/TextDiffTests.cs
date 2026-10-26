@@ -18,8 +18,8 @@ public class TextDiffTests
         var change = Assert.Single(TextDiff.Compare(before, after));
 
         Assert.Equal(("Information", "Warning"), (before.Substring(change.OldStart, change.OldLength), after.Substring(change.NewStart, change.NewLength)));
-        Assert.Equal(before.IndexOf("Information"), change.OldStart);
-        Assert.Equal(after.IndexOf("Warning"), change.NewStart);
+        Assert.Equal(before.IndexOf("Information", StringComparison.Ordinal), change.OldStart);
+        Assert.Equal(after.IndexOf("Warning", StringComparison.Ordinal), change.NewStart);
     }
 
     [Fact]

@@ -36,7 +36,7 @@ autotest validate tests\ui-tests\netdeploy                         # checks the 
 ```
 
 It finds NetDeploy.exe and the test packages where a build of this repository puts them
-(`artifacts\portable\NetDeploy.exe` and `testpackages\dist`), or next to the suite in the kit. Space pauses and
+(`artifacts\portable\NetDeploy.exe` and `tests\test-packages\dist`), or next to the suite in the kit. Space pauses and
 carries on, Enter goes a step at a time, Esc stops. Results go in `netdeploy\results\<date and time>`: `run.log`,
 `summary.txt`, `junit.xml`, and a screenshot and UI Automation dump of anything it got stuck on.
 

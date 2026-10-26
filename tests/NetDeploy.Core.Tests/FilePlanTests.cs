@@ -1,8 +1,9 @@
+using NetDeploy.Core.Deployment;
 using NetDeploy.Core.Steps;
 
 namespace NetDeploy.Core.Tests;
 
-public class FilePlanTests : IDisposable
+public sealed class FilePlanTests : IDisposable
 {
     private readonly TempFolder _package = new();
     private readonly TempFolder _target = new();
@@ -29,7 +30,7 @@ public class FilePlanTests : IDisposable
         _target.Dispose();
     }
 
-    private CopyFilesStep Step(bool deleteExtra = false) =>
+    private static CopyFilesStep Step(bool deleteExtra = false) =>
         new() { From = "app", To = "{Target}", Preserve = ["data/**"], DeleteExtra = deleteExtra };
 
     private Dictionary<string, string> Variables => new() { ["Target"] = _target.Path };
@@ -47,7 +48,7 @@ public class FilePlanTests : IDisposable
         Assert.Equal((FileState.OnlyOnServer, FileAction.Keep), (Entry(plan, "stale.dll").State, Entry(plan, "stale.dll").Action));
         Assert.Equal(FileAction.Merge, Entry(plan, "appsettings.json").Action);
         Assert.Equal(FileAction.Keep, Entry(plan, "data/seed.db").Action);
-        Assert.DoesNotContain(plan.Entries, entry => entry.Path.StartsWith(".deploy/"));
+        Assert.DoesNotContain(plan.Entries, entry => entry.Path.StartsWith(".deploy/", StringComparison.Ordinal));
     }
 
     [Fact]

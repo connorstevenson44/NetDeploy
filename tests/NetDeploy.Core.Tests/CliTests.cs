@@ -1,4 +1,5 @@
 using NetDeploy.Core.Cli;
+using NetDeploy.Core.Deployment;
 
 namespace NetDeploy.Core.Tests;
 

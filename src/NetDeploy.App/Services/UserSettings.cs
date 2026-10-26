@@ -4,11 +4,6 @@ using System.Text.Json.Serialization;
 
 namespace NetDeploy.App.Services;
 
-public enum RecentKind { Package, Folder, Config }
-
-/// <summary>Something opened before, for the start screen.</summary>
-public sealed record RecentItem(string Path, RecentKind Kind, DateTime Opened);
-
 /// <summary>
 /// What NetDeploy remembers for the person using it: what they opened lately, and the values they last deployed each
 /// app with. It lives in their own %LOCALAPPDATA%\NetDeploy, never beside the app or in an install folder, and holds no

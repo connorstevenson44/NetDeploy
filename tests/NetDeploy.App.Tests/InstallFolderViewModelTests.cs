@@ -1,10 +1,10 @@
 using System.IO;
 using NetDeploy.App.ViewModels;
-using NetDeploy.Core;
+using NetDeploy.Core.Deployment;
 
 namespace NetDeploy.App.Tests;
 
-public class InstallFolderViewModelTests : IDisposable
+public sealed class InstallFolderViewModelTests : IDisposable
 {
     private readonly string _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "folder", Path.GetRandomFileName())).FullName;
 
@@ -59,7 +59,7 @@ public class InstallFolderViewModelTests : IDisposable
         var folder = await OpenAsync();
 
         Assert.Equal(["east", "main"], folder.Installs.Select(install => install.Label));
-        Assert.DoesNotContain(folder.Items.OfType<FolderFileViewModel>(), file => file.RelativePath.StartsWith(".deploy"));
+        Assert.DoesNotContain(folder.Items.OfType<FolderFileViewModel>(), file => file.RelativePath.StartsWith(".deploy", StringComparison.Ordinal));
         Assert.True(File(folder, "appsettings.json").IsConfig);
         Assert.True(File(folder, "Orders.exe").CanRun);
     }
@@ -106,7 +106,7 @@ public class InstallFolderViewModelTests : IDisposable
         logs.ToggleCommand.Execute(null);
         Assert.False(folder.Items.OfType<FolderViewModel>().Single(heading => heading.Path == "logs").IsExpanded);
         Assert.DoesNotContain(folder.Items, item => item is FolderViewModel { Path: "logs/2026" });
-        Assert.DoesNotContain(folder.Items.OfType<FolderFileViewModel>(), file => file.Folder.StartsWith("logs"));
+        Assert.DoesNotContain(folder.Items.OfType<FolderFileViewModel>(), file => file.Folder.StartsWith("logs", StringComparison.Ordinal));
 
         folder.FileFilter = "october";
         Assert.Equal(["logs", "logs/2026"], folder.Items.OfType<FolderViewModel>().Select(heading => heading.Path));

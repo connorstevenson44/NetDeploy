@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using NetDeploy.Core.Editing;
+using NetDeploy.Core.Manifest;
 
 namespace NetDeploy.Core.Tests;
 

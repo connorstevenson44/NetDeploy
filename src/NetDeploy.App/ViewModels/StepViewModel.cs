@@ -1,7 +1,8 @@
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MaterialDesignThemes.Wpf;
-using NetDeploy.Core;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Manifest;
 using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.ViewModels;

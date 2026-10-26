@@ -1,6 +1,8 @@
 using System.Windows;
-using NetDeploy.Core;
+using NetDeploy.App.Views;
 using NetDeploy.Core.Config;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Manifest;
 
 namespace NetDeploy.App.Services;
 

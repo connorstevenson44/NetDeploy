@@ -96,6 +96,3 @@ public sealed record CliOptions
     private static string Next(string[] args, ref int i) =>
         ++i < args.Length ? args[i] : throw new CliException($"{args[i - 1]} needs a value after it.");
 }
-
-/// <summary>A mistake in the command line, explained to the person who typed it.</summary>
-public sealed class CliException(string message) : Exception(message);

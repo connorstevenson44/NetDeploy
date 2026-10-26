@@ -8,9 +8,12 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using NetDeploy.App.Controls;
 using NetDeploy.App.ViewModels;
-using NetDeploy.Core;
+using NetDeploy.App.Views;
 using NetDeploy.Core.Config;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Manifest;
 using NetDeploy.Core.Steps;
 
 namespace NetDeploy.App.Tests;
@@ -31,7 +34,7 @@ public class MainWindowTests
         {
             // A plain Application: App.OnStartup would open a second window and show a message box on errors.
             var app = new Application();
-            app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/NetDeploy;component/Styles.xaml") });
+            app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/NetDeploy;component/Resources/Styles.xaml") });
             Exception? uiError = null;
             app.DispatcherUnhandledException += (_, e) =>
             {

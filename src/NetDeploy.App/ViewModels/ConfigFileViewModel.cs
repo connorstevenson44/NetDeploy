@@ -1,6 +1,5 @@
 using System.IO;
 using System.Text.Json;
-using System.Windows.Input;
 using System.Xml;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -9,34 +8,6 @@ using NetDeploy.Core.Config;
 using NetDeploy.Core.Text;
 
 namespace NetDeploy.App.ViewModels;
-
-/// <summary>What a mark in the editor stands for.</summary>
-public enum MarkKind
-{
-    /// <summary>Text that changes from the server's file: what was there shows struck out, what replaces it in green.</summary>
-    Change,
-
-    /// <summary>A setting that needs the user to pick its value, highlighted until they do.</summary>
-    NeedsChoice,
-
-    /// <summary>Text kept from the server's file where the package has something else, which can be taken instead.</summary>
-    PackageDiffers,
-}
-
-/// <summary>A button on a mark, such as putting the server's text back.</summary>
-public sealed record MarkAction(string Name, PackIconKind Icon, string Tip, ICommand Command);
-
-/// <summary>
-/// A stretch of the file in the editor that differs from the server's file, or needs a choice, with the buttons that
-/// act on it. Start and Length are where it is in the text being edited; Removed is the server's text it replaces.
-/// </summary>
-public sealed record ChangeMark(MarkKind Kind, int Start, int Length, string Removed, string Note, IReadOnlyList<MarkAction> Actions)
-{
-    public int End => Start + Length;
-}
-
-/// <summary>A setting that needs a value, listed above the editor with the ways to settle it.</summary>
-public sealed record SettingChoice(string Path, string Reason, IReadOnlyList<MarkAction> Actions);
 
 /// <summary>
 /// One file in a track-changes editor: the whole file as it will be written, editable as text, with what differs from

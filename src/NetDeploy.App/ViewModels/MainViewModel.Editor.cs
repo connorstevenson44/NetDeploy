@@ -3,7 +3,7 @@ using System.Windows;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using NetDeploy.App.Services;
-using NetDeploy.Core;
+using NetDeploy.Core.Manifest;
 
 namespace NetDeploy.App.ViewModels;
 

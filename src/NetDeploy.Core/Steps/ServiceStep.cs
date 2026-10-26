@@ -1,10 +1,8 @@
 using System.Diagnostics;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Processes;
 
 namespace NetDeploy.Core.Steps;
-
-public enum ServiceAction { Install, Start, Stop, Uninstall }
-
-public enum ServiceStartup { Automatic, DelayedAutomatic, Manual, Disabled }
 
 /// <summary>Manages a Windows service. "install" creates the service, or updates it if it already exists.</summary>
 public sealed class ServiceStep : DeployStep

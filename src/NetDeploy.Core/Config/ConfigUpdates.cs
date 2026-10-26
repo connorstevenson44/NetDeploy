@@ -2,30 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace NetDeploy.Core.Config;
 
-public enum ConfigFileKind
-{
-    /// <summary>The package's file merged with the server's copy.</summary>
-    Update,
-
-    /// <summary>The server has no copy yet, so the package's file is used as is.</summary>
-    New,
-
-    /// <summary>A server-only override, such as appsettings.Production.json, checked against the new appsettings.json.</summary>
-    Override,
-
-    /// <summary>A file on the server opened for editing, outside any deploy.</summary>
-    Edit,
-}
-
-/// <summary>A config file the deploy will write, with the merge to review.</summary>
-public sealed record ConfigFileUpdate(string TargetPath, ConfigFileKind Kind, MergePlan Plan, string? PackageText)
-{
-    public string FileName => Path.GetFileName(TargetPath);
-
-    /// <summary>True when the user should look at this file before it is written.</summary>
-    public bool NeedsReview => Kind == ConfigFileKind.New || Plan.Rows.Any(row => row.IsChanged || row.Choice is null);
-}
-
 /// <summary>
 /// Works out how each config file in a package should land on the server, following how .NET layers
 /// configuration: appsettings.json ships with the app and decides which settings exist, and
@@ -41,6 +17,7 @@ public static partial class ConfigUpdates
     /// <param name="source">The package folder being copied.</param>
     /// <param name="target">The folder it is copied to.</param>
     /// <param name="configFiles">Config files in the package, relative to source.</param>
+    /// <param name="options">How to merge the settings the server changed with the package's.</param>
     /// <param name="variables">The deploy's settings, which fill {{Name}} and {{Name|Default}} values in the package's files.</param>
     public static IReadOnlyList<ConfigFileUpdate> Plan(string source, string target, IEnumerable<string> configFiles, MergeOptions options,
         IReadOnlyDictionary<string, string>? variables = null)
@@ -54,7 +31,7 @@ public static partial class ConfigUpdates
             var update = File.Exists(targetPath)
                 ? new ConfigFileUpdate(targetPath, ConfigFileKind.Update,
                     ConfigMerger.Plan(ReadBase(targetPath), File.ReadAllText(targetPath), incoming, format, options), incoming)
-                : new ConfigFileUpdate(targetPath, ConfigFileKind.New, ConfigMerger.PlanNew(incoming, format), incoming);
+                : new ConfigFileUpdate(targetPath, ConfigFileKind.New, ConfigMerger.PlanNewFile(incoming, format), incoming);
             updates.Add(update);
 
             if (Path.GetFileName(relative).Equals(BaseSettings, StringComparison.OrdinalIgnoreCase))

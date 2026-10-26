@@ -1,8 +1,9 @@
 using System.IO;
 using NetDeploy.App.Services;
 using NetDeploy.App.ViewModels;
-using NetDeploy.Core;
 using NetDeploy.Core.Config;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Manifest;
 
 namespace NetDeploy.App.Tests;
 

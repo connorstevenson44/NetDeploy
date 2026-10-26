@@ -1,0 +1,490 @@
+<UserControl x:Class="NetDeploy.App.Views.EditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:vm="clr-namespace:NetDeploy.App.ViewModels"
+             xmlns:editing="clr-namespace:NetDeploy.Core.Editing;assembly=NetDeploy.Core"
+             xmlns:converters="clr-namespace:NetDeploy.App.Converters">
+    <!-- The deploy.json editor: the steps on the left, the selected one's form on the right, problems below it.
+         Split by hairlines rather than nested cards, so the form gets the room. DataContext is an EditorViewModel. -->
+    <UserControl.Resources>
+        <Style x:Key="CodeBox" TargetType="TextBox" BasedOn="{StaticResource InputBox}">
+            <Setter Property="AcceptsReturn" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="MinHeight" Value="72" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style x:Key="Help" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Setter Property="Margin" Value="1,5,0,0" />
+            <Setter Property="Visibility" Value="{Binding Description, Converter={StaticResource NullToCollapsed}}" />
+        </Style>
+        <Style x:Key="FieldError" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Setter Property="Foreground" Value="{StaticResource Danger}" />
+            <Setter Property="Margin" Value="1,5,0,0" />
+            <Setter Property="Visibility" Value="{Binding Error, Converter={StaticResource NullToCollapsed}}" />
+        </Style>
+
+        <!-- A box of related settings: a check, a schedule, a condition, the parameters -->
+        <Style x:Key="FieldGroup" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{StaticResource Hairline}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14,12,14,14" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+        <Style x:Key="GroupTitle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- One half of the Form / JSON switch -->
+        <Style x:Key="Segment" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource InkMuted}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Box" Background="Transparent" CornerRadius="4" Padding="12,4">
+                            <ContentPresenter TextElement.FontSize="12" TextElement.FontWeight="SemiBold" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource Ink}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{StaticResource Surface}" />
+                                <Setter Property="Foreground" Value="{StaticResource Brand}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Text, numbers, lines, JSON, yes/no and choices: one template, picked by the field's kind -->
+        <DataTemplate DataType="{x:Type vm:ValueFieldViewModel}">
+            <StackPanel Margin="0,0,0,16">
+                <TextBlock x:Name="Label" Text="{Binding Label}" Style="{StaticResource FieldLabel}" />
+                <TextBox x:Name="Box" Style="{StaticResource InputBox}" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Label}" />
+                <CheckBox x:Name="Check" IsChecked="{Binding IsChecked}" Visibility="Collapsed" AutomationProperties.Name="{Binding Label}">
+                    <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+                </CheckBox>
+                <ComboBox x:Name="Choice" Style="{StaticResource InputChoice}" AutomationProperties.Name="{Binding Label}"
+                          ItemsSource="{Binding Options}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Text}"
+                          Visibility="Collapsed" />
+                <TextBlock Text="{Binding Description}" Style="{StaticResource Help}" />
+                <TextBlock Text="{Binding Error}" Style="{StaticResource FieldError}" />
+            </StackPanel>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Kind}" Value="{x:Static editing:FieldKind.Lines}">
+                    <Setter TargetName="Box" Property="Style" Value="{StaticResource CodeBox}" />
+                    <Setter TargetName="Box" Property="materialDesign:HintAssist.Hint" Value="One per line" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="{x:Static editing:FieldKind.Json}">
+                    <Setter TargetName="Box" Property="Style" Value="{StaticResource CodeBox}" />
+                    <Setter TargetName="Box" Property="materialDesign:HintAssist.Hint" Value="JSON" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="{x:Static editing:FieldKind.YesNo}">
+                    <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
+                    <Setter TargetName="Box" Property="Visibility" Value="Collapsed" />
+                    <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="{x:Static editing:FieldKind.Choice}">
+                    <Setter TargetName="Box" Property="Visibility" Value="Collapsed" />
+                    <Setter TargetName="Choice" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- A check, a schedule: settings inside a setting -->
+        <DataTemplate DataType="{x:Type vm:GroupFieldViewModel}">
+            <Border Style="{StaticResource FieldGroup}" Padding="14,12,14,0">
+                <StackPanel>
+                    <TextBlock Text="{Binding Label}" Style="{StaticResource GroupTitle}" />
+                    <TextBlock Text="{Binding Description}" Style="{StaticResource Help}" Margin="0,2,0,0" />
+                    <ItemsControl ItemsSource="{Binding Fields}" Focusable="False" Margin="0,12,0,0">
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="Visibility" Value="{Binding IsShown, Converter={StaticResource BoolToVisibility}}" />
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- What removing the install does for the step -->
+        <DataTemplate DataType="{x:Type vm:CleanupFieldViewModel}">
+            <Border Style="{StaticResource FieldGroup}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="DeleteSweepOutline" Width="16" Height="16" Foreground="{StaticResource Brand}" VerticalAlignment="Center" />
+                        <TextBlock Text="When the install is removed" Style="{StaticResource GroupTitle}" Margin="8,0,0,0" />
+                    </StackPanel>
+                    <TextBlock x:Name="Automatic" Text="{Binding Automatic}" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                    <HeaderedContentControl x:Name="ScriptField" Style="{StaticResource Field}" Header="Then run this PowerShell" Margin="0,12,0,0">
+                        <TextBox Style="{StaticResource CodeBox}" materialDesign:HintAssist.Hint="Remove-Item 'D:\Data\{Instance}' -Recurse"
+                                 Text="{Binding Script, UpdateSourceTrigger=PropertyChanged}" />
+                    </HeaderedContentControl>
+                    <TextBlock x:Name="StepsNote" Style="{StaticResource Caption}" Margin="0,12,0,0" Visibility="Collapsed"
+                               Text="This file writes its cleanup as steps, the older form, and they replace the undo above. Empty the box to use PowerShell instead." />
+                    <HeaderedContentControl x:Name="StepsField" Style="{StaticResource Field}" Header="Cleanup steps (JSON)" Margin="0,8,0,0" Visibility="Collapsed">
+                        <TextBox Style="{StaticResource CodeBox}" Text="{Binding StepsJson, UpdateSourceTrigger=PropertyChanged}" />
+                    </HeaderedContentControl>
+                    <TextBlock Text="{Binding Error}" Style="{StaticResource FieldError}" />
+                </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsSteps}" Value="True">
+                    <Setter TargetName="ScriptField" Property="Visibility" Value="Collapsed" />
+                    <Setter TargetName="StepsNote" Property="Visibility" Value="Visible" />
+                    <Setter TargetName="StepsField" Property="Visibility" Value="Visible" />
+                    <Setter TargetName="Automatic" Property="TextDecorations" Value="Strikethrough" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- When a step runs, or which way an if goes -->
+        <DataTemplate DataType="{x:Type vm:ConditionFieldViewModel}">
+            <Border Style="{StaticResource FieldGroup}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="SourceBranch" Width="16" Height="16" Foreground="{StaticResource Brand}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Label}" Style="{StaticResource GroupTitle}" Margin="8,0,0,0" />
+                    </StackPanel>
+                    <ComboBox Style="{StaticResource InputChoice}" Margin="0,12,0,0"
+                              ItemsSource="{Binding Modes}" DisplayMemberPath="Label" SelectedValuePath="Mode" SelectedValue="{Binding Mode}" />
+                    <HeaderedContentControl x:Name="AskField" Style="{StaticResource Field}" Header="Question" Margin="0,12,0,0" Visibility="Collapsed">
+                        <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="Run the migration now?"
+                                 Text="{Binding Ask, UpdateSourceTrigger=PropertyChanged}" />
+                    </HeaderedContentControl>
+                    <Grid x:Name="EqualsFields" Margin="0,12,0,0" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <HeaderedContentControl Style="{StaticResource Field}" Header="Value">
+                            <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{}{Environment}"
+                                     Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" />
+                        </HeaderedContentControl>
+                        <HeaderedContentControl Grid.Column="2" Style="{StaticResource Field}" Header="Equals">
+                            <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="Production"
+                                     Text="{Binding EqualsValue, UpdateSourceTrigger=PropertyChanged}" />
+                        </HeaderedContentControl>
+                    </Grid>
+                    <HeaderedContentControl x:Name="ScriptField" Style="{StaticResource Field}" Header="PowerShell" Margin="0,12,0,0" Visibility="Collapsed">
+                        <TextBox Style="{StaticResource CodeBox}" materialDesign:HintAssist.Hint="Its last line is True or False"
+                                 Text="{Binding Script, UpdateSourceTrigger=PropertyChanged}" />
+                    </HeaderedContentControl>
+                    <HeaderedContentControl x:Name="JsonField" Style="{StaticResource Field}" Header="Condition (JSON)" Margin="0,12,0,0" Visibility="Collapsed">
+                        <TextBox Style="{StaticResource CodeBox}" Text="{Binding AdvancedJson, UpdateSourceTrigger=PropertyChanged}" />
+                    </HeaderedContentControl>
+                    <TextBlock Text="{Binding Description}" Style="{StaticResource Help}" />
+                    <TextBlock Text="{Binding Error}" Style="{StaticResource FieldError}" />
+                </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Mode}" Value="{x:Static vm:ConditionMode.Ask}">
+                    <Setter TargetName="AskField" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Mode}" Value="{x:Static vm:ConditionMode.ValueEquals}">
+                    <Setter TargetName="EqualsFields" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Mode}" Value="{x:Static vm:ConditionMode.PowerShell}">
+                    <Setter TargetName="ScriptField" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Mode}" Value="{x:Static vm:ConditionMode.Advanced}">
+                    <Setter TargetName="JsonField" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- Parameters, or a step's inputs: a small block per value, two fields to a row, so it fits a narrow form -->
+        <DataTemplate DataType="{x:Type vm:InputsFieldViewModel}">
+            <Border Style="{StaticResource FieldGroup}" Padding="14,10,14,14">
+                <StackPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Height="30" Command="{Binding AddCommand}"
+                                Content="Add" Tag="{x:Static materialDesign:PackIconKind.Plus}" ContentTemplate="{StaticResource IconLabel}" />
+                        <TextBlock Text="{Binding Label}" Style="{StaticResource GroupTitle}" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding Description}" Style="{StaticResource Help}" Margin="0,0,0,4" />
+                    <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource Canvas}" CornerRadius="6" Padding="12,10,8,8" Margin="0,8,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <HeaderedContentControl Style="{StaticResource Field}" Header="Name" Margin="0,0,0,10">
+                                            <TextBox Style="{StaticResource InputBox}" Background="{StaticResource Surface}" FontFamily="Cascadia Mono, Consolas"
+                                                     Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" ToolTip="Steps use it as {Name}" />
+                                        </HeaderedContentControl>
+                                        <HeaderedContentControl Grid.Column="2" Style="{StaticResource Field}" Header="Label" Margin="0,0,4,10">
+                                            <TextBox Style="{StaticResource InputBox}" Background="{StaticResource Surface}"
+                                                     materialDesign:HintAssist.Hint="Shown on the form" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" />
+                                        </HeaderedContentControl>
+                                        <HeaderedContentControl Grid.Row="1" Style="{StaticResource Field}" Header="Type" Margin="0,0,0,10">
+                                            <ComboBox Style="{StaticResource InputChoice}" Background="{StaticResource Surface}"
+                                                      ItemsSource="{x:Static vm:InputRowViewModel.Types}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Type}" />
+                                        </HeaderedContentControl>
+                                        <HeaderedContentControl Grid.Row="1" Grid.Column="2" Style="{StaticResource Field}" Header="Default" Margin="0,0,4,10">
+                                            <TextBox Style="{StaticResource InputBox}" Background="{StaticResource Surface}"
+                                                     materialDesign:HintAssist.Hint="None" Text="{Binding Default, UpdateSourceTrigger=PropertyChanged}" />
+                                        </HeaderedContentControl>
+                                        <HeaderedContentControl Grid.Row="2" Grid.ColumnSpan="3" Style="{StaticResource Field}" Header="Choices" Margin="0,0,4,10"
+                                                                Visibility="{Binding IsChoice, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBox Style="{StaticResource InputBox}" Background="{StaticResource Surface}"
+                                                     materialDesign:HintAssist.Hint="Separated by commas" Text="{Binding Options, UpdateSourceTrigger=PropertyChanged}" />
+                                        </HeaderedContentControl>
+                                        <DockPanel Grid.Row="3" Grid.ColumnSpan="3">
+                                            <Button DockPanel.Dock="Right" Style="{StaticResource QuietButton}" Height="28" Padding="8,0" Foreground="{StaticResource Danger}"
+                                                    Content="Remove" Tag="{x:Static materialDesign:PackIconKind.TrashCanOutline}" ContentTemplate="{StaticResource IconLabel}"
+                                                    Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <CheckBox Content="Optional" IsChecked="{Binding Optional}" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <TextBlock Grid.Row="4" Grid.ColumnSpan="3" Text="{Binding Problem}" Foreground="{StaticResource Danger}" FontSize="12" Margin="1,4,0,0"
+                                                   Visibility="{Binding Problem, Converter={StaticResource NullToCollapsed}}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="250" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- The outline: app settings, then each step, with if branches indented -->
+        <DockPanel>
+            <Border Style="{StaticResource PaneHeader}" Padding="14,0,6,0">
+                <DockPanel>
+                    <materialDesign:PopupBox DockPanel.Dock="Right" PlacementMode="BottomAndAlignRightEdges" StaysOpen="False" ToolTip="Add a step after the selected one">
+                        <materialDesign:PopupBox.ToggleContent>
+                            <Border Background="{StaticResource Brand}" CornerRadius="6" Padding="10,5">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Plus" Foreground="White" Width="16" Height="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="Add step" Foreground="White" FontSize="12" FontWeight="SemiBold" Margin="6,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </materialDesign:PopupBox.ToggleContent>
+                        <ItemsControl ItemsSource="{Binding StepTypes}" Width="340" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource MaterialDesignFlatButton}" Height="Auto" Padding="14,8" HorizontalContentAlignment="Left"
+                                            Command="{Binding DataContext.AddStepCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                        <DockPanel>
+                                            <materialDesign:PackIcon DockPanel.Dock="Left" Kind="{Binding Type, Converter={x:Static converters:StepIconConverter.Instance}}"
+                                                                     Width="20" Height="20" Foreground="{StaticResource Brand}" Margin="0,2,12,0" VerticalAlignment="Top" />
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Label}" Foreground="{StaticResource Ink}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" FontWeight="Normal" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </materialDesign:PopupBox>
+                    <TextBlock Text="STEPS" Style="{StaticResource SectionLabel}" />
+                </DockPanel>
+            </Border>
+
+            <!-- Move and delete the selected step -->
+            <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="8,4">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource MaterialDesignIconButton}" Width="32" Height="32" Command="{Binding MoveUpCommand}" ToolTip="Move up">
+                        <materialDesign:PackIcon Kind="ArrowUp" Width="18" Height="18" />
+                    </Button>
+                    <Button Style="{StaticResource MaterialDesignIconButton}" Width="32" Height="32" Command="{Binding MoveDownCommand}" ToolTip="Move down">
+                        <materialDesign:PackIcon Kind="ArrowDown" Width="18" Height="18" />
+                    </Button>
+                    <Button Style="{StaticResource MaterialDesignIconButton}" Width="32" Height="32" Command="{Binding DeleteCommand}" ToolTip="Delete the step"
+                            Foreground="{StaticResource Danger}">
+                        <materialDesign:PackIcon Kind="TrashCanOutline" Width="18" Height="18" />
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <ListBox ItemsSource="{Binding Rows}" SelectedItem="{Binding Selected}" Padding="6,6" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
+                        <Setter Property="Padding" Value="8,6" />
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <DockPanel Margin="{Binding Indent}">
+                            <materialDesign:PackIcon DockPanel.Dock="Right" Kind="AlertCircleOutline" Foreground="{StaticResource Warning}" Width="16" Height="16"
+                                                     VerticalAlignment="Center" Margin="6,0,0,0" ToolTip="This step has a problem" Background="Transparent"
+                                                     Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}" />
+                            <materialDesign:PackIcon x:Name="Icon" DockPanel.Dock="Left" Kind="{Binding Icon}" Foreground="{StaticResource Brand}" Width="18" Height="18"
+                                                     VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Title}" />
+                        </DockPanel>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static vm:EditorRowKind.Branch}">
+                                <Setter TargetName="Title" Property="Foreground" Value="{StaticResource InkMuted}" />
+                                <Setter TargetName="Title" Property="FontSize" Value="12" />
+                                <Setter TargetName="Title" Property="FontWeight" Value="SemiBold" />
+                                <Setter TargetName="Icon" Property="Foreground" Value="{StaticResource InkFaint}" />
+                                <Setter TargetName="Icon" Property="Width" Value="15" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static vm:EditorRowKind.Settings}">
+                                <Setter TargetName="Title" Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <Border Grid.Column="1" Width="1" Background="{StaticResource Hairline}" />
+
+        <!-- The selected step's form, or the app settings; problems below -->
+        <DockPanel Grid.Column="2">
+            <DockPanel DockPanel.Dock="Top" Margin="18,14,14,10">
+                <Border DockPanel.Dock="Right" Background="{StaticResource Canvas}" CornerRadius="6" Padding="2" VerticalAlignment="Top" Margin="12,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource Segment}" Content="Form" IsChecked="True" GroupName="EditorView" />
+                        <RadioButton x:Name="JsonView" Style="{StaticResource Segment}" Content="JSON" GroupName="EditorView" />
+                    </StackPanel>
+                </Border>
+                <materialDesign:PackIcon DockPanel.Dock="Left" Kind="{Binding SelectedIcon}" Width="24" Height="24" Foreground="{StaticResource Brand}"
+                                         VerticalAlignment="Top" Margin="0,0,12,0" />
+                <StackPanel>
+                    <TextBlock Text="{Binding SelectedTitle}" Style="{StaticResource PanelTitle}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding SelectedSchema.Description}" Style="{StaticResource Caption}" Margin="0,2,0,0"
+                               Visibility="{Binding SelectedSchema, Converter={StaticResource NullToCollapsed}}" />
+                </StackPanel>
+            </DockPanel>
+
+            <!-- What NetDeploy would say about this config; click one to go to its step -->
+            <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" MaxHeight="170">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="{StaticResource Surface}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasProblems}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource WarningTint}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="18,10,14,10">
+                        <materialDesign:PackIcon Width="18" Height="18" VerticalAlignment="Center">
+                            <materialDesign:PackIcon.Style>
+                                <Style TargetType="materialDesign:PackIcon">
+                                    <Setter Property="Kind" Value="CheckCircle" />
+                                    <Setter Property="Foreground" Value="{StaticResource Success}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasProblems}" Value="True">
+                                            <Setter Property="Kind" Value="AlertOutline" />
+                                            <Setter Property="Foreground" Value="{StaticResource Warning}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </materialDesign:PackIcon.Style>
+                        </materialDesign:PackIcon>
+                        <TextBlock Text="{Binding ProblemSummary}" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding HasProblems, Converter={StaticResource BoolToVisibility}}">
+                        <ItemsControl ItemsSource="{Binding Problems}" Focusable="False" Margin="10,0,10,8">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource MaterialDesignFlatButton}" Height="Auto" Padding="8,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                            Command="{Binding DataContext.SelectProblemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                        <TextBlock TextWrapping="Wrap" FontWeight="Normal"><Run Text="{Binding Where, Mode=OneWay}" Foreground="{StaticResource Ink}" FontWeight="SemiBold" /><Run Text=": " Foreground="{StaticResource Ink}" /><Run Text="{Binding Message, Mode=OneWay}" Foreground="{StaticResource InkMuted}" /></TextBlock>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <Grid>
+                <!-- MaterialDesign's scroll viewer ignores Padding, so the space is a margin on the form. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              Visibility="{Binding IsChecked, ElementName=JsonView, Converter={StaticResource InverseBoolToVisibility}}">
+                    <Grid Margin="18,6,18,4">
+                        <!-- App settings and parameters -->
+                        <StackPanel Visibility="{Binding IsSettingsSelected, Converter={StaticResource BoolToVisibility}}">
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <HeaderedContentControl Style="{StaticResource Field}" Header="App name *">
+                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="App name" />
+                                </HeaderedContentControl>
+                                <HeaderedContentControl Grid.Column="2" Style="{StaticResource Field}" Header="Version *">
+                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding AppVersion, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Version" />
+                                </HeaderedContentControl>
+                            </Grid>
+                            <HeaderedContentControl Style="{StaticResource Field}" Header="Install folder">
+                                <TextBox Style="{StaticResource InputBox}" materialDesign:HintAssist.Hint="{}{InstallDir}"
+                                         Text="{Binding InstallFolder, UpdateSourceTrigger=PropertyChanged}" />
+                            </HeaderedContentControl>
+                            <TextBlock Style="{StaticResource Caption}" Margin="1,5,0,16"
+                                       Text="Each install gets its own folder in here, which steps use as {InstanceDir}. Leave it empty if the app isn't installed into a folder." />
+                            <CheckBox IsChecked="{Binding RequiresAdmin}" Margin="0,0,0,16" VerticalContentAlignment="Top">
+                                <StackPanel>
+                                    <TextBlock Text="Needs administrator rights" />
+                                    <TextBlock Text="NetDeploy restarts as administrator before it deploys." Style="{StaticResource Caption}" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </CheckBox>
+                            <ContentControl Content="{Binding Parameters}" Focusable="False" />
+                        </StackPanel>
+
+                        <!-- The selected step -->
+                        <ItemsControl ItemsSource="{Binding Fields}" Focusable="False"
+                                      Visibility="{Binding IsSettingsSelected, Converter={StaticResource InverseBoolToVisibility}}" />
+
+                        <!-- A branch: its steps are added from the outline -->
+                        <TextBlock FontSize="13" Text="Select this branch and use Add step to put a step in it.">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Selected.Kind}" Value="{x:Static vm:EditorRowKind.Branch}">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </ScrollViewer>
+
+                <TextBox Text="{Binding Json, Mode=OneWay}" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="12" Padding="18,6"
+                         BorderThickness="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                         materialDesign:TextFieldAssist.DecorationVisibility="Collapsed"
+                         Visibility="{Binding IsChecked, ElementName=JsonView, Converter={StaticResource BoolToVisibility}}" />
+            </Grid>
+        </DockPanel>
+    </Grid>
+</UserControl>

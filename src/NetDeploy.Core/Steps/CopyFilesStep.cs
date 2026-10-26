@@ -1,5 +1,7 @@
 using Microsoft.Extensions.FileSystemGlobbing;
 using NetDeploy.Core.Config;
+using NetDeploy.Core.Deployment;
+using NetDeploy.Core.Manifest;
 
 namespace NetDeploy.Core.Steps;
 

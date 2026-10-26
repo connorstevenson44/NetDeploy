@@ -1,10 +1,10 @@
 using System.IO;
 using NetDeploy.App.ViewModels;
-using NetDeploy.Core;
+using NetDeploy.Core.Deployment;
 
 namespace NetDeploy.App.Tests;
 
-public class InstallViewModelTests : IDisposable
+public sealed class InstallViewModelTests : IDisposable
 {
     private readonly string _folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "NetDeployUiTest", "installs", Path.GetRandomFileName())).FullName;
 
