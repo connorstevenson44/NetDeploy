@@ -12,8 +12,10 @@ Take the **UiTests-ReadyToRun** artifact from any run of the UI tests workflow (
 Artifacts), unzip it and double-click `Open test launcher.cmd`. It asks for administrator, then opens the launcher:
 tick the cases, pick how it runs and how fast, and Start. The launcher shows how each case went last time, and whether
 an earlier run left services, tasks or folders behind, with a button that cleans them up. Step by step, beside Start,
-waits for Enter before every step. **New case**, and the pencil on each case, open the builder, which records a case
-as you use NetDeploy: see [Building a case](https://github.com/connorstevenson44/AutoTestRunner#building-a-case).
+waits for Enter before every step. **New case** opens the builder, which records a case as you use NetDeploy: see
+[Building a case](https://github.com/connorstevenson44/AutoTestRunner#building-a-case). The pencil on a case opens it
+to change: the builder plays it to any step, rolls back to one, or records again from one, and marks the cases that
+carry on from it as needing a look, with a warning in the launcher.
 
 The kit has the test runner (`autotestrunner\autotest.exe`), the suite, NetDeploy.exe and the test packages, and needs
 no .NET runtime. Arguments after the `.cmd` go to `autotest launch`, so `"Open test launcher.cmd" --cases 3-5` ticks
