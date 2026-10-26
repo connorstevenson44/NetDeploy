@@ -6,8 +6,7 @@
     "within": { "description": "Seconds to wait.", "default": "180" }
   },
   "steps": [
-    { "waitText": "statusText", "startsWith": "${startsWith}", "new": true, "within": "${within}", "as": "status",
-      "what": "the bar at the bottom of NetDeploy" }
+    { "waitText": "statusText", "startsWith": "${startsWith}", "new": true, "within": "${within}", "as": "status", "what": "status bar" }
   ],
   "returns": "status"
 }

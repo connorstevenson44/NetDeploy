@@ -3,7 +3,6 @@
   "description": "Goes into a folder in the folder list on the left, by its full path.",
   "params": { "path": { "description": "The folder's full path, which is its row's tooltip." } },
   "steps": [
-    { "click": { "element": "folderRow", "with": { "path": "${path}" } }, "what": "the ${fileName(path)} folder on the left",
-      "say": "Go into ${fileName(path)}" }
+    { "click": { "element": "folderRow", "with": { "path": "${path}" } }, "what": "${fileName(path)}" }
   ]
 }

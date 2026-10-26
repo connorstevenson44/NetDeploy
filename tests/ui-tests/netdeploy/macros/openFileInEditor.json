@@ -3,6 +3,6 @@
   "description": "Opens a file in the Files tab's editor, with the Edit button on its row.",
   "params": { "path": { "description": "The file's path from the folder listed." } },
   "steps": [
-    { "call": "clickFileRowButton", "with": { "path": "${path}", "tip": "Edit", "say": "Edit ${path}" } }
+    { "call": "clickFileRowButton", "with": { "path": "${path}", "tip": "Edit" } }
   ]
 }

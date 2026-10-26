@@ -3,13 +3,10 @@
   "description": "One of the buttons that show when the mouse is over an install's row, such as Clone or Remove.",
   "params": {
     "path": { "description": "The install's full path." },
-    "tip": { "description": "The button's tooltip." },
-    "say": { "description": "What clicking it does." }
+    "tip": { "description": "The button's tooltip." }
   },
   "steps": [
-    { "hover": { "element": "folderRow", "with": { "path": "${path}" } }, "what": "the ${fileName(path)} folder on the left",
-      "say": "Point at ${fileName(path)} to show its buttons" },
-    { "click": { "element": "installButton", "with": { "path": "${path}", "tip": "${tip}" } }, "what": "the button to ${say}",
-      "say": "${say}" }
+    { "hover": { "element": "folderRow", "with": { "path": "${path}" } }, "what": "${fileName(path)}" },
+    { "click": { "element": "installButton", "with": { "path": "${path}", "tip": "${tip}" } }, "what": "${tip}" }
   ]
 }

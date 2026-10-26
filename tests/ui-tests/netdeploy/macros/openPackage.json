@@ -3,7 +3,7 @@
   "description": "Opens a package zip with Open package and the Windows file picker.",
   "params": { "zip": { "description": "The package's full path." } },
   "steps": [
-    { "click": { "button": "Open package" }, "say": "Click Open package" },
-    { "pickFile": "Open a deploy package", "path": "${zip}", "say": "Pick ${fileName(zip)}" }
+    { "click": { "button": "Open package" } },
+    { "pickFile": "Open a deploy package", "path": "${zip}" }
   ]
 }

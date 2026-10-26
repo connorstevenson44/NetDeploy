@@ -1,12 +1,12 @@
 {
   "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/macro.schema.json",
-  "description": "Goes through the steps NetDeploy asks about one at a time while it removes an install, until the bar at the bottom says it is done.",
+  "description": "Answers each step of a removal in the Remove install window, until the bar at the bottom says it is done.",
   "params": {
     "choice": { "description": "What to do with each step: run, stop at the first, or lastOnly to skip all but the last.", "default": "run" }
   },
   "steps": [
     { "whileShows": "removeWindow", "untilText": "statusText", "matches": "^(Removed |Removing .* had errors|Removal stopped)", "new": true,
-      "within": 300, "as": "status", "what": "the removal finishing",
+      "within": 300, "as": "status",
       "steps": [ { "call": "answerRemovalStep", "with": { "choice": "${choice}" } } ] }
   ],
   "returns": "status"

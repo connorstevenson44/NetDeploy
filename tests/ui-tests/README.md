@@ -2,8 +2,8 @@
 
 NetDeploy's manual test plan as 23 automated UI test cases, run by
 [AutoTestRunner](https://github.com/connorstevenson44/AutoTestRunner): a C# test runner on FlaUI whose cases are JSON.
-The mouse moves to each control, it is outlined in orange, a panel beside the app says what is happening, and each
-case ends at a checkpoint of checks it makes itself and things to look at. The cases replaced the AutoHotkey runner
+The mouse moves to each control, it is outlined in orange, a panel beside the app lists each step with the controls
+it uses on badges, and each checkpoint shows its checks as expected beside actual, then things to look at. The cases replaced the AutoHotkey runner
 that was in `tests/manual`, and CI runs them on every change in the **UI tests** workflow.
 
 ## Running it on a test machine
@@ -55,24 +55,27 @@ carries on, Enter goes a step at a time, Esc stops. Results go in `netdeploy\res
 | `tools/Reset-TestMachine.ps1` | Removes everything the test packages install, before a run or by hand |
 | `tools/Find-Leftovers.ps1` | What an earlier run left behind |
 | `tools/Show-Services.ps1`, `Show-ScheduledTasks.ps1`, `Show-Database.ps1` | What the checkpoints' Services, Scheduled tasks and Database buttons show |
+| `tools/Count-Deploys.ps1` | How many deploys the history has for an install, or how many were added since a count |
+| `tools/Add-AppLogs.ps1` | Gives an install an nlog.config and archived logs, one zipped |
+| `tools/Add-FailingStep.ps1` | Turns an unzipped 1.1.0 package into a 1.2.0 whose deploy fails before the service starts |
 
 The macros, which cases run with `{ "call": name }`:
 
 | Macro | What it does |
 | --- | --- |
-| `answerRemovalStep` | Answers the Remove install window for one step: says what the step does, then runs it, skips it or stops removing. |
-| `clickFileRowButton` | One of the buttons on a file's row, which in the Files tab show when the mouse is over the row. |
+| `answerRemovalStep` | Answers the Remove install window for one step: runs it, skips it or stops removing. |
+| `clickFileRowButton` | One of the buttons on a file's row in the Files tab, which show when the mouse is over the row. |
 | `clickInstallRowButton` | One of the buttons that show when the mouse is over an install's row, such as Clone or Remove. |
-| `continueInputsWindow` | Continues in a window that asks for a step's details, once it is filled in, and waits for it to close. |
+| `continueInputsWindow` | Clicks Continue in a window that asks for a step's details, and waits for it to close. |
 | `continuePastReview` | Continue, Continue the dry run, or Write files and continue: the button under a review. |
 | `goUpToInstallFolder` | Goes up to the top of the install folder, from wherever the folder list is. |
 | `openFileInEditor` | Opens a file in the Files tab's editor, with the Edit button on its row. |
 | `openFolderInList` | Goes into a folder in the folder list on the left, by its full path. |
 | `openPackage` | Opens a package zip with Open package and the Windows file picker. |
-| `removeInstall` | Removes an install with the Remove button that shows when the mouse is over its row, then goes through each step NetDeploy asks about. |
+| `removeInstall` | Removes an install with the Remove button on its row, then answers each step NetDeploy asks about. |
 | `runShownRemovalStep` | Runs the step the Remove install window shows: ticks I understand, then Run this step. |
 | `showConfigFileDiff` | Shows one config file's diff in the config review, by clicking its chip. |
-| `stepThroughRemoval` | Goes through the steps NetDeploy asks about one at a time while it removes an install, until the bar at the bottom says it is done. |
+| `stepThroughRemoval` | Answers each step of a removal in the Remove install window, until the bar at the bottom says it is done. |
 | `waitForHeader` | Waits for the header to name what is open, such as Contoso.Orders 1.0.0. |
 | `waitForReview` | Waits for one of the deploy's reviews, by its title on the right. |
 | `waitForStatusBar` | Waits for the bar at the bottom to start with startsWith, after the last click changed it. Another window showing up instead, such as a failure's roll back offer, stops the wait. |

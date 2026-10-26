@@ -1,39 +1,38 @@
 {
   "$schema": "https://raw.githubusercontent.com/connorstevenson44/AutoTestRunner/main/schema/case.schema.json",
-  "name": "Look after an install folder without a package",
+  "name": "Manage an install folder without a package",
   "needs": ["clone-main"],
-  "covers": "Open folder, the version of each install, running a program with what to pass it, deleting a file, and Up",
+  "covers": "Open folder, each install's version, running a program with arguments, deleting a file, and Up",
+  "tags": ["files"],
   "steps": [
-    { "click": { "button": "Open folder" }, "say": "Click Open folder" },
-    { "pickFolder": "Open an install folder", "path": "${ordersDir}", "say": "Pick C:\\Apps\\Contoso.Orders" },
+    { "click": { "button": "Open folder" } },
+    { "pickFolder": "Open an install folder", "path": "${ordersDir}" },
     { "call": "waitForHeader", "with": { "title": "Contoso.Orders" } },
-    { "say": "Without a package, the folder is for looking after what is already there: each install, with its version." },
     { "call": "openFolderInList", "with": { "path": "${ordersDir}\\qa" } },
-    { "call": "clickFileRowButton", "with": { "path": "Contoso.Orders.exe", "tip": "Run, with arguments", "say": "Run Contoso.Orders.exe" } },
-    { "find": { "window": "Run Contoso.Orders.exe" }, "within": 120, "what": "the \"Run Contoso.Orders.exe\" window" },
-    { "type": { "edit": "Arguments", "within": { "window": "Run Contoso.Orders.exe" } }, "text": "check", "say": "Type check" },
-    { "call": "continueInputsWindow", "with": { "title": "Run Contoso.Orders.exe", "say": "Ask it to check its settings" } },
+    { "call": "clickFileRowButton", "with": { "path": "Contoso.Orders.exe", "tip": "Run, with arguments" } },
+    { "find": { "window": "Run Contoso.Orders.exe" }, "within": 120 },
+    { "type": { "edit": "Arguments", "within": { "window": "Run Contoso.Orders.exe" } }, "text": "check" },
+    { "call": "continueInputsWindow", "with": { "title": "Run Contoso.Orders.exe" } },
     { "call": "waitForStatusBar", "with": { "startsWith": "Contoso.Orders.exe exited with code" }, "as": "status" },
-    { "tab": "Files", "say": "Open the Files tab" },
-    { "call": "clickFileRowButton", "with": { "path": "README.txt", "tip": "Delete when finalized", "say": "Mark README.txt to be deleted" } },
-    { "click": "finalize", "say": "Click Finalize" },
-    { "answerDialog": "Finalize", "button": "Yes", "expect": "README.txt", "say": "Yes, delete it" },
+    { "tab": "Files" },
+    { "call": "clickFileRowButton", "with": { "path": "README.txt", "tip": "Delete when finalized" } },
+    { "click": "finalize" },
+    { "answerDialog": "Finalize", "button": "Yes", "expect": "README.txt" },
     { "call": "waitForStatusBar", "with": { "startsWith": "Changes written." } },
     { "call": "openFolderInList", "with": { "path": "${ordersDir}\\qa\\templates" } },
-    { "say": "Going into an ordinary folder just lists its files." },
-    { "click": "upOneFolder", "say": "Go up a folder" },
-    { "checkpoint": "The folder was looked after without a package",
+    { "click": "upOneFolder", "what": "Up one folder" },
+    { "checkpoint": "The folder is managed without a package",
       "checks": [
-        { "contains": "${status}", "text": "code 0.", "label": "Contoso.Orders.exe check finished without an error (exit code 0)" },
+        { "contains": "${status}", "text": "code 0.", "label": "Contoso.Orders.exe check" },
         { "fileMissing": "${ordersDir}\\qa\\README.txt" }
       ],
       "look": [
-        "The folder list showed green, main and qa, each on v1.1.0.",
-        "The Log tab shows what the settings check printed, ending Check passed.",
-        "The title bar says Contoso.Orders and C:\\Apps\\Contoso.Orders, and there is no PACKAGE section."
+        "Folder list: green, main and qa, each v1.1.0.",
+        "Log tab: the check's output, ending Check passed.",
+        "Title bar: Contoso.Orders and C:\\Apps\\Contoso.Orders. No PACKAGE section."
       ],
       "tools": [
-        { "openFolder": "${ordersDir}\\qa", "label": "Open qa" }
+        { "openFolder": "${ordersDir}\\qa", "label": "qa" }
       ] }
   ]
 }
